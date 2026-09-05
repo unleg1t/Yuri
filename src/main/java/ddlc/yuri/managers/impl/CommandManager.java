@@ -23,8 +23,17 @@ public class CommandManager {
         addCommand(new ToggleCommand());
         addCommand(new ConfigCommand());
         addCommand(new BindCommand());
+        addCommand(new BindsCommand());
         addCommand(new RotationCommand());
-
+        addCommand(new FriendCommand());
+        addCommand(new NameCommand());
+        addCommand(new HideCommand());
+        addCommand(new ModuleCommand());
+        addCommand(new FakePlayerCommand());
+        addCommand(new VClipCommand());
+        addCommand(new ClientNameCommand());
+        addCommand(new ClientNameCommand());
+        addCommand(new VisualsCommand());
     }
 
     public void addCommand(Command command) {

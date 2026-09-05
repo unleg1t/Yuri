@@ -16,23 +16,24 @@ import net.minecraft.entity.monster.EntityMob;
 import net.minecraft.entity.passive.EntityAnimal;
 import net.minecraft.entity.player.EntityPlayer;
 
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import static ddlc.yuri.utils.misc.IMinecraft.mc;
 
 public class TargetManager {
 
+    private static final Pattern TEAM_COLOR_PATTERN = Pattern.compile("\u00a7(.).*\u00a7r");
+    private static final List<Entity> mutableTargetList = new ArrayList<>();
+
     @Getter
     @Setter
     private static EntityLivingBase target;
     @Getter
-    private static List<Entity> targetList = new CopyOnWriteArrayList<>();
+    private static List<Entity> targetList = mutableTargetList;
     private static final TimerUtils switchTimer = new TimerUtils();
     @Getter
     @Setter
@@ -142,23 +143,41 @@ public class TargetManager {
             }
             target = (EntityLivingBase) targetList.get(targetIndex);
         } else if (mode.equals(Mode.ADAPTIVE)) {
-            target = (EntityLivingBase) targetList.stream()
-                    .min(Comparator.comparingDouble(e -> mc.thePlayer.getDistanceToEntity(e)))
-                    .orElse(null);
+            EntityLivingBase closest = null;
+            double closestDist = Double.MAX_VALUE;
+            for (Entity e : targetList) {
+                double d = mc.thePlayer.getDistanceToEntity(e);
+                if (d < closestDist) {
+                    closestDist = d;
+                    closest = (EntityLivingBase) e;
+                }
+            }
+            target = closest;
         } else {
             throw new IllegalStateException("Unexpected value: " + this.mode);
         }
     }
 
     private List<Entity> getTargets() {
-        return mc.theWorld.loadedEntityList.stream()
-                .filter(entity -> entity instanceof EntityLivingBase)
-                .filter(entity -> entity != mc.thePlayer)
-                .filter(entity -> !entity.isDead)
-                .filter(entity -> ((EntityLivingBase) entity).getHealth() > 0)
-                .filter(entity -> mc.thePlayer.getDistanceToEntity(entity) <= seekRange)
-                .filter(this::isValidEntity)
-                .collect(Collectors.toList());
+        mutableTargetList.clear();
+        List<Entity> loaded = mc.theWorld.loadedEntityList;
+        int size = loaded.size();
+        for (int i = 0; i < size; i++) {
+            Entity entity = loaded.get(i);
+            if (entity == mc.thePlayer || entity.isDead || !(entity instanceof EntityLivingBase)) {
+                continue;
+            }
+            if (((EntityLivingBase) entity).getHealth() <= 0) {
+                continue;
+            }
+            if (mc.thePlayer.getDistanceToEntity(entity) > seekRange) {
+                continue;
+            }
+            if (isValidEntity(entity)) {
+                mutableTargetList.add(entity);
+            }
+        }
+        return mutableTargetList;
     }
 
     private boolean isValidEntity(Entity entity) {
@@ -192,7 +211,7 @@ public class TargetManager {
     }
 
     private static @NonNull String teamColor(@NonNull ICommandSender player) {
-        Matcher matcher = Pattern.compile("\u00a7(.).*\u00a7r").matcher(player.getDisplayName().getFormattedText());
+        Matcher matcher = TEAM_COLOR_PATTERN.matcher(player.getDisplayName().getFormattedText());
         return matcher.find() ? matcher.group(1) : "f";
     }
 }

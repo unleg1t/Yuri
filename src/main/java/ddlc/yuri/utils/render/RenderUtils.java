@@ -4,12 +4,14 @@ import ddlc.yuri.managers.impl.ColorManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.WorldRenderer;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.client.shader.Framebuffer;
 import net.minecraft.util.AxisAlignedBB;
+import net.minecraft.util.BlockPos;
 import net.minecraft.util.ResourceLocation;
 import org.lwjgl.opengl.GL11;
 
@@ -107,6 +109,35 @@ public class RenderUtils {
         worldrenderer.pos((float) a.minX, (float) a.maxY, (float) a.minZ).endVertex();
         worldrenderer.endVertex();
         tessellator.draw();
+    }
+
+    public static void renderBed(BlockPos[] array) {
+        Color ct = ColorManager.getColor();
+        drawFilledBlock(array[0], ct.getRGB());
+        drawFilledBlock(array[1], ct.getRGB());
+    }
+
+    public static void drawFilledBlock(BlockPos blockPos, int color) {
+        double deltaX = blockPos.getX();
+        double deltaY = blockPos.getY();
+        double deltaZ = blockPos.getZ();
+        drawFilledAABB(new AxisAlignedBB(deltaX, deltaY, deltaZ, deltaX + 1.0, deltaY + 1.0, deltaZ + 1.0), color);
+    }
+
+    public static void drawFilledAABB(AxisAlignedBB aabb, int color) {
+        aabb = aabb.offset(- mc.getRenderManager().viewerPosX, - mc.getRenderManager().viewerPosY, - mc.getRenderManager().viewerPosZ);
+
+        GL11.glBlendFunc(770, 771);
+        GL11.glEnable(3042);
+        GL11.glLineWidth(2.0F);
+        GL11.glDisable(3553);
+        GL11.glDisable(2929);
+        GL11.glDepthMask(false);
+        RenderHelper.drawCompleteBoxFilled(aabb, 1.0F, color);
+        GL11.glEnable(3553);
+        GL11.glEnable(2929);
+        GL11.glDepthMask(true);
+        GL11.glDisable(3042);
     }
 
     public static void renderPlayerPosition(double x, double y, double z) {

@@ -6,6 +6,7 @@ import ddlc.yuri.api.events.impl.player.PlayerAttackEvent;
 import ddlc.yuri.api.events.impl.player.PreUpdateEvent;
 import ddlc.yuri.api.events.impl.render.Render2DEvent;
 import ddlc.yuri.api.events.impl.render.Render3DEvent;
+import ddlc.yuri.api.events.impl.render.Shader2DEvent;
 import ddlc.yuri.api.properties.Property;
 import ddlc.yuri.api.properties.impl.ModeProperty;
 import ddlc.yuri.managers.impl.ColorManager;
@@ -95,6 +96,7 @@ public final class TargetESPModule extends Module {
     private final ResourceLocation trianglestapple = new ResourceLocation("yuri/gui/trianglestapple.png");
     private final ResourceLocation trianglestipple = new ResourceLocation("yuri/gui/trianglestipple.png");
     private double[] cachedScreenPos;
+    private final float[] viewRotations = new float[2];
 
     @EventHook
     public void onPlayerAttack(PlayerAttackEvent event) {
@@ -158,6 +160,16 @@ public final class TargetESPModule extends Module {
 
     @EventHook
     public void onRender2D(Render2DEvent event) {
+        if (mode.getValue() == MarkMode.IMAGE && target != null && cachedScreenPos != null) {
+            // Check depth to ensure target is in front of the camera before rendering
+            if (cachedScreenPos[2] >= 0.0 && cachedScreenPos[2] < 1.0) {
+                drawTargetESP(cachedScreenPos);
+            }
+        }
+    }
+
+    @EventHook
+    public void onShader2D(Shader2DEvent event) {
         if (mode.getValue() == MarkMode.IMAGE && target != null && cachedScreenPos != null) {
             // Check depth to ensure target is in front of the camera before rendering
             if (cachedScreenPos[2] >= 0.0 && cachedScreenPos[2] < 1.0) {
@@ -357,7 +369,6 @@ public final class TargetESPModule extends Module {
 
         float alpha = alphaAnim.getOutput().floatValue();
         int color = RenderUtils.applyOpacity(ColorManager.getColor(), alpha).getRGB();
-        int color2 = RenderUtils.applyOpacity(ColorManager.getColor(), alpha * 0.5f).getRGB();
 
         GL11.glPushMatrix();
         // Translate directly to the projected center point on screen
@@ -366,7 +377,6 @@ public final class TargetESPModule extends Module {
 
         // Render centered around (0,0)
         RenderUtils.drawImage(icon, -iconSize, -iconSize, iconSize, iconSize, color);
-        RenderUtils.drawImage(glowCircle, -iconSize * 2, -iconSize * 2, iconSize * 2, iconSize * 2, color2);
 
         GL11.glPopMatrix();
     }

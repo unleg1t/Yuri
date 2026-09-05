@@ -1,7 +1,6 @@
 package ddlc.yuri.api.gui.click.imgui;
 
 import ddlc.yuri.Yuri;
-import ddlc.yuri.api.config.ConfigManager;
 import ddlc.yuri.api.config.GithubConfigFetcher;
 import ddlc.yuri.api.properties.Property;
 import ddlc.yuri.api.properties.impl.DescriptorProperty;
@@ -23,21 +22,13 @@ import imgui.type.ImString;
 import lombok.Getter;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
-import net.minecraft.client.renderer.GlStateManager;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
-import org.lwjgl.opengl.GL11;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.util.*;
 
 public class ImGuiClickGui extends GuiScreen {
-
-    private static final File AUTO_LOAD_FILE = new File(Minecraft.getMinecraft().mcDataDir, "yuri_autoload.txt");
-    private static String autoLoadConfigPath = loadAutoLoadPath();
-    private static boolean hasAutoLoaded = false;
 
     private final DecelerateAnimation openAnimation = new DecelerateAnimation(280, 1.0D, Direction.FORWARDS);
     private final Set<Module> openModules = new HashSet<>();
@@ -52,18 +43,11 @@ public class ImGuiClickGui extends GuiScreen {
 
     @Override
     public void initGui() {
-        if (mc != null && mc.displayWidth > 0 && mc.displayHeight > 0) {
-            ImGuiManager.get().init(ClickGUIModule.style.getValue().build());
-        }
+        ImGuiManager.get().init(ClickGUIModule.style.getValue().build());
         openAnimation.setDirection(Direction.FORWARDS);
         openAnimation.reset();
         closing = false;
         super.initGui();
-
-        if (!hasAutoLoaded && autoLoadConfigPath != null && !autoLoadConfigPath.isEmpty()) {
-            hasAutoLoaded = true;
-            triggerConfigDownload(autoLoadConfigPath);
-        }
     }
 
     @Override
@@ -74,10 +58,6 @@ public class ImGuiClickGui extends GuiScreen {
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        if (mc == null || mc.displayWidth <= 0 || mc.displayHeight <= 0) {
-            return;
-        }
-
         float progress = openAnimation.getOutput().floatValue();
 
         if (closing && openAnimation.finished(Direction.BACKWARDS)) {
@@ -85,25 +65,16 @@ public class ImGuiClickGui extends GuiScreen {
             return;
         }
 
-        GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
-        GlStateManager.pushMatrix();
+        ImGuiManager.get().newFrame(mc.displayWidth, mc.displayHeight);
 
-        try {
-            ImGuiManager.get().newFrame(mc.displayWidth, mc.displayHeight);
-
-            ImGui.pushStyleVar(ImGuiStyleVar.Alpha, progress);
-            buildWindow();
-            if (githubWindowOpen.get()) {
-                buildGithubWindow();
-            }
-            ImGui.popStyleVar();
-
-            ImGuiManager.get().render();
-        } finally {
-            GlStateManager.popMatrix();
-            GL11.glPopAttrib();
+        ImGui.pushStyleVar(ImGuiStyleVar.Alpha, progress);
+        buildWindow();
+        if (githubWindowOpen.get()) {
+            buildGithubWindow();
         }
+        ImGui.popStyleVar();
 
+        ImGuiManager.get().render();
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
 
@@ -114,7 +85,14 @@ public class ImGuiClickGui extends GuiScreen {
         ImGui.separator();
         if (ImGui.button("Online configs")) {
             githubWindowOpen.set(true);
-            refreshRemoteConfigs();
+            new Thread(() -> {
+                List<String> fetched = GithubConfigFetcher.fetchConfigList();
+                remoteConfigs.clear();
+                if (fetched != null) {
+                    remoteConfigs.addAll(fetched);
+                }
+            }, "github-config-fetch").start();
+            lastRemoteFetch = System.currentTimeMillis();
         }
         ImGui.separator();
 
@@ -132,10 +110,17 @@ public class ImGuiClickGui extends GuiScreen {
     }
 
     private void buildGithubWindow() {
-        ImGui.setNextWindowSize(420, 420, imgui.flag.ImGuiCond.FirstUseEver);
+        ImGui.setNextWindowSize(360, 420, imgui.flag.ImGuiCond.FirstUseEver);
         if (ImGui.begin("Github Configs", githubWindowOpen, ImGuiWindowFlags.NoCollapse)) {
             if (ImGui.button("Refresh")) {
-                refreshRemoteConfigs();
+                new Thread(() -> {
+                    List<String> fetched = GithubConfigFetcher.fetchConfigList();
+                    remoteConfigs.clear();
+                    if (fetched != null) {
+                        remoteConfigs.addAll(fetched);
+                    }
+                }, "github-config-fetch").start();
+                lastRemoteFetch = System.currentTimeMillis();
             }
 
             ImGui.separator();
@@ -143,73 +128,14 @@ public class ImGuiClickGui extends GuiScreen {
             if (remoteConfigs.isEmpty()) {
                 ImGui.textDisabled("No configs found");
             } else {
-                for (String path : remoteConfigs) {
-                    String name = new File(path).getName();
-                    boolean isAutoLoad = path.equals(autoLoadConfigPath);
-
-                    ImGui.pushID(path);
-
-                    ImBoolean autoLoadBox = new ImBoolean(isAutoLoad);
-                    if (ImGui.checkbox("##autoload", autoLoadBox)) {
-                        if (autoLoadBox.get()) {
-                            autoLoadConfigPath = path;
-                        } else if (isAutoLoad) {
-                            autoLoadConfigPath = "";
-                        }
-                        saveAutoLoadPath(autoLoadConfigPath);
+                for (String configName : remoteConfigs) {
+                    if (ImGui.button(configName)) {
+                        new Thread(() -> GithubConfigFetcher.downloadAndLoadConfig(configName), "github-config-download").start();
                     }
-                    if (ImGui.isItemHovered()) {
-                        ImGui.setTooltip("Auto-load on startup");
-                    }
-
-                    ImGui.sameLine();
-
-                    if (ImGui.button(name)) {
-                        triggerConfigDownload(path);
-                    }
-
-                    ImGui.popID();
                 }
             }
         }
         ImGui.end();
-    }
-
-    private void refreshRemoteConfigs() {
-        remoteConfigs.clear();
-        remoteConfigs.addAll(GithubConfigFetcher.listRemoteConfigs());
-        lastRemoteFetch = System.currentTimeMillis();
-    }
-
-    private void triggerConfigDownload(String path) {
-        String name = new File(path).getName();
-        float cx = mc.displayWidth / 2f;
-        float cy = 30f;
-        ddlc.yuri.utils.render.progress.ProgressBarEntry entry = ddlc.yuri.managers.impl.ProgressBarManager.add(0f, cx, cy);
-        new Thread(() -> {
-            boolean ok = GithubConfigFetcher.downloadRemoteConfigWithProgress(path, entry);
-            if (ok) {
-                ConfigManager.getInstance().loadConfig(name);
-            }
-            ddlc.yuri.managers.impl.ProgressBarManager.remove(entry);
-        }, "yuri-config-download").start();
-    }
-
-    private static String loadAutoLoadPath() {
-        try {
-            if (AUTO_LOAD_FILE.exists()) {
-                return new String(Files.readAllBytes(AUTO_LOAD_FILE.toPath())).trim();
-            }
-        } catch (Exception ignored) {
-        }
-        return "";
-    }
-
-    private static void saveAutoLoadPath(String path) {
-        try {
-            Files.write(AUTO_LOAD_FILE.toPath(), path.getBytes());
-        } catch (Exception ignored) {
-        }
     }
 
     private void buildCategory(ModuleCategory category) {
@@ -257,6 +183,7 @@ public class ImGuiClickGui extends GuiScreen {
             float[] holder = {numberProperty.getValue().floatValue()};
 
             String format = "%.2f";
+
             double step = numberProperty.getIncrement();
 
             if (ImGui.sliderFloat(property.getLabel(), holder, (float) numberProperty.getMin(), (float) numberProperty.getMax(), format)) {

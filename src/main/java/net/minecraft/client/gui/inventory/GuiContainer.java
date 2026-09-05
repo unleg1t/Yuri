@@ -1,8 +1,6 @@
 package net.minecraft.client.gui.inventory;
 
 import com.google.common.collect.Sets;
-import java.io.IOException;
-import java.util.Set;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.GlStateManager;
@@ -18,6 +16,9 @@ import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.MathHelper;
 import net.minecraft.util.ResourceLocation;
 import org.lwjgl.input.Keyboard;
+
+import java.io.IOException;
+import java.util.Set;
 
 public abstract class GuiContainer extends GuiScreen
 {
@@ -309,7 +310,7 @@ public abstract class GuiContainer extends GuiScreen
         return null;
     }
 
-    protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException
+    public void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException
     {
         super.mouseClicked(mouseX, mouseY, mouseButton);
         boolean flag = mouseButton == this.mc.gameSettings.keyBindPickBlock.getKeyCode() + 100;

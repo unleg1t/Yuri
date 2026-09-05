@@ -1,9 +1,6 @@
 package net.minecraft.client.gui;
 
 import com.google.common.collect.Lists;
-import java.io.IOException;
-import java.util.List;
-import java.util.Random;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.model.ModelBook;
 import net.minecraft.client.renderer.GlStateManager;
@@ -21,6 +18,10 @@ import net.minecraft.util.ResourceLocation;
 import net.minecraft.world.IWorldNameable;
 import net.minecraft.world.World;
 import org.lwjgl.util.glu.Project;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Random;
 
 public class GuiEnchantment extends GuiContainer
 {
@@ -60,7 +61,7 @@ public class GuiEnchantment extends GuiContainer
         this.func_147068_g();
     }
 
-    protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException
+    public void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException
     {
         super.mouseClicked(mouseX, mouseY, mouseButton);
         int i = (this.width - this.xSize) / 2;

@@ -19,7 +19,8 @@ import net.minecraft.client.gui.ScaledResolution;
 import java.awt.*;
 
 @ModuleInfo(label = "Session Info", description = "Displays session information on the screen.", category = ModuleCategory.RENDER)
-public class SessionInfoModule extends Module implements IMinecraft {
+public class
+SessionInfoModule extends Module implements IMinecraft {
 
     public final ModeProperty<Mode> mode = new ModeProperty<>("Mode", Mode.PULSIVE);
 
@@ -51,6 +52,11 @@ public class SessionInfoModule extends Module implements IMinecraft {
     private static final Color BG_COLOR = new Color(0, 0, 0, 130);
     private static final Color HEADER_COLOR = new Color(40, 40, 44, 100);
     private static final Color BODY_COLOR = new Color(18, 18, 20, 150);
+    private static final Color TEXT_SECONDARY_COLOR = new Color(220, 220, 220);
+    private static final Color TEXT_TERTIARY_COLOR = new Color(190, 190, 190);
+    private static final int WHITE_RGB = Color.WHITE.getRGB();
+    private static final int TEXT_SECONDARY_RGB = TEXT_SECONDARY_COLOR.getRGB();
+    private static final int TEXT_TERTIARY_RGB = TEXT_TERTIARY_COLOR.getRGB();
 
     private final DragUtils.DraggableComponent component = new DragUtils.DraggableComponent(20, 20);
 
@@ -151,22 +157,22 @@ public class SessionInfoModule extends Module implements IMinecraft {
         float cx = x + width / 2f;
         float titleX = cx - titleWidth / 2f;
         float titleY = y + HEADER_PADDING_Y;
-        bold.drawStringWithShadow(sessionWord, titleX, titleY, Color.WHITE.getRGB());
-        regular.drawStringWithShadow(infoWord, titleX + sessionWidth, titleY, new Color(220, 220, 220).getRGB());
+        bold.drawStringWithShadow(sessionWord, titleX, titleY, WHITE_RGB);
+        regular.drawStringWithShadow(infoWord, titleX + sessionWidth, titleY, TEXT_SECONDARY_RGB);
 
         float leftX = x + PADDING_X;
         float cursorY = y + headerHeight + GAP_HEADER_TIME;
 
-        timeFont.drawStringWithShadow(timeText, leftX, cursorY, Color.WHITE.getRGB());
+        timeFont.drawStringWithShadow(timeText, leftX, cursorY, WHITE_RGB);
         cursorY += timeHeight + GAP_TIME;
 
-        body.drawStringWithShadow(killsText, leftX, cursorY, new Color(190, 190, 190).getRGB());
+        body.drawStringWithShadow(killsText, leftX, cursorY, TEXT_TERTIARY_RGB);
         cursorY += lineHeight + GAP_LINE;
 
-        body.drawStringWithShadow(deathsText, leftX, cursorY, new Color(190, 190, 190).getRGB());
+        body.drawStringWithShadow(deathsText, leftX, cursorY, TEXT_TERTIARY_RGB);
         cursorY += lineHeight + GAP_LINE;
 
-        body.drawStringWithShadow(winsText, leftX, cursorY, new Color(190, 190, 190).getRGB());
+        body.drawStringWithShadow(winsText, leftX, cursorY, TEXT_TERTIARY_RGB);
     }
 
     public void renderYuri() {
@@ -222,22 +228,22 @@ public class SessionInfoModule extends Module implements IMinecraft {
         float cx = x + width / 2f;
         float cursorY = y + PADDING_Y;
 
-        title.drawStringWithShadow(titleText, cx - titleWidth / 2f, cursorY, Color.WHITE.getRGB());
+        title.drawStringWithShadow(titleText, cx - titleWidth / 2f, cursorY, WHITE_RGB);
         cursorY += getServerName().equals("Singleplayer") ? titleHeight + gapTitleWelcome + 10f : titleHeight + gapTitleWelcome;
 
-        welcome.drawStringWithShadow(welcomeText, cx - welcomeWidth / 2f, cursorY, Color.WHITE.getRGB());
+        welcome.drawStringWithShadow(welcomeText, cx - welcomeWidth / 2f, cursorY, WHITE_RGB);
         cursorY += welcomeHeight + gapWelcomeKills;
 
         if (getServerName().equals("Singleplayer")) {
-            body.drawStringWithShadow(singleplayerText, cx - singleplayerWidth / 2f, cursorY, new Color(220, 220, 220).getRGB());
+            body.drawStringWithShadow(singleplayerText, cx - singleplayerWidth / 2f, cursorY, TEXT_SECONDARY_RGB);
         } else {
-            body.drawStringWithShadow(killsText, cx - killsWidth / 2f, cursorY, new Color(220, 220, 220).getRGB());
+            body.drawStringWithShadow(killsText, cx - killsWidth / 2f, cursorY, TEXT_SECONDARY_RGB);
             cursorY += lineHeight + gapLine;
 
-            body.drawStringWithShadow(timeText, cx - timeWidth / 2f, cursorY, new Color(220, 220, 220).getRGB());
+            body.drawStringWithShadow(timeText, cx - timeWidth / 2f, cursorY, TEXT_SECONDARY_RGB);
             cursorY += lineHeight + gapKillsServer;
 
-            body.drawStringWithShadow(serverText, cx - serverWidth / 2f, cursorY, new Color(220, 220, 220).getRGB());
+            body.drawStringWithShadow(serverText, cx - serverWidth / 2f, cursorY, TEXT_SECONDARY_RGB);
         }
     }
 

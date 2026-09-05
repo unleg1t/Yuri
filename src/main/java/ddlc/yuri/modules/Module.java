@@ -1,10 +1,13 @@
 package ddlc.yuri.modules;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import ddlc.yuri.Yuri;
 import ddlc.yuri.api.config.Serializable;
+import ddlc.yuri.api.events.EventBus;
+import ddlc.yuri.api.events.impl.client.ModuleEvent;
 import ddlc.yuri.api.properties.Property;
 import ddlc.yuri.api.properties.impl.DescriptorProperty;
 import ddlc.yuri.api.properties.impl.ModeProperty;
@@ -17,6 +20,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.List;
 
 public class Module extends Manager<Property<?>> implements Toggleable, Serializable, IMinecraft {
@@ -95,15 +99,19 @@ public class Module extends Manager<Property<?>> implements Toggleable, Serializ
 
     @Override
     public void setEnabled(boolean enabled) {
+        EventBus bus = Yuri.INSTANCE.getEventBus();
+        ModuleEvent event = new ModuleEvent(this);
         if (this.enabled != enabled) {
             this.enabled = enabled;
 
             if (enabled) {
                 onEnable();
                 Yuri.INSTANCE.getEventBus().subscribe(this);
+                bus.post(event);
             } else {
                 Yuri.INSTANCE.getEventBus().unsubscribe(this);
                 onDisable();
+                bus.post(event);
             }
         }
     }
@@ -150,8 +158,10 @@ public class Module extends Manager<Property<?>> implements Toggleable, Serializ
                 } else if (property instanceof MultiModeProperty) {
                     MultiModeProperty<?> multiSelect = (MultiModeProperty<?>) property;
                     final JsonArray array = new JsonArray();
-                    for (Enum<?> e : multiSelect.getValues()) {
-                        array.add(new JsonPrimitive(e.name()));
+                    if (multiSelect.getValue() != null) {
+                        for (Enum<?> e : multiSelect.getValue()) {
+                            array.add(new JsonPrimitive(e.name()));
+                        }
                     }
                     propertiesObject.add(property.getLabel(), array);
                 } else if (property.getType() == Boolean.class) {
@@ -193,7 +203,7 @@ public class Module extends Manager<Property<?>> implements Toggleable, Serializ
                     } else if (property instanceof ModeProperty) {
                         findEnumValue(property, propertiesObject);
                     } else if (property instanceof MultiModeProperty) {
-
+                        findMultiEnumValues(property, propertiesObject);
                     } else if (property.getValue() instanceof Boolean) {
                         ((Property<Boolean>) property).setValue(propertiesObject.get(property.getLabel()).getAsBoolean());
                     } else if (property.getValue() instanceof Integer) {
@@ -206,7 +216,6 @@ public class Module extends Manager<Property<?>> implements Toggleable, Serializ
         }
     }
 
-
     private static <T extends Enum<T>> void findEnumValue(Property<?> property, JsonObject propertiesObject) {
         ModeProperty<T> ModeProperty = (ModeProperty<T>) property;
         String value = propertiesObject.getAsJsonPrimitive(property.getLabel()).getAsString();
@@ -216,5 +225,36 @@ public class Module extends Manager<Property<?>> implements Toggleable, Serializ
                 break;
             }
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T extends Enum<T>> void findMultiEnumValues(Property<?> property, JsonObject propertiesObject) {
+        MultiModeProperty<T> multiProperty = (MultiModeProperty<T>) property;
+        JsonElement element = propertiesObject.get(property.getLabel());
+        if (element == null) return;
+
+        List<T> selected = new ArrayList<>();
+        T[] possibleValues = multiProperty.getValues();
+
+        if (element.isJsonArray()) {
+            for (JsonElement e : element.getAsJsonArray()) {
+                String name = e.getAsString();
+                for (T possibleValue : possibleValues) {
+                    if (possibleValue.name().equalsIgnoreCase(name)) {
+                        selected.add(possibleValue);
+                        break;
+                    }
+                }
+            }
+        } else if (element.isJsonPrimitive()) {
+            String name = element.getAsString();
+            for (T possibleValue : possibleValues) {
+                if (possibleValue.name().equalsIgnoreCase(name)) {
+                    selected.add(possibleValue);
+                    break;
+                }
+            }
+        }
+        multiProperty.setValue(selected);
     }
 }

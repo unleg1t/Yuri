@@ -18,6 +18,18 @@ public final class ExhibitionMode extends TargetHudMode {
     private final CustomFontRenderer nameFont;
     private final CustomFontRenderer infoFont;
 
+    private static final Color DARKEST_BASE = new Color(10, 10, 10);
+    private static final Color SECOND_DARKEST_BASE = new Color(22, 22, 22);
+    private static final Color LIGHTEST_BASE = new Color(44, 44, 44);
+    private static final Color MIDDLE_BASE = new Color(34, 34, 34);
+
+    private float cachedAlpha = -1f;
+    private Color cachedDarkest;
+    private Color cachedSecondDarkest;
+    private Color cachedLightest;
+    private Color cachedMiddleColor;
+    private Color cachedTextColor;
+
     public ExhibitionMode(TargetHudModule parentModule) {
         super("Exhibition");
         this.parentModule = parentModule;
@@ -44,11 +56,20 @@ public final class ExhibitionMode extends TargetHudMode {
         float size = height - 6;
         float scale = size / 40f;
 
-        Color darkest = RenderUtils.applyOpacity(new Color(10, 10, 10), alpha);
-        Color secondDarkest = RenderUtils.applyOpacity(new Color(22, 22, 22), alpha);
-        Color lightest = RenderUtils.applyOpacity(new Color(44, 44, 44), alpha);
-        Color middleColor = RenderUtils.applyOpacity(new Color(34, 34, 34), alpha);
-        Color textColor = RenderUtils.applyOpacity(Color.WHITE, alpha);
+        if (alpha != cachedAlpha) {
+            cachedAlpha = alpha;
+            cachedDarkest = RenderUtils.applyOpacity(DARKEST_BASE, alpha);
+            cachedSecondDarkest = RenderUtils.applyOpacity(SECOND_DARKEST_BASE, alpha);
+            cachedLightest = RenderUtils.applyOpacity(LIGHTEST_BASE, alpha);
+            cachedMiddleColor = RenderUtils.applyOpacity(MIDDLE_BASE, alpha);
+            cachedTextColor = RenderUtils.applyOpacity(Color.WHITE, alpha);
+        }
+
+        Color darkest = cachedDarkest;
+        Color secondDarkest = cachedSecondDarkest;
+        Color lightest = cachedLightest;
+        Color middleColor = cachedMiddleColor;
+        Color textColor = cachedTextColor;
 
         GlStateManager.pushMatrix();
         GlStateManager.translate(x, y, 0);

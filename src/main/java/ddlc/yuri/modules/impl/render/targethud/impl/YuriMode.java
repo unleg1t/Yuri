@@ -34,6 +34,16 @@ public final class YuriMode extends TargetHudMode {
     private static final Color BG_COLOR = new Color(0, 0, 0, 130);
     private static final Color BAR_BG_COLOR = new Color(255, 255, 255, 40);
     private static final Color FACE_PLACEHOLDER_COLOR = new Color(255, 255, 255, 25);
+    private static final Color SUB_BASE_COLOR = new Color(190, 190, 190);
+
+    private float cachedAlpha = -1f;
+    private int cachedBaseRGB;
+    private Color cachedBgColor;
+    private Color cachedAccentColor;
+    private Color cachedBarBgColor;
+    private Color cachedFacePlaceholderColor;
+    private Color cachedWhiteColor;
+    private Color cachedSubColor;
 
     public YuriMode(TargetHudModule parentModule) {
         super("Yuri");
@@ -67,6 +77,26 @@ public final class YuriMode extends TargetHudMode {
         float healthPercentage = Math.max(0f, Math.min(1f, state.displayHealth / maxHealth));
 
         float alpha = state.alpha;
+        Color baseColor = ColorManager.getColor();
+        int baseRGB = baseColor.getRGB();
+
+        if (alpha != cachedAlpha || baseRGB != cachedBaseRGB) {
+            cachedAlpha = alpha;
+            cachedBaseRGB = baseRGB;
+            cachedBgColor = RenderUtils.applyOpacity(BG_COLOR, alpha);
+            cachedAccentColor = RenderUtils.applyOpacity(baseColor, alpha);
+            cachedBarBgColor = RenderUtils.applyOpacity(BAR_BG_COLOR, alpha);
+            cachedFacePlaceholderColor = RenderUtils.applyOpacity(FACE_PLACEHOLDER_COLOR, alpha);
+            cachedWhiteColor = RenderUtils.applyOpacity(Color.WHITE, alpha);
+            cachedSubColor = RenderUtils.applyOpacity(SUB_BASE_COLOR, alpha);
+        }
+
+        Color bgColor = cachedBgColor;
+        Color accentColor = cachedAccentColor;
+        Color barBgColor = cachedBarBgColor;
+        Color facePlaceholderColor = cachedFacePlaceholderColor;
+        Color whiteColor = cachedWhiteColor;
+        Color subColor = cachedSubColor;
 
         String nameText = targetEntity.getName();
         String subText = String.format(Locale.US, "%.1f HP  •  %.1fm", state.displayHealth,
@@ -74,13 +104,6 @@ public final class YuriMode extends TargetHudMode {
 
         float width = WIDTH;
         float height = HEIGHT;
-
-        Color bgColor = RenderUtils.applyOpacity(BG_COLOR, alpha);
-        Color accentColor = RenderUtils.applyOpacity(ColorManager.getColor(), alpha);
-        Color barBgColor = RenderUtils.applyOpacity(BAR_BG_COLOR, alpha);
-        Color facePlaceholderColor = RenderUtils.applyOpacity(FACE_PLACEHOLDER_COLOR, alpha);
-        Color whiteColor = RenderUtils.applyOpacity(Color.WHITE, alpha);
-        Color subColor = RenderUtils.applyOpacity(new Color(190, 190, 190), alpha);
 
         RoundedUtils.drawRoundOutline((float) x, (float) y, width, height, RADIUS, -0.5f, bgColor, accentColor);
 
@@ -98,8 +121,9 @@ public final class YuriMode extends TargetHudMode {
             float hurtProgress = elapsed >= 400 ? 1f : Math.max(0f, elapsed / 400f);
             float tintAmount = hurtProgress < 1f ? (1f - hurtProgress) * 0.7f : 0f;
 
+            boolean stencilWasEnabled = GL11.glIsEnabled(GL11.GL_STENCIL_TEST);
+
             GL11.glEnable(GL11.GL_STENCIL_TEST);
-            GL11.glClear(GL11.GL_STENCIL_BUFFER_BIT);
             GL11.glColorMask(false, false, false, false);
             GL11.glStencilFunc(GL11.GL_ALWAYS, 1, 0xFF);
             GL11.glStencilOp(GL11.GL_KEEP, GL11.GL_KEEP, GL11.GL_REPLACE);
@@ -112,7 +136,9 @@ public final class YuriMode extends TargetHudMode {
 
             parentModule.renderPlayerFace((AbstractClientPlayer) targetEntity, faceX, faceY, FACE_SIZE, 1f, tintAmount, alpha);
 
-            GL11.glDisable(GL11.GL_STENCIL_TEST);
+            if (!stencilWasEnabled) {
+                GL11.glDisable(GL11.GL_STENCIL_TEST);
+            }
         } else {
             RoundedUtils.drawCustomRoundedRect(faceX, faceY, FACE_SIZE, FACE_SIZE, 3f,
                     true, true, true, true, facePlaceholderColor);

@@ -1,18 +1,9 @@
 package net.minecraft.entity;
 
-import java.util.List;
-import java.util.Random;
-import java.util.UUID;
-import java.util.concurrent.Callable;
-
 import ddlc.yuri.Yuri;
 import ddlc.yuri.api.events.impl.player.StrafeEvent;
 import ddlc.yuri.api.events.impl.world.LivingUpdateEvent;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockFence;
-import net.minecraft.block.BlockFenceGate;
-import net.minecraft.block.BlockLiquid;
-import net.minecraft.block.BlockWall;
+import net.minecraft.block.*;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.block.state.pattern.BlockPattern;
@@ -40,6 +31,11 @@ import net.minecraft.util.*;
 import net.minecraft.world.Explosion;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
+
+import java.util.List;
+import java.util.Random;
+import java.util.UUID;
+import java.util.concurrent.Callable;
 
 public abstract class Entity implements ICommandSender
 {
@@ -1146,6 +1142,11 @@ public abstract class Entity implements ICommandSender
         double d1 = this.posY - y;
         double d2 = this.posZ - z;
         return (double)MathHelper.sqrt_double(d0 * d0 + d1 * d1 + d2 * d2);
+    }
+
+    public double getDistance(BlockPos pos) {
+        double x = posX - pos.getX(), y = posY - pos.getY(), z = posZ - pos.getZ();
+        return MathHelper.sqrt_double(x * x + y * y + z * z);
     }
 
     public double getDistanceSqToEntity(Entity entityIn)

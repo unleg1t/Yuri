@@ -19,8 +19,6 @@ import net.minecraft.util.BlockPos;
 import org.lwjgl.opengl.GL11;
 
 import java.awt.*;
-import java.util.ArrayList;
-import java.util.List;
 
 @ModuleInfo(label = "Storage ESP", description = "Highlights storage blocks like chests and ender chests", category = ModuleCategory.RENDER)
 public final class StorageESPModule extends Module {
@@ -37,9 +35,6 @@ public final class StorageESPModule extends Module {
     public void onRender3D(Render3DEvent event) {
         if (mc.theWorld == null || mc.thePlayer == null) return;
 
-        List<TileEntity> storageBlocks = getStorageBlocks();
-        if (storageBlocks.isEmpty()) return;
-
         GL11.glPushMatrix();
         GL11.glDisable(GL11.GL_TEXTURE_2D);
         GL11.glEnable(GL11.GL_BLEND);
@@ -48,7 +43,9 @@ public final class StorageESPModule extends Module {
 
         if (throughWalls.getValue()) GL11.glDisable(GL11.GL_DEPTH_TEST);
 
-        for (TileEntity te : storageBlocks) renderStorageBlock(te);
+        for (TileEntity te : mc.theWorld.loadedTileEntityList) {
+            renderStorageBlock(te);
+        }
 
         if (throughWalls.getValue()) GL11.glEnable(GL11.GL_DEPTH_TEST);
 
@@ -59,32 +56,15 @@ public final class StorageESPModule extends Module {
         GL11.glPopMatrix();
     }
 
-    private List<TileEntity> getStorageBlocks() {
-        List<TileEntity> storageBlocks = new ArrayList<>();
-
-        for (TileEntity tileEntity : mc.theWorld.loadedTileEntityList) {
-            if (isValidStorageBlock(tileEntity)) {
-                storageBlocks.add(tileEntity);
-            }
-        }
-
-        return storageBlocks;
-    }
-
-    private boolean isValidStorageBlock(TileEntity tileEntity) {
-        BlockPos pos = tileEntity.getPos();
-        if (pos == null) return false;
-
-        Block block = mc.theWorld.getBlockState(pos).getBlock();
-        if (block == null) return false;
-
-        if (tileEntity instanceof TileEntityChest && chests.getValue()) {
-            return true;
-        }
-        return tileEntity instanceof TileEntityEnderChest && enderChests.getValue();
-    }
-
     private void renderStorageBlock(TileEntity tileEntity) {
+        if (tileEntity instanceof TileEntityChest) {
+            if (!chests.getValue()) return;
+        } else if (tileEntity instanceof TileEntityEnderChest) {
+            if (!enderChests.getValue()) return;
+        } else {
+            return;
+        }
+
         BlockPos pos = tileEntity.getPos();
         if (pos == null) return;
 
@@ -94,11 +74,12 @@ public final class StorageESPModule extends Module {
         AxisAlignedBB boundingBox = block.getSelectedBoundingBox(mc.theWorld, pos);
         if (boundingBox == null) return;
 
-        boundingBox = boundingBox.offset(
-                -mc.getRenderManager().renderPosX,
-                -mc.getRenderManager().renderPosY,
-                -mc.getRenderManager().renderPosZ
-        ).expand(-0.002, -0.002, -0.002);
+        double rx = mc.getRenderManager().renderPosX;
+        double ry = mc.getRenderManager().renderPosY;
+        double rz = mc.getRenderManager().renderPosZ;
+        boundingBox = new AxisAlignedBB(
+                boundingBox.minX - rx + 0.002, boundingBox.minY - ry + 0.002, boundingBox.minZ - rz + 0.002,
+                boundingBox.maxX - rx - 0.002, boundingBox.maxY - ry - 0.002, boundingBox.maxZ - rz - 0.002);
 
         Color c = ColorManager.getColor();
         float r = c.getRed() / 255f;

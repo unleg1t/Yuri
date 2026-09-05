@@ -363,21 +363,40 @@ public class ItemRenderer {
                                         if (Yuri.INSTANCE.getModuleManager().getModule(CameraModule.class).isEnabled())
                                             GlStateManager.scale(CameraModule.scale.getValue(), CameraModule.scale.getValue(), CameraModule.scale.getValue());
                                         break;
-                                    case INVERTED:
-                                        GL11.glTranslated(-0.1D, -0.03D, 0.0D);
-                                        this.transformFirstPersonItem(f / 2, 0.0f);
-                                        GlStateManager.rotate(-f1 * 40.0F / 2.0F, f1 / 2.0F, -0.0F, 9.0F);
-                                        GlStateManager.rotate(-f1 * 30.0F, 1.0F, f1 / 2.0F, -0.0F);
-                                        this.doBlockTransformations();
-                                        break;
-                                    case MOON:
-                                        float table = MathHelper.sin((float) (MathHelper.sqrt_float(f1) * Math.PI));
-                                        GlStateManager.translate(0.1F, 0.1F, 0.1F);
-                                        GlStateManager.rotate(-table * 30.0F, -8.0F, -0.2F, 9.0F);
-                                        this.transformFirstPersonItem(f, f1);
-                                        this.doBlockTransformations();
+                                    case PUNCH:
+                                        transformFirstPersonItem(f, 0.0f);
+                                        func_178103_d(0.2F);
+                                        GlStateManager.translate(0.1f, 0.2f, 0.3f);
+                                        GlStateManager.rotate(-var16 * 30.0f, -5.0f, 0.0f, 9.0f);
+                                        GlStateManager.rotate(-var16 * 10.0f, 1.0f, -0.4f, -0.5f);
                                         if (Yuri.INSTANCE.getModuleManager().getModule(CameraModule.class).isEnabled())
                                             GlStateManager.scale(CameraModule.scale.getValue(), CameraModule.scale.getValue(), CameraModule.scale.getValue());
+                                        break;
+                                    case STELLA:
+                                        transformFirstPersonItem(-0.1f, f1);
+                                        GlStateManager.translate(-0.5F, 0.4F, -0.2F);
+                                        GlStateManager.rotate(30.0F, 0.0F, 1.0F, 0.0F);
+                                        GlStateManager.rotate(-70.0F, 1.0F, 0.0F, 0.0F);
+                                        GlStateManager.rotate(40.0F, 0.0F, 1.0F, 0.0F);
+                                        break;
+                                    case STYLES:
+                                        this.transformFirstPersonItem(f, 0.0F);
+                                        this.func_178103_d(0.2F);
+                                        float var11 = MathHelper.sin((float) (MathHelper.sqrt_float(f1) * Math.PI));
+                                        GlStateManager.translate(-0.05f, 0.2f, 0.0f);
+                                        GlStateManager.rotate(-var11 * 70.0f / 2.0f, -8.0f, -0.0f, 9.0f);
+                                        GlStateManager.rotate(-var11 * 70.0f, 1.0f, -0.4f, -0.0f);
+                                        break;
+                                    case SWING:
+                                        this.transformFirstPersonItem(f / 2.0F, f1);
+                                        this.func_178103_d(0.4F);
+                                        break;
+                                    case ETHEREAL:
+                                        transformFirstPersonItem(f, 0.0f);
+                                        func_178103_d(0.2F);
+                                        GlStateManager.translate(-0.05f, 0.2f, 0.2f);
+                                        GlStateManager.rotate(-var16 * 70.0f / 2.0f, -8.0f, -0.0f, 9.0f);
+                                        GlStateManager.rotate(-var16 * 70.0f, 1.0f, -0.4f, -0.0f);
                                         break;
                                     case OLD:
                                         this.transformFirstPersonItem(f, f1);
@@ -481,6 +500,13 @@ public class ItemRenderer {
                 mc.thePlayer.swingItemClient();
             }
         }
+    }
+
+    private void func_178103_d(float qq) {
+        GlStateManager.translate(-0.5F, qq, 0.0F);
+        GlStateManager.rotate(30.0F, 0.0F, 1.0F, 0.0F);
+        GlStateManager.rotate(-80.0F, 1.0F, 0.0F, 0.0F);
+        GlStateManager.rotate(60.0F, 0.0F, 1.0F, 0.0F);
     }
 
     public void renderOverlays(float partialTicks) {

@@ -1,8 +1,10 @@
 package net.minecraft.util;
 
 import com.google.common.collect.AbstractIterator;
-import java.util.Iterator;
+import ddlc.yuri.utils.misc.IMinecraft;
 import net.minecraft.entity.Entity;
+
+import java.util.Iterator;
 
 public class BlockPos extends Vec3i
 {
@@ -39,6 +41,13 @@ public class BlockPos extends Vec3i
     public BlockPos(Vec3i source)
     {
         this(source.getX(), source.getY(), source.getZ());
+    }
+
+    public static boolean isSamePos(BlockPos blockPos, BlockPos blockPos2) {
+        return blockPos == blockPos2 || blockPos.getX() == blockPos2.getX() && blockPos.getY() == blockPos2.getY() && blockPos.getZ() == blockPos2.getZ();
+    }
+    public static boolean nullCheck() {
+        return IMinecraft.mc.thePlayer != null && IMinecraft.mc.theWorld != null;
     }
 
     public BlockPos add(double x, double y, double z)
@@ -305,6 +314,14 @@ public class BlockPos extends Vec3i
             this.y = yIn;
             this.z = zIn;
             return this;
+        }
+
+        public BlockPos.MutableBlockPos set(Vec3i vec3i) {
+            return this.set(vec3i.getX(), vec3i.getY(), vec3i.getZ());
+        }
+
+        public BlockPos.MutableBlockPos move(int xDist, int yDist, int zDist) {
+            return this.set(this.getX() + xDist, this.getY() + yDist, this.getZ() + zDist);
         }
     }
 }

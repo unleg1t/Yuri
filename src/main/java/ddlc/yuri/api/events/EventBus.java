@@ -12,9 +12,16 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class EventBus {
+    private static final Comparator<Method> PRIORITY_COMPARATOR = Comparator.comparingInt(EventBus::priorityOf);
+
     private final Map<Method, Class<?>> registeredMethodMap;
     private final Map<Method, Object> methodObjectMap;
     private final Map<Class<? extends Event>, List<Method>> priorityMethodMap;
+
+    private static int priorityOf(Method method) {
+        EventHook priority = method.getAnnotation(EventHook.class);
+        return (priority != null) ? priority.value() : EventPriority.MEDIUM;
+    }
 
     public EventBus() {
         registeredMethodMap = new ConcurrentHashMap<>();
@@ -49,9 +56,12 @@ public class EventBus {
                 if (annotation.annotationType() == EventHook.class && method.getParameterTypes().length == 1) {
                     registeredMethodMap.put(method, method.getParameterTypes()[0]);
                     methodObjectMap.put(method, obj);
+                    method.setAccessible(true);
 
                     Class<? extends Event> eventClass = method.getParameterTypes()[0].asSubclass(Event.class);
-                    priorityMethodMap.computeIfAbsent(eventClass, k -> new CopyOnWriteArrayList<>()).add(method);
+                    List<Method> handlers = priorityMethodMap.computeIfAbsent(eventClass, k -> new CopyOnWriteArrayList<>());
+                    handlers.add(method);
+                    PriorityHolder.sort(handlers);
                 }
             }
         }
@@ -73,6 +83,7 @@ public class EventBus {
                 List<Method> priorityMethods = priorityMethodMap.get(eventClass);
                 if (priorityMethods != null) {
                     priorityMethods.remove(method);
+                    PriorityHolder.sort(priorityMethods);
                 }
             }
         }
@@ -89,14 +100,8 @@ public class EventBus {
 
         List<Method> methods = priorityMethodMap.get(eventClass);
         if (methods != null) {
-            methods.sort(Comparator.comparingInt(method -> {
-                EventHook priority = method.getAnnotation(EventHook.class);
-                return (priority != null) ? priority.value() : EventPriority.MEDIUM;
-            }));
-
             for (Method method : methods) {
                 Object obj = methodObjectMap.get(method);
-                method.setAccessible(true);
                 try {
                     method.invoke(obj, event);
                 } catch (Exception e) {
@@ -106,5 +111,12 @@ public class EventBus {
         }
 
         return event;
+    }
+
+    /** Keeps the per-class handler list sorted so {@link #post} never re-sorts on dispatch. */
+    private static final class PriorityHolder {
+        static void sort(List<Method> methods) {
+            methods.sort(PRIORITY_COMPARATOR);
+        }
     }
 }

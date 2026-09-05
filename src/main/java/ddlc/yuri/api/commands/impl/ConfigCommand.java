@@ -11,13 +11,13 @@ import java.io.File;
 public class ConfigCommand extends Command {
 
     public ConfigCommand() {
-        super("config", "Manage your client configs.", "c");
+        super("config", "Manage your client configs, binds, and visuals.", "c");
     }
 
     @Override
     public void execute(String[] args) {
         if (args.length == 0) {
-            LoggingUtils.sendChatMessage("Usage: .config save/load/list/delete");
+            LoggingUtils.sendChatMessage("Usage: .config save/load/list/delete/binds/visuals");
             return;
         }
 
@@ -43,8 +43,11 @@ public class ConfigCommand extends Command {
                 }
 
                 String name = args[1];
-                Yuri.INSTANCE.getConfigManager().loadConfig(name);
-                LoggingUtils.sendChatMessage("Successfully loaded config " + name + "!");
+                if (Yuri.INSTANCE.getConfigManager().loadConfig(name)) {
+                    LoggingUtils.sendChatMessage("Successfully loaded config " + name + "!");
+                } else {
+                    LoggingUtils.sendChatMessage("Failed to load config " + name + ".");
+                }
                 break;
             }
 
@@ -68,8 +71,58 @@ public class ConfigCommand extends Command {
                 break;
             }
 
+            case "binds": {
+                if (args.length < 2) {
+                    LoggingUtils.sendChatMessage("Usage: .config binds save/load");
+                    return;
+                }
+
+                String action = args[1].toLowerCase();
+                if (action.equals("save")) {
+                    if (Yuri.INSTANCE.getConfigManager().getBindsConfig().saveToFile()) {
+                        LoggingUtils.sendChatMessage("Successfully saved binds config!");
+                    } else {
+                        LoggingUtils.sendChatMessage("Failed to save binds config.");
+                    }
+                } else if (action.equals("load")) {
+                    if (Yuri.INSTANCE.getConfigManager().getBindsConfig().loadFromFile()) {
+                        LoggingUtils.sendChatMessage("Successfully loaded binds config!");
+                    } else {
+                        LoggingUtils.sendChatMessage("Failed to load binds config.");
+                    }
+                } else {
+                    LoggingUtils.sendChatMessage("Usage: .config binds save/load");
+                }
+                break;
+            }
+
+            case "visuals": {
+                if (args.length < 2) {
+                    LoggingUtils.sendChatMessage("Usage: .config visuals save/load");
+                    return;
+                }
+
+                String action = args[1].toLowerCase();
+                if (action.equals("save")) {
+                    if (Yuri.INSTANCE.getConfigManager().getVisualsConfig().saveToFile()) {
+                        LoggingUtils.sendChatMessage("Successfully saved visuals config!");
+                    } else {
+                        LoggingUtils.sendChatMessage("Failed to save visuals config.");
+                    }
+                } else if (action.equals("load")) {
+                    if (Yuri.INSTANCE.getConfigManager().getVisualsConfig().loadFromFile()) {
+                        LoggingUtils.sendChatMessage("Successfully loaded visuals config!");
+                    } else {
+                        LoggingUtils.sendChatMessage("Failed to load visuals config.");
+                    }
+                } else {
+                    LoggingUtils.sendChatMessage("Usage: .config visuals save/load");
+                }
+                break;
+            }
+
             default:
-                LoggingUtils.sendChatMessage("Usage: .config delete <config name>");
+                LoggingUtils.sendChatMessage("Usage: .config save/load/list/delete/binds/visuals");
         }
     }
 
@@ -89,6 +142,6 @@ public class ConfigCommand extends Command {
             File file = new File(ConfigManager.CONFIGS_DIR, name + ".json");
             return file.exists() && file.delete();
         }
-        return false;
+        return Yuri.INSTANCE.getConfigManager().deleteConfig(name);
     }
 }

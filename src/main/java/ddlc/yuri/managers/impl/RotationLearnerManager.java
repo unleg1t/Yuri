@@ -54,6 +54,7 @@ public class RotationLearnerManager implements IMinecraft {
     @EventHook
     public void onPreUpdate(PreUpdateEvent event) {
         if (mc.theWorld == null || mc.thePlayer == null) return;
+        if (!recording) return;
 
         for (EntityPlayer other : mc.theWorld.playerEntities) {
             if (other == mc.thePlayer) continue;

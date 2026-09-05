@@ -74,33 +74,44 @@ public class ESPModule extends Module {
     @EventHook
     public void onRender2D(Render2DEvent event) {
         Color color = ColorManager.getColor();
+        Color outlineColor = outline.getValue()
+                ? new Color(0, 0, 0, outlineAlpha.getValue().floatValue())
+                : null;
 
         int radius = 10;
         Vec3 playerPos = mc.thePlayer.getPositionVector();
-        BlockPos playerBlockPos = new BlockPos(playerPos.xCoord, playerPos.yCoord, playerPos.zCoord);
+        ScaledResolution scaledResolution = new ScaledResolution(mc);
+        float espLineWidth = espWidth.getValue().floatValue();
+        double viewerX = mc.getRenderManager().viewerPosX;
+        double viewerY = mc.getRenderManager().viewerPosY;
+        double viewerZ = mc.getRenderManager().viewerPosZ;
 
         if (chestEsp.getValue()) {
-            for (BlockPos pos : BlockPos.getAllInBox(
-                    playerBlockPos.add(-radius, -radius, -radius),
-                    playerBlockPos.add(radius, radius, radius))) {
+            int px = MathHelper.floor_double(playerPos.xCoord);
+            int py = MathHelper.floor_double(playerPos.yCoord);
+            int pz = MathHelper.floor_double(playerPos.zCoord);
 
-                if (mc.theWorld.getBlockState(pos).getBlock() instanceof BlockChest) {
-                    AxisAlignedBB bb = mc.theWorld.getBlockState(pos)
-                            .getBlock()
-                            .getSelectedBoundingBox(mc.theWorld, pos);
+            for (int dx = -radius; dx < radius; dx++) {
+                for (int dy = -radius; dy < radius; dy++) {
+                    for (int dz = -radius; dz < radius; dz++) {
+                        int bx = px + dx;
+                        int by = py + dy;
+                        int bz = pz + dz;
+                        BlockPos pos = new BlockPos(bx, by, bz);
+                        net.minecraft.block.state.IBlockState state = mc.theWorld.getBlockState(pos);
+                        if (state.getBlock() instanceof BlockChest) {
+                            AxisAlignedBB bb = state.getBlock().getSelectedBoundingBox(mc.theWorld, pos);
 
-                    if (bb == null) {
-                        bb = new AxisAlignedBB(
-                                pos.getX(), pos.getY(), pos.getZ(),
-                                pos.getX() + 1, pos.getY() + 1, pos.getZ() + 1
-                        );
+                            if (bb == null) {
+                                bb = new AxisAlignedBB(bx, by, bz, bx + 1, by + 1, bz + 1);
+                            }
+
+                            render2DESP(new AxisAlignedBB(
+                                            bb.minX - viewerX, bb.minY - viewerY, bb.minZ - viewerZ,
+                                            bb.maxX - viewerX, bb.maxY - viewerY, bb.maxZ - viewerZ),
+                                    color, espLineWidth, null, scaledResolution, outlineColor);
+                        }
                     }
-
-                    render2DESP(bb.offset(
-                            -mc.getRenderManager().viewerPosX,
-                            -mc.getRenderManager().viewerPosY,
-                            -mc.getRenderManager().viewerPosZ
-                    ), color, espWidth.getValue().floatValue(), null);
                 }
             }
         }
@@ -108,22 +119,20 @@ public class ESPModule extends Module {
         for (Entity entity : mc.theWorld.loadedEntityList) {
             if (entity instanceof EntityPlayer) {
                 if (!entity.equals(mc.thePlayer) || (mc.gameSettings.thirdPersonView != 0 && renderSelf.getValue())) {
-                    render2DESP(entity.getEntityBoundingBox()
-                                    .offset(-entity.posX, -entity.posY, -entity.posZ)
-                                    .offset(interpolate(entity.lastTickPosX, entity.posX),
-                                            interpolate(entity.lastTickPosY, entity.posY),
-                                            interpolate(entity.lastTickPosZ, entity.posZ))
-                                    .offset(-mc.getRenderManager().viewerPosX,
-                                            -mc.getRenderManager().viewerPosY,
-                                            -mc.getRenderManager().viewerPosZ),
-                            color, espWidth.getValue().floatValue(), (EntityLivingBase) entity);
+                    AxisAlignedBB bb = entity.getEntityBoundingBox();
+                    double x = interpolate(entity.lastTickPosX, entity.posX) - viewerX;
+                    double y = interpolate(entity.lastTickPosY, entity.posY) - viewerY;
+                    double z = interpolate(entity.lastTickPosZ, entity.posZ) - viewerZ;
+                    render2DESP(new AxisAlignedBB(
+                                    bb.minX + x, bb.minY + y, bb.minZ + z,
+                                    bb.maxX + x, bb.maxY + y, bb.maxZ + z),
+                            color, espLineWidth, (EntityLivingBase) entity, scaledResolution, outlineColor);
                 }
             }
         }
     }
 
-    private void render2DESP(AxisAlignedBB axisAlignedBB, Color color, float lineWidth, EntityLivingBase livingEntity) {
-        ScaledResolution scaledResolution = new ScaledResolution(mc);
+    private void render2DESP(AxisAlignedBB axisAlignedBB, Color color, float lineWidth, EntityLivingBase livingEntity, ScaledResolution scaledResolution, Color outlineColor) {
         int screenWidth = scaledResolution.getScaledWidth();
         int screenHeight = scaledResolution.getScaledHeight();
 
@@ -200,12 +209,11 @@ public class ESPModule extends Module {
             GL11.glEnd();
         }
 
-        if (outline.getValue()) {
-            Color black = new Color(0, 0, 0, outlineAlpha.getValue().floatValue());
+        if (outline.getValue() && outlineColor != null) {
             if (mode.getValue() == Mode.CORNERS) {
-                drawCorners(drawMinX, drawMinY, drawMaxX, drawMaxY, black, lineWidth + outlineWidth.getValue().floatValue());
+                drawCorners(drawMinX, drawMinY, drawMaxX, drawMaxY, outlineColor, lineWidth + outlineWidth.getValue().floatValue());
             } else {
-                drawBox(drawMinX, drawMinY, drawMaxX, drawMaxY, black, lineWidth + outlineWidth.getValue().floatValue());
+                drawBox(drawMinX, drawMinY, drawMaxX, drawMaxY, outlineColor, lineWidth + outlineWidth.getValue().floatValue());
             }
         }
 
@@ -233,7 +241,9 @@ public class ESPModule extends Module {
     private void drawHealthBar(EntityLivingBase entity, double boxMinX, double boxMaxX, double boxTopY, double boxBottomY) {
         double ratio = MathHelper.clamp_double(entity.getHealth() / entity.getMaxHealth(), 0.0, 1.0);
         int hc = ratio < 0.3D ? Color.red.getRGB() : (ratio < 0.5D ? Color.orange.getRGB() : (ratio < 0.7D ? Color.yellow.getRGB() : Color.green.getRGB()));
-        Color barColor = new Color(hc);
+        float hr = (hc >> 16 & 255) / 255f;
+        float hg = (hc >> 8 & 255) / 255f;
+        float hb = (hc & 255) / 255f;
 
         double barWidth = healthBarWidth.getValue().floatValue();
         double barX = boxMaxX + healthBarWidth.getValue().floatValue() + 1;
@@ -260,7 +270,7 @@ public class ESPModule extends Module {
         GL11.glVertex2d(barX, boxBottomY);
         GL11.glEnd();
 
-        GL11.glColor4d(barColor.getRed() / 255d, barColor.getGreen() / 255d, barColor.getBlue() / 255d, healthBarAlpha.getValue().floatValue());
+        GL11.glColor4d(hr, hg, hb, healthBarAlpha.getValue().floatValue());
         GL11.glBegin(GL11.GL_QUADS);
         GL11.glVertex2d(barX, filledTop);
         GL11.glVertex2d(barX + barWidth, filledTop);

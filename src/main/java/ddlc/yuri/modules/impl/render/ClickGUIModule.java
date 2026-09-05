@@ -16,15 +16,15 @@ public class ClickGUIModule extends Module implements IMinecraft {
 
     public static final ModeProperty<Color> color = new ModeProperty<>("Color", Color.YURI);
     public static final NumberProperty colorSpeed = new NumberProperty("Color Speed", 5, 1, 10, 1);
-    public static final ModeProperty<Mode> mode = new ModeProperty<>("Mode", Mode.NOVOLINE);
+    public static final ModeProperty<Mode> mode = new ModeProperty<>("Mode", Mode.YURI);
     public static final ModeProperty<ImGuiStyleType> style = new ModeProperty<>("Style", ImGuiStyleType.REGULAR, () -> mode.getValue() == Mode.IMGUI);
     private final Property<Boolean> closePrevious = new Property<>("Close Previous", true, () -> mode.getValue() == Mode.NOVOLINE);
     public static final Property<Boolean> logoInGuis = new Property<>("Logo In GUIS", false);
 
     public enum Mode {
-        NOVOLINE("Novoline"),
+        YURI("Yuri"),
         IMGUI("ImGui"),
-        KRS("Krs");
+        NOVOLINE("Novoline");
 
         public final String name;
 
@@ -81,6 +81,9 @@ public class ClickGUIModule extends Module implements IMinecraft {
             case NOVOLINE:
                 mc.displayGuiScreen(Yuri.INSTANCE.getNovolineClickGui());
                 break;
+            case YURI:
+                mc.displayGuiScreen(Yuri.INSTANCE.getYuriClickGUI());
+                break;
             case IMGUI:
                 mc.displayGuiScreen(Yuri.INSTANCE.getImGuiClickGui());
                 break;
@@ -93,6 +96,8 @@ public class ClickGUIModule extends Module implements IMinecraft {
             Yuri.INSTANCE.getNovolineClickGui().beginClose();
         } else if (mc.currentScreen == Yuri.INSTANCE.getImGuiClickGui() && !Yuri.INSTANCE.getImGuiClickGui().isClosing()) {
             Yuri.INSTANCE.getImGuiClickGui().beginClose();
+        } else if (mc.currentScreen == Yuri.INSTANCE.getYuriClickGUI() && !Yuri.INSTANCE.getYuriClickGUI().isClosing()) {
+            Yuri.INSTANCE.getYuriClickGUI().beginClose();
         }
     }
 }

@@ -45,6 +45,7 @@ public class WatermarkModule extends Module implements IMinecraft {
         SIMPLE("Simple"),
         CLASSIC("Classic"),
         LOGO("Logo"),
+        NATSUKI("Natsuki"),
         LESBIAN("Lesbian");
 
         public final String name;
@@ -59,6 +60,11 @@ public class WatermarkModule extends Module implements IMinecraft {
     }
 
     private static final Color BG_COLOR = new Color(0, 0, 0, 130);
+    private static final Color YURISENSE_LINE_COLOR = new Color(59, 57, 57);
+    private static final Color YURISENSE_BODY_COLOR = new Color(23, 23, 23);
+    private static final int YURISENSE_LINE_RGB = YURISENSE_LINE_COLOR.getRGB();
+    private static final int YURISENSE_LINE_DARKER_RGB = YURISENSE_LINE_COLOR.darker().getRGB();
+    private static final int YURISENSE_BODY_RGB = YURISENSE_BODY_COLOR.getRGB();
 
     @EventHook(EventPriority.VERY_HIGH)
     public void onRender2D(Render2DEvent event) {
@@ -135,6 +141,15 @@ public class WatermarkModule extends Module implements IMinecraft {
                         128
                 );
                 break;
+            case NATSUKI:
+                RenderUtils.drawImage(
+                        new ResourceLocation("yuri/gui/natsuki_logo.png"),
+                        -30,
+                        -24,
+                        128,
+                        128
+                );
+                break;
             case LESBIAN:
                 RoundedUtils.drawRoundedImage(
                         new ResourceLocation("yuri/gui/lesbians.jpg"),
@@ -152,8 +167,8 @@ public class WatermarkModule extends Module implements IMinecraft {
                 String mp = mc.isSingleplayer()
                         ? "Singleplayer"
                         : (mc.getCurrentServerData() != null
-                           ? mc.getCurrentServerData().serverIP
-                           : "unknown");
+                        ? mc.getCurrentServerData().serverIP
+                        : "unknown");
 
                 String initial = String.valueOf(name.getValue().charAt(0));
                 String nameText = new ChatComponentText(name.getValue().substring(1)).getFormattedText();
@@ -219,8 +234,8 @@ public class WatermarkModule extends Module implements IMinecraft {
                 String server = mc.isSingleplayer()
                         ? "singleplayer"
                         : (mc.getCurrentServerData() != null
-                           ? mc.getCurrentServerData().serverIP
-                           : "unknown");
+                        ? mc.getCurrentServerData().serverIP
+                        : "unknown");
 
                 String text = "yurisense - "
                         + mc.thePlayer.getName()
@@ -235,29 +250,21 @@ public class WatermarkModule extends Module implements IMinecraft {
 
                 float textWidth = FontUtils.getFont("sf", 18).getStringWidth(text) + 2;
 
-                int lineColor = new Color(59, 57, 57).darker().getRGB();
+                Gui.drawRect2(x, y, textWidth + 7, 18.5, YURISENSE_LINE_RGB);
 
-                Gui.drawRect2(x, y, textWidth + 7, 18.5, new Color(59, 57, 57).getRGB());
+                Gui.drawRect2(x + 2.5, y + 2.5, textWidth + 2, 13, YURISENSE_BODY_RGB);
 
-                Gui.drawRect2(x + 2.5, y + 2.5, textWidth + 2, 13, new Color(23, 23, 23).getRGB());
+                Gui.drawRect2(x + 1, y + 1, textWidth + 5, .5, YURISENSE_LINE_DARKER_RGB);
 
-                // Top small bar
-                Gui.drawRect2(x + 1, y + 1, textWidth + 5, .5, lineColor);
+                Gui.drawRect2(x + 1, y + 17, textWidth + 5, .5, YURISENSE_LINE_DARKER_RGB);
 
-                // Bottom small bar
-                Gui.drawRect2(x + 1, y + 17, textWidth + 5, .5, lineColor);
+                Gui.drawRect2(x + 1, y + 1.5, .5, 16, YURISENSE_LINE_DARKER_RGB);
 
-                // Left bar
-                Gui.drawRect2(x + 1, y + 1.5, .5, 16, lineColor);
+                Gui.drawRect2((x + 1.5) + textWidth, y + 1.5, .5, 16, YURISENSE_LINE_DARKER_RGB);
 
-                // Right Bar
-                Gui.drawRect2((x + 1.5) + textWidth, y + 1.5, .5, 16, lineColor);
-
-                // Accent bar
                 RenderUtils.drawGradientRect((int) (x + 2.5f), (int) (y + 14.5f), (int) (x + textWidth + 4.5f), (int) (y + 15.5f), true, ColorManager.getColors().getFirst().getRGB(), ColorManager.getColors().getSecond().getRGB());
 
-                // Bottom of the rainbow bar
-                Gui.drawRect2(x + 2.5, y + 16, textWidth + 2, .5, lineColor);
+                Gui.drawRect2(x + 2.5, y + 16, textWidth + 2, .5, YURISENSE_LINE_DARKER_RGB);
 
                 FontUtils.getFont("sf", 18).drawStringWithShadow("yuri", x + 4.5f, y + 4.3f, main);
 

@@ -2,6 +2,7 @@ package ddlc.yuri.modules.impl.player;
 
 import ddlc.yuri.Yuri;
 import ddlc.yuri.api.events.annotations.EventHook;
+import ddlc.yuri.api.events.impl.client.PacketReceivedEvent;
 import ddlc.yuri.api.events.impl.player.MotionEvent;
 import ddlc.yuri.api.events.impl.player.MoveEvent;
 import ddlc.yuri.api.events.impl.player.PreUpdateEvent;
@@ -17,7 +18,6 @@ import ddlc.yuri.modules.Module;
 import ddlc.yuri.modules.ModuleCategory;
 import ddlc.yuri.modules.ModuleInfo;
 import ddlc.yuri.modules.impl.movement.SpeedModule;
-import ddlc.yuri.utils.client.LoggingUtils;
 import ddlc.yuri.utils.client.MathUtils;
 import ddlc.yuri.utils.client.TimerUtils;
 import ddlc.yuri.utils.player.*;
@@ -27,9 +27,12 @@ import lombok.Getter;
 import lombok.Setter;
 import net.minecraft.block.BlockAir;
 import net.minecraft.client.gui.ScaledResolution;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.projectile.EntityFireball;
 import net.minecraft.item.ItemBlock;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.play.client.C0APacketAnimation;
+import net.minecraft.network.play.server.S02PacketChat;
 import net.minecraft.util.*;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.util.vector.Vector2f;
@@ -62,6 +65,7 @@ public final class ScaffoldModule extends Module {
     private final Property<Boolean> safeWalk = new Property<>("Safe Walk", false);
     private final NumberProperty expand = new NumberProperty("Expand", 0, 0, 4, 1);
     private final ModeProperty<BlockCounter> blockCounter = new ModeProperty<>("Block Counter", BlockCounter.NONE);
+    private final Property<Boolean> autoDisable = new Property<>("Auto Disable", false);
 
     public enum Mode {
         NORMAL("Normal"),
@@ -80,7 +84,8 @@ public final class ScaffoldModule extends Module {
     }
 
     public enum Rotations {
-        NORMAL("Normal"), RANDOMIZED("Randomized"), OLD("Old");
+        NORMAL("Normal"), // POLAR("Polar"),
+        RANDOMIZED("Randomized"), OLD("Old");
         public final String name;
 
         Rotations(String name) {
@@ -199,12 +204,26 @@ public final class ScaffoldModule extends Module {
         if (!isEnabled()) return;
         resetBinds(false, false, true, true, false, false);
 
+        if (autoDisable.getValue()) {
+            for (Entity entity : mc.theWorld.loadedEntityList) {
+                if (entity instanceof EntityFireball && entity.getDistanceToEntity(mc.thePlayer) < 6) {
+                    RotationManager.setRotations(RotationUtils.calculate(entity), 10, RotationManager.MovementFix.NORMAL);
+                    if (entity.getDistanceToEntity(mc.thePlayer) <= 5) {
+                        Yuri.INSTANCE.getNotificationHandler().pop(getLabel(), "Disabled, fireball detected.");
+                        this.toggle();
+                        break;
+                    }
+                    break;
+                }
+            }
+        }
+
         if (mc.gameSettings.keyBindAttack.isPressed()) {
             mc.gameSettings.keyBindAttack.setPressed(false);
         }
 
         if (mode.getValue() == Mode.TELLY) {
-            if (tellySafeTimer.hasTimeElapsed(200)) {
+            if (tellySafeTimer.hasTimeElapsed(500)) {
                 mc.gameSettings.keyBindJump.setPressed(Keyboard.isKeyDown(mc.gameSettings.keyBindJump.getKeyCode()));
             } else {
                 mc.gameSettings.keyBindJump.setPressed(true);
@@ -257,11 +276,7 @@ public final class ScaffoldModule extends Module {
 
             final int blockSlot = ScaffoldUtils.findPreferredBlockSlot();
             if (blockSlot == -1) {
-                LoggingUtils.sendChatMessage("Disabled, no blocks found.");
-                mc.gameSettings.keyBindForward.setPressed(false);
-                mc.gameSettings.keyBindBack.setPressed(false);
-                mc.gameSettings.keyBindLeft.setPressed(false);
-                mc.gameSettings.keyBindRight.setPressed(false);
+                Yuri.INSTANCE.getNotificationHandler().pop(getLabel(), "Disabled, no blocks found.");
                 this.toggle();
                 return;
             }
@@ -361,6 +376,19 @@ public final class ScaffoldModule extends Module {
         renderBlockCounter();
     }
 
+    @EventHook
+    public void onPacketReceived(PacketReceivedEvent event) {
+        if (autoJump.getValue()) {
+            if (event.getPacket() instanceof S02PacketChat) {
+                S02PacketChat packet = (S02PacketChat) event.getPacket();
+                if (packet.getChatComponent().getUnformattedText().contains("You are not allowed to place blocks here!")) {
+                    Yuri.INSTANCE.getNotificationHandler().pop(getLabel(), "Disabled, block placement denied by server!");
+                    this.toggle();
+                }
+            }
+        }
+    }
+
     private void tellyLogic() {
         if (mc.thePlayer.offGroundTicks == 0) {
             if (mc.thePlayer.onGroundTicks == 0) {
@@ -381,7 +409,7 @@ public final class ScaffoldModule extends Module {
                 }
             }
         } else {
-            if (mc.thePlayer.offGroundTicks <= 2) {
+            if (mc.thePlayer.offGroundTicks <= (isDiagonal() || mc.gameSettings.keyBindJump.isKeyDown() ? 3 : 3)) {
                 tellyNoPlace = false;
             }
         }
@@ -500,14 +528,14 @@ public final class ScaffoldModule extends Module {
                 mc.entityRenderer.getMouseOver(1);
                 if (mc.thePlayer.onGround && MoveUtils.isMoving()) {
                     if (hypixelTelly.getValue()) {
-                        rotSpeed = isDiagonal() || mc.gameSettings.keyBindJump.isKeyDown() ? 6.0f : 5.0f;
+                        rotSpeed = isDiagonal() || mc.gameSettings.keyBindJump.isKeyDown() ? 11.0f : 10.0f;
                     } else {
-                        rotSpeed = 10.0f;
+                        rotSpeed = 20.0f;
                     }
                     target[0] = mc.thePlayer.rotationYaw;
                 } else {
                     if (hypixelTelly.getValue()) {
-                        rotSpeed = isDiagonal() || mc.gameSettings.keyBindJump.isKeyDown() ? 4.5f : 1.2f;
+                        rotSpeed = isDiagonal() || mc.gameSettings.keyBindJump.isKeyDown() ? 7.6f : 2.1f;
                     }
                 }
                 break;

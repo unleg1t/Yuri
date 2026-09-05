@@ -21,9 +21,12 @@ import org.lwjgl.opengl.GL11;
 import org.lwjgl.util.glu.GLU;
 
 import java.awt.*;
+import java.text.DecimalFormat;
 
 @ModuleInfo(label = "Name Tags", description = "Renders name tags through walls", category = ModuleCategory.RENDER)
 public class NameTagsModule extends Module {
+
+    private static final DecimalFormat DISTANCE_FORMAT = new DecimalFormat("0.0");
 
     public final Property<Boolean> renderSelf = new Property<>("Render Self", true);
     public final Property<Boolean> background = new Property<>("Background", true);
@@ -39,20 +42,30 @@ public class NameTagsModule extends Module {
 
     @EventHook
     public void onRender2D(Render2DEvent event) {
+        ScaledResolution sr = new ScaledResolution(mc);
+        double bgColor = background.getValue()
+                ? new Color(0, 0, 0, (int) (bgOpacity.getValue() * 255)).getRGB()
+                : 0;
+        float ticks = mc.timer.renderPartialTicks;
+        double viewerX = mc.getRenderManager().viewerPosX;
+        double viewerY = mc.getRenderManager().viewerPosY;
+        double viewerZ = mc.getRenderManager().viewerPosZ;
+
         for (Entity entity : mc.theWorld.loadedEntityList) {
             if (!(entity instanceof EntityPlayer)) {
                 continue;
             }
 
-            double[] pos = ESPUtils.getInterpolatedPos(entity);
             if (!entity.equals(mc.thePlayer) || (mc.gameSettings.thirdPersonView != 0 && renderSelf.getValue())) {
-                renderNameTag((EntityPlayer) entity, pos[0], pos[1] + entity.height + 0.2D, pos[2]);
+                double x = entity.lastTickPosX + (entity.posX - entity.lastTickPosX) * ticks - viewerX;
+                double y = entity.lastTickPosY + (entity.posY - entity.lastTickPosY) * ticks - viewerY;
+                double z = entity.lastTickPosZ + (entity.posZ - entity.lastTickPosZ) * ticks - viewerZ;
+                renderNameTag((EntityPlayer) entity, x, y + entity.height + 0.2D, z, sr, bgColor);
             }
         }
     }
 
-    private void renderNameTag(EntityPlayer player, double x, double y, double z) {
-        ScaledResolution sr = new ScaledResolution(mc);
+    private void renderNameTag(EntityPlayer player, double x, double y, double z, ScaledResolution sr, double bgColor) {
 
         ESPUtils.windPos.clear();
         if (!GLU.gluProject((float) x, (float) y, (float) z,
@@ -75,7 +88,7 @@ public class NameTagsModule extends Module {
         }
 
         double distance = mc.thePlayer.getDistanceToEntity(player);
-        String distanceText = String.format("%.1f", distance);
+        String distanceText = DISTANCE_FORMAT.format(distance);
         String heart = "\u2764";
         String tagText = CLIENT_TAG;
 
@@ -104,8 +117,7 @@ public class NameTagsModule extends Module {
         GL11.glDisable(GL11.GL_TEXTURE_2D);
 
         if (background.getValue()) {
-            Gui.drawRect(startX - 2, topY - 1, startX + mainTextWidth + 2, topY + fontHeight + 1,
-                    new Color(0, 0, 0, (int) (bgOpacity.getValue() * 255)).getRGB());
+            Gui.drawRect(startX - 2, topY - 1, startX + mainTextWidth + 2, topY + fontHeight + 1, (int) bgColor);
         }
 
         GL11.glEnable(GL11.GL_TEXTURE_2D);
@@ -126,7 +138,7 @@ public class NameTagsModule extends Module {
 
         if (mc.gameSettings.thirdPersonView != 0 && renderSelf.getValue() && player.equals(mc.thePlayer)) {
             double badgeX = startX + mainTextWidth + BADGE_GAP;
-            drawBadge(tagText, badgeX, topY, fontHeight, badgeWidth);
+            drawBadge(tagText, badgeX, topY, fontHeight, badgeWidth, bgColor);
         }
 
         GL11.glEnable(GL11.GL_CULL_FACE);
@@ -135,12 +147,11 @@ public class NameTagsModule extends Module {
         GlStateManager.resetColor();
     }
 
-    private void drawBadge(String text, double x, double y, int fontHeight, double width) {
+    private void drawBadge(String text, double x, double y, int fontHeight, double width, double bgColor) {
         int height = fontHeight + 4;
 
         if (background.getValue()) {
-            Gui.drawRect(x, y - 1, x + width, y + height - 3,
-                    new Color(0, 0, 0, (int) (bgOpacity.getValue() * 255)).getRGB());
+            Gui.drawRect(x, y - 1, x + width, y + height - 3, (int) bgColor);
         }
 
         drawString(text, x + BADGE_PADDING, y, ColorManager.getColor().getRGB());

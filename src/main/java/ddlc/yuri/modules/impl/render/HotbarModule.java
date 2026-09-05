@@ -43,6 +43,7 @@ public class HotbarModule extends Module {
 
     private static final Color BG_COLOR = new Color(0, 0, 0, 130);
     private static final Color HIGHLIGHT_FILL_COLOR = new Color(255, 255, 255, 45);
+    private static final Color TRANSPARENT = new Color(0, 0, 0, 0);
     private static final float SLOT_SIZE = 20f;
     private static final float SLOT_RADIUS = 4f;
 
@@ -108,7 +109,7 @@ public class HotbarModule extends Module {
         RoundedUtils.drawCustomRoundedRect(x, y, SLOT_SIZE, SLOT_SIZE, SLOT_RADIUS,
                 true, true, true, true, HIGHLIGHT_FILL_COLOR);
         RoundedUtils.drawRoundOutline(x, y, SLOT_SIZE, SLOT_SIZE, SLOT_RADIUS, -0.5f,
-                new Color(0, 0, 0, 0), ColorManager.getColor());
+                TRANSPARENT, ColorManager.getColor());
     }
 
     private void renderHotBarItem(final int index, final int xPos, final int yPos, final float partialTicks, final EntityPlayer entityPlayer) {

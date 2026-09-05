@@ -60,9 +60,7 @@ public final class OldNovolineMode extends TargetHudMode {
         float hurtProgress = elapsed >= 400 ? 1f : Math.max(0f, elapsed / 400f);
         float tintAmount = hurtProgress < 1f ? (1f - hurtProgress) * 0.7f : 0f;
 
-        if (targetEntity != mc.thePlayer) {
         parentModule.render3DEntity(targetEntity, 12, getLabelHeight() + 27, 14, 1.0f, tintAmount, currentAlpha);
-        }
 
         int whiteWithAlpha = (textAlpha << 24) | 0xFFFFFF;
         mc.fontRendererObj.drawString(targetEntity.getName(), 2 + headSize + 2, 4, whiteWithAlpha, true);

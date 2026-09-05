@@ -2,96 +2,74 @@ package ddlc.yuri.api.config;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import ddlc.yuri.Yuri;
 
-import java.io.BufferedInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
+import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.io.Reader;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
-public final class GithubConfigFetcher {
+public class GithubConfigFetcher {
+    private static final String REPO_API_URL = "https://api.github.com/repos/unleg1t/yuri-configs/contents";
+    private static final String RAW_URL = "https://raw.githubusercontent.com/unleg1t/yuri-configs/main/";
 
-    private static final String API_TREE_URL = "https://api.github.com/repos/unleg1t/yuri-configs/git/trees/main?recursive=1";
-    private static final String RAW_BASE_URL = "https://raw.githubusercontent.com/unleg1t/yuri-configs/main/";
-
-    private GithubConfigFetcher() {
-    }
-
-    public static List<String> listRemoteConfigs() {
-        List<String> out = new ArrayList<>();
+    public static List<String> fetchConfigList() {
+        List<String> configs = new ArrayList<>();
         try {
-            URL url = new URL(API_TREE_URL);
+            URL url = new URL(REPO_API_URL);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
             conn.setRequestProperty("Accept", "application/vnd.github.v3+json");
-            conn.setConnectTimeout(5000);
-            conn.setReadTimeout(5000);
 
-            try (Reader reader = new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8)) {
-                JsonParser parser = new JsonParser();
-                JsonObject root = (JsonObject) parser.parse(reader);
-                JsonArray tree = root.getAsJsonArray("tree");
-                if (tree != null) {
-                    for (JsonElement el : tree) {
-                        JsonObject obj = el.getAsJsonObject();
-                        String path = obj.get("path").getAsString();
-                        if (path.toLowerCase().endsWith(".json")) {
-                            out.add(path);
-                        }
-                    }
+            BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+            StringBuilder response = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                response.append(line);
+            }
+            reader.close();
+
+            JsonArray files = new JsonParser().parse(response.toString()).getAsJsonArray();
+            for (JsonElement element : files) {
+                String name = element.getAsJsonObject().get("name").getAsString();
+                if (name.endsWith(".json")) {
+                    configs.add(name.replace(".json", ""));
                 }
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-        return out;
+        return configs;
     }
 
-    public static boolean downloadRemoteConfig(String repoPath) {
-        // legacy synchronous download
-        return downloadRemoteConfigWithProgress(repoPath, null);
-    }
-
-    public static boolean downloadRemoteConfigWithProgress(String repoPath, ddlc.yuri.utils.render.progress.ProgressBarEntry entry) {
-        if (repoPath == null || repoPath.isEmpty()) return false;
+    public static boolean downloadAndLoadConfig(String configName) {
         try {
-            URL url = new URL(RAW_BASE_URL + repoPath);
+            String configUrl = RAW_URL + configName + ".json";
+            URL url = new URL(configUrl);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
-            conn.setConnectTimeout(10000);
-            conn.setReadTimeout(10000);
 
-            int contentLength = conn.getContentLength();
-
-            try (BufferedInputStream in = new BufferedInputStream(conn.getInputStream())) {
-                ByteArrayOutputStream bout = new ByteArrayOutputStream();
-                byte[] buf = new byte[4096];
-                int read;
-                int total = 0;
-                while ((read = in.read(buf)) != -1) {
-                    bout.write(buf, 0, read);
-                    total += read;
-                    if (entry != null && contentLength > 0) {
-                        entry.setProgress(Math.max(0f, Math.min(1f, (float) total / (float) contentLength)));
-                    }
-                }
-                byte[] content = bout.toByteArray();
-                File outFile = new File(ConfigManager.CONFIGS_DIR, new File(repoPath).getName());
-                try (FileOutputStream fos = new FileOutputStream(outFile)) {
-                    fos.write(content);
-                }
-                if (entry != null) entry.setProgress(1f);
-                return true;
+            BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+            StringBuilder content = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                content.append(line).append("\n");
             }
-        } catch (Exception ignored) {
-            if (entry != null) entry.setProgress(0f);
+            reader.close();
+
+            // Save to configs directory
+            java.io.File configFile = new java.io.File(ConfigManager.CONFIGS_DIR, configName + ".json");
+            Files.write(Paths.get(configFile.getPath()), content.toString().getBytes());
+
+            // Load the config
+            return Yuri.INSTANCE.getConfigManager().loadConfig(configName);
+        } catch (Exception e) {
+            e.printStackTrace();
             return false;
         }
     }

@@ -1,9 +1,12 @@
 package net.minecraft.client.gui;
 
 import ddlc.yuri.api.gui.main.YuriMenu;
+import ddlc.yuri.managers.impl.LastConnectionManager;
 import ddlc.yuri.utils.render.FontUtils;
 import net.minecraft.client.gui.achievement.GuiAchievements;
 import net.minecraft.client.gui.achievement.GuiStats;
+import net.minecraft.client.multiplayer.GuiConnecting;
+import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.WorldClient;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.realms.RealmsBridge;
@@ -21,11 +24,15 @@ public class GuiIngameMenu extends GuiScreen
         this.buttonList.clear();
         int i = -16;
         int j = 98;
-        this.buttonList.add(new GuiButton(1, this.width / 2 - 100, this.height / 4 + 120 + i, I18n.format("menu.returnToMenu", new Object[0])));
+        int padding = 3;
 
-        if (!this.mc.isIntegratedServerRunning())
-        {
-            ((GuiButton)this.buttonList.get(0)).displayString = I18n.format("menu.disconnect", new Object[0]);
+        if (!this.mc.isIntegratedServerRunning()) {
+            this.buttonList.add(new GuiButton(1, this.width / 2 - 100, this.height / 4 + 120 + i, 100 - padding, 20, "Disconnect"));
+            this.buttonList.add(new GuiButton(8, this.width / 2 + padding, this.height / 4 + 120 + i, 100 - padding, 20, "Reconnect"));
+
+            this.buttonList.get(0).displayString = I18n.format("menu.disconnect");
+        } else {
+            this.buttonList.add(new GuiButton(1, this.width / 2 - 100, this.height / 4 + 120 + i, I18n.format("menu.returnToMenu")));
         }
 
         this.buttonList.add(new GuiButton(4, this.width / 2 - 100, this.height / 4 + 24 + i, I18n.format("menu.returnToGame", new Object[0])));
@@ -86,6 +93,10 @@ public class GuiIngameMenu extends GuiScreen
 
             case 7:
                 this.mc.displayGuiScreen(new GuiShareToLan(this));
+
+            case 8:
+                this.mc.displayGuiScreen(new GuiConnecting(new GuiMultiplayer(new YuriMenu()), this.mc, new ServerData("", LastConnectionManager.ip, false)));
+                break;
         }
     }
 

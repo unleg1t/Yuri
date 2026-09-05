@@ -15,7 +15,6 @@ import ddlc.yuri.modules.Module;
 import ddlc.yuri.modules.ModuleCategory;
 import ddlc.yuri.modules.ModuleInfo;
 import ddlc.yuri.modules.impl.player.ScaffoldModule;
-import ddlc.yuri.utils.client.LoggingUtils;
 import ddlc.yuri.utils.client.MathUtils;
 import ddlc.yuri.utils.client.TimerUtils;
 import ddlc.yuri.utils.player.InvUtils;
@@ -31,9 +30,12 @@ import org.lwjgl.util.vector.Vector2f;
 
 import java.security.SecureRandom;
 import java.util.Arrays;
+import java.util.LinkedList;
 
 @ModuleInfo(label = "Aura", description = "Automatically attacks entities around you", category = ModuleCategory.COMBAT)
 public class AuraModule extends Module {
+
+    // my daddy larryngton is gonna make polar shit so i remove it for now, but he will add it back later
 
     private final MultiModeProperty<TargetManager.Targets> targets = new MultiModeProperty<>("Targets", TargetManager.Targets.PLAYERS, TargetManager.Targets.HOSTILES, TargetManager.Targets.TEAMMATES, TargetManager.Targets.INVISIBLES);
     private static final ModeProperty<TargetManager.Mode> mode = new ModeProperty<>("Mode", TargetManager.Mode.SINGLE);
@@ -46,6 +48,10 @@ public class AuraModule extends Module {
     private static final NumberProperty max = new NumberProperty("Max CPS", 13.0, 0.0, 20.0, 0.5);
     public static ModeProperty<AutoBlock> ab = new ModeProperty<>("Auto Block", AutoBlock.FAKE);
     public static Property<Boolean> onlyBlockIfHurt = new Property<>("Only Block If Hurt", false);
+    private static final NumberProperty predictLeadTicks = new NumberProperty("Predict Lead", 3, 0, 10, 1, () -> ab.getValue() == AutoBlock.PREDICTIVE);
+    private static final NumberProperty predictHoldTicks = new NumberProperty("Predict Hold", 3, 0, 10, 1, () -> ab.getValue() == AutoBlock.PREDICTIVE);
+    private static final NumberProperty predictHistorySize = new NumberProperty("Predict History", 5, 2, 10, 1, () -> ab.getValue() == AutoBlock.PREDICTIVE);
+    private static final NumberProperty predictWindowScale = new NumberProperty("Predict Window", 1.5, 0.0, 4.0, 0.1, () -> ab.getValue() == AutoBlock.PREDICTIVE);
     private final NumberProperty blockOnHurtTicks = new NumberProperty("Block On Hurt Ticks", 4, 0, 10, 1, onlyBlockIfHurt::getValue);
     public static final Property<Boolean> throughWalls = new Property<>("Through Walls", false);
     public static ModeProperty<Rotations> rotations = new ModeProperty<>("Rotations", Rotations.NORMAL);
@@ -53,11 +59,6 @@ public class AuraModule extends Module {
     private final NumberProperty maxRotSpeed = new NumberProperty("Max Rotation Speed", 7, 0, 10, 0.5f);
     private final NumberProperty bodyEase = new NumberProperty("Body Ease", 0.2, 0.01, 1.0, 0.01, () -> rotations.getValue() == Rotations.ML);
     private final NumberProperty mlEase = new NumberProperty("ML Ease", 0.2, 0.01, 1.0, 0.01, () -> rotations.getValue() == Rotations.ML);
-    public static final Property<Boolean> advancedPolar = new Property<>("Advanced Polar", false, () -> rotations.getValue() == Rotations.POLAR);
-    private static final NumberProperty polarNoiseScale = new NumberProperty("Noise Scale", 2.0, 0.5, 8.0, 0.1, () -> rotations.getValue() == Rotations.POLAR && advancedPolar.getValue());
-    private static final NumberProperty polarWarpStrength = new NumberProperty("Warp Strength", 1.5, 0.1, 5.0, 0.1, () -> rotations.getValue() == Rotations.POLAR && advancedPolar.getValue());
-    private static final NumberProperty polarNoiseOctaves = new NumberProperty("Noise Octaves", 3, 1, 6, 1, () -> rotations.getValue() == Rotations.POLAR && advancedPolar.getValue());
-    private static final NumberProperty polarFlickChance = new NumberProperty("Flick Chance", 50.0, 0.0, 100.0, 1.0, () -> rotations.getValue() == Rotations.POLAR);
     public static final Property<Boolean> rayCast = new Property<>("Ray Cast", true);
     public static final ModeProperty<MoveFix> fix = new ModeProperty<>("Move Fix", MoveFix.SILENT);
     public static final Property<Boolean> sprint = new Property<>("Keep Sprint", false);
@@ -84,7 +85,7 @@ public class AuraModule extends Module {
     public enum Rotations {
         NORMAL("Normal"),
         ML("ML"),
-        POLAR("Polar"),
+/*        POLAR("Polar"),*/
         NONE("None");
 
         public final String name;
@@ -104,7 +105,6 @@ public class AuraModule extends Module {
         VANILLA("Vanilla"),
         NCP("NCP"),
         LEGIT("Legit"),
-        HYPIXEL("Hypixel"),
         PREDICTIVE("Predictive"),
         NONE("None");
 
@@ -131,8 +131,13 @@ public class AuraModule extends Module {
     private Vec3 smoothedBodyPoint;
     private static final TimerUtils blockTimer = new TimerUtils();
 
-    private int previousTargetId = -1;
-    private double previousTargetDistance = -1.0D;
+    private int predictTickCounter = 0;
+    private float lastSwingProgress = 0f;
+    private int lastTargetSwingTick = -1;
+    private int predictedNextSwingTick = -1;
+    private int predictPad = 0;
+    private EntityLivingBase lastPredictTarget;
+    private final LinkedList<Integer> swingIntervals = new LinkedList<>();
 
     @EventHook
     public void onPreUpdate(PreUpdateEvent event) {
@@ -192,10 +197,6 @@ public class AuraModule extends Module {
 
     @EventHook
     public void onHitSlowDown(HitSlowDownEvent e) {
-        if (rotations.getValue() == Rotations.POLAR) {
-            PolarRotationManager.triggerFlick(polarFlickChance.getValue().floatValue());
-        }
-
         if (sprint.getValue() && !hypixelSprint.getValue()) {
             e.setSprint(true);
             e.setSlowDown(1.0);
@@ -222,26 +223,15 @@ public class AuraModule extends Module {
         if (target != lastTarget) {
             smoothedBodyPoint = null;
             RotationLearnerManager.resetSmoothing();
-            PolarRotationManager.reset();
             lastTarget = target;
         }
 
         float rotSpeed = (float) MathUtils.getRandom(minRotSpeed.getValue(), maxRotSpeed.getValue());
         Vector2f rotation;
 
-        if (rotations.getValue() == Rotations.POLAR) {
-            rotation = PolarRotationManager.getPolarRotation(
-                    target,
-                    polarNoiseScale.getValue(),
-                    polarWarpStrength.getValue(),
-                    polarNoiseOctaves.getValue().intValue(),
-                    polarFlickChance.getValue().floatValue(),
-                    seekRange.getValue()
-            );
-            if (rotation == null) {
-                rotation = RotationUtils.calculate(target, false, seekRange.getValue());
-            }
-        } else if (rotations.getValue() == Rotations.ML && RotationLearnerManager.hasModelLoaded()) {
+       /* if (rotations.getValue() == Rotations.POLAR) {
+            rotation = RotationUtils.getPolarRotations(target, (float) MathUtils.getRandom(7.5f, 9.0f));
+        } else */if (rotations.getValue() == Rotations.ML && RotationLearnerManager.hasModelLoaded()) {
             rotation = RotationLearnerManager.humanize(getWholeBodyRotation(target), 1.0f, mlEase.getValue().floatValue());
         } else {
             rotation = RotationUtils.calculate(target, false, seekRange.getValue());
@@ -276,61 +266,72 @@ public class AuraModule extends Module {
         return new Vector2f(rot[0], rot[1]);
     }
 
-    private double wrapAngleTo180(double angle) {
-        angle %= 360.0D;
-        if (angle >= 180.0D) angle -= 360.0D;
-        if (angle < -180.0D) angle += 360.0D;
-        return angle;
+    private double average(LinkedList<Integer> data) {
+        double sum = 0;
+        for (int i : data) sum += i;
+        return sum / data.size();
     }
 
-    private boolean isFacingPlayer(EntityLivingBase target) {
-        if (target == null || mc.thePlayer == null) return false;
-        double dx = mc.thePlayer.posX - target.posX;
-        double dy = (mc.thePlayer.posY + mc.thePlayer.getEyeHeight()) - (target.posY + target.getEyeHeight());
-        double dz = mc.thePlayer.posZ - target.posZ;
-        double horizontalDistance = Math.sqrt(dx * dx + dz * dz);
-        if (horizontalDistance < 0.001D) return true;
-        double targetYaw = Math.toDegrees(Math.atan2(-dx, dz));
-        double yawDifference = wrapAngleTo180(target.rotationYaw - targetYaw);
-        if (Math.abs(yawDifference) > 45.0D) return false;
-        double targetPitch = Math.toDegrees(-Math.atan2(dy, horizontalDistance));
-        double pitchDifference = wrapAngleTo180(target.rotationPitch - targetPitch);
-        return Math.abs(pitchDifference) <= 55.0D;
+    private double stddev(LinkedList<Integer> data, double mean) {
+        if (data.size() < 2) return 0;
+        double sq = 0;
+        for (int i : data) sq += (i - mean) * (i - mean);
+        return Math.sqrt(sq / data.size());
     }
 
-    private double getTargetClosingSpeed(EntityLivingBase target) {
-        if (target == null) return 0.0D;
-        double currentDistance = target.getDistanceToEntity(mc.thePlayer);
-        if (previousTargetId != target.getEntityId() || previousTargetDistance < 0.0D) return 0.0D;
-        return previousTargetDistance - currentDistance;
-    }
+    private void updateSwingPrediction() {
+        predictTickCounter++;
 
-    private boolean shouldPredictAttack(EntityLivingBase target) {
-        if (target == null || mc.thePlayer == null) return false;
-        if (target.isDead || target.getHealth() <= 0.0F) return false;
-        double distance = target.getDistanceToEntity(mc.thePlayer);
-        if (distance <= 2.75D) return true;
-        if (distance > 3.35D) return false;
-        if (target.isSwingInProgress && isFacingPlayer(target)) return true;
-        double closingSpeed = getTargetClosingSpeed(target);
-        if (distance <= 3.15D && isFacingPlayer(target) && closingSpeed > 0.01D) return true;
-        if (target.isSprinting() && distance <= 3.35D && isFacingPlayer(target) && closingSpeed > 0.0D) return true;
-        return false;
-    }
-
-    private void updatePredictTargetState(EntityLivingBase target) {
-        if (target == null) {
-            previousTargetId = -1;
-            previousTargetDistance = -1.0D;
-            return;
+        if (target != lastPredictTarget) {
+            lastSwingProgress = 0f;
+            lastTargetSwingTick = -1;
+            predictedNextSwingTick = -1;
+            predictPad = 0;
+            swingIntervals.clear();
+            lastPredictTarget = target;
         }
-        double distance = target.getDistanceToEntity(mc.thePlayer);
-        if (previousTargetId != target.getEntityId()) {
-            previousTargetId = target.getEntityId();
-            previousTargetDistance = distance;
-            return;
+
+        if (target == null) return;
+
+        float sp = target.swingProgress;
+        boolean swungThisTick = sp < lastSwingProgress - 0.25f;
+        lastSwingProgress = sp;
+
+        if (swungThisTick) {
+            if (lastTargetSwingTick != -1) {
+                int interval = predictTickCounter - lastTargetSwingTick;
+                if (interval > 0 && interval < 40) {
+                    swingIntervals.addLast(interval);
+                    while (swingIntervals.size() > predictHistorySize.getValue().intValue()) {
+                        swingIntervals.removeFirst();
+                    }
+                }
+            }
+            lastTargetSwingTick = predictTickCounter;
         }
-        previousTargetDistance = distance;
+
+        if (!swingIntervals.isEmpty() && lastTargetSwingTick != -1) {
+            double avg = average(swingIntervals);
+            double sd = stddev(swingIntervals, avg);
+            predictPad = (int) Math.round(sd * predictWindowScale.getValue());
+
+            int step = Math.max(1, (int) Math.round(avg));
+            int projected = lastTargetSwingTick + step;
+            int hold = predictHoldTicks.getValue().intValue() + predictPad;
+            while (predictTickCounter > projected + hold) {
+                projected += step;
+            }
+            predictedNextSwingTick = projected;
+        } else {
+            predictedNextSwingTick = -1;
+        }
+    }
+
+    private boolean isHitIncoming() {
+        if (swingIntervals.isEmpty() || predictedNextSwingTick == -1) return true;
+        int lead = predictLeadTicks.getValue().intValue() + predictPad;
+        int hold = predictHoldTicks.getValue().intValue() + predictPad;
+        return predictTickCounter >= predictedNextSwingTick - lead && predictTickCounter <= predictedNextSwingTick + hold;
     }
 
     private void autoblock() {
@@ -363,13 +364,15 @@ public class AuraModule extends Module {
                 canAttack = !BadPacketsManager.bad(false, false, false, true, false) && blockTicks >= 1;
                 break;
             case PREDICTIVE:
-                mc.gameSettings.keyBindUseItem.setPressed(!readyToAttack && shouldPredictAttack(target));
+                updateSwingPrediction();
+                boolean incoming = isHitIncoming();
+                mc.gameSettings.keyBindUseItem.setPressed(incoming && !readyToAttack);
                 autoBlocking = true;
                 blockTicks++;
                 if (mc.gameSettings.keyBindUseItem.isPressed() || mc.thePlayer.isUsingItem()) {
                     blockTicks = 0;
                 }
-                canAttack = !BadPacketsManager.bad(false, false, false, true, false) && blockTicks >= 1;
+                canAttack = !BadPacketsManager.bad(false, false, false, true, false) && (!incoming || blockTicks >= 1);
                 break;
             case VANILLA:
                 PacketUtils.sendPacket(new C08PacketPlayerBlockPlacement(mc.thePlayer.getHeldItem()));
@@ -381,22 +384,6 @@ public class AuraModule extends Module {
                     PacketUtils.sendPacket(new C07PacketPlayerDigging(C07PacketPlayerDigging.Action.RELEASE_USE_ITEM, BlockPos.ORIGIN, EnumFacing.DOWN));
                     autoBlocking = false;
                 }
-                break;
-            case HYPIXEL:
-                mc.gameSettings.keyBindUseItem.setPressed(!BadPacketsManager.bad(true, true, false, false, false) && !readyToAttack && mc.thePlayer.getDistanceToEntity(target) <= 2.5f);
-                if (mc.gameSettings.keyBindUseItem.isPressed() || mc.thePlayer.isUsingItem()) {
-                    mc.thePlayer.setSprinting(!(Math.abs(MathHelper.wrapAngleTo180_float(mc.thePlayer.rotationYaw) - MathHelper.wrapAngleTo180_float(RotationManager.rotations.x)) > 90));
-                    mc.thePlayer.movementInput.moveForward *= 1.8f;
-                    mc.thePlayer.movementInput.moveStrafe *= 1.8f;
-                }
-                SlotManager.swap(mc.thePlayer.inventory.currentItem % 8 + 1, true);
-                autoBlocking = true;
-                blockTicks++;
-                if (mc.thePlayer.isUsingItem()) {
-                    blockTicks = 0;
-                    SlotManager.swapBack();
-                }
-                canAttack = !BadPacketsManager.bad(true, false, false, true, false) && blockTicks >= 1;
                 break;
         }
     }
@@ -423,15 +410,7 @@ public class AuraModule extends Module {
             return;
         }
 
-        if (ab.getValue() == AutoBlock.HYPIXEL) {
-            mc.gameSettings.keyBindUseItem.setPressed(false);
-            mc.playerController.onStoppedUsingItem(mc.thePlayer);
-            autoBlocking = false;
-            canAttack = true;
-            return;
-        }
-
-        if (InvUtils.isHoldingSword() && ab.getValue() != AutoBlock.LEGIT && ab.getValue() != AutoBlock.HYPIXEL && ab.getValue() != AutoBlock.PREDICTIVE) {
+        if (InvUtils.isHoldingSword() && ab.getValue() != AutoBlock.LEGIT && ab.getValue() != AutoBlock.PREDICTIVE) {
             PacketUtils.sendPacket(new C07PacketPlayerDigging(C07PacketPlayerDigging.Action.RELEASE_USE_ITEM, BlockPos.ORIGIN, EnumFacing.DOWN));
         }
 
@@ -451,17 +430,13 @@ public class AuraModule extends Module {
                     && RayCastUtils.rayCast(RotationManager.rotations, blockRange.getValue().floatValue()).entityHit != null
                     && RayCastUtils.rayCast(RotationManager.rotations, blockRange.getValue().floatValue()).entityHit == target))
                 return;
-            swing();
+            mc.thePlayer.swingItem();
             mc.playerController.attackEntity(mc.thePlayer, target);
             this.hitTicks = 0;
         } else if (dist <= swingRange.getValue()) {
             mc.clickMouse();
             this.hitTicks = 0;
         }
-    }
-
-    private void swing() {
-        mc.thePlayer.swingItem();
     }
 
     private static boolean hitTimerDone() {
@@ -487,13 +462,16 @@ public class AuraModule extends Module {
         lastTarget = null;
         smoothedBodyPoint = null;
         RotationLearnerManager.resetSmoothing();
-        PolarRotationManager.reset();
         delay = 0;
         blockTimer.reset();
         blockTicks = -1;
         attackTimer.reset();
-        previousTargetId = -1;
-        previousTargetDistance = -1.0D;
+        lastSwingProgress = 0f;
+        lastTargetSwingTick = -1;
+        predictedNextSwingTick = -1;
+        predictPad = 0;
+        lastPredictTarget = null;
+        swingIntervals.clear();
     }
 
     @Override
@@ -506,7 +484,7 @@ public class AuraModule extends Module {
         attackTimer.reset();
         if (rotations.getValue() == Rotations.ML) {
             if (!RotationLearnerManager.hasModelLoaded()) {
-                LoggingUtils.sendChatMessage("ML model not loaded, use .rot load <name> to load a rotation model!");
+                Yuri.INSTANCE.getNotificationHandler().pop(getLabel(),"Use .rot load <name> to load a rotation model!");
             }
         }
         super.onEnable();

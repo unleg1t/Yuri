@@ -1,8 +1,11 @@
 package net.minecraft.client.renderer;
 
-import java.nio.FloatBuffer;
+import ddlc.yuri.utils.render.RenderUtils;
+import net.minecraft.util.AxisAlignedBB;
 import net.minecraft.util.Vec3;
 import org.lwjgl.opengl.GL11;
+
+import java.nio.FloatBuffer;
 
 public class RenderHelper
 {
@@ -61,4 +64,17 @@ public class RenderHelper
         enableStandardItemLighting();
         GlStateManager.popMatrix();
     }
+
+    public static void drawCompleteBoxFilled(AxisAlignedBB axisalignedbb, float width, int insideColor) {
+        GL11.glLineWidth(width);
+        GL11.glEnable(2848);
+        GL11.glEnable(2881);
+        GL11.glHint(3154, 4354);
+        GL11.glHint(3155, 4354);
+        RenderUtils.color(insideColor);
+        RenderUtils.drawBoundingBox(axisalignedbb);
+        GL11.glDisable(2848);
+        GL11.glDisable(2881);
+    }
+
 }

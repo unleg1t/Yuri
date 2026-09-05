@@ -1925,6 +1925,11 @@ public class Minecraft implements IThreadListener, IPlayerUsage
                 this.displayGuiScreen(new GuiChat("/"));
             }
 
+            if (this.currentScreen == null && Keyboard.isKeyDown(Keyboard.KEY_PERIOD) && flag)
+            {
+                this.displayGuiScreen(new GuiChat("."));
+            }
+
             if (this.thePlayer.isUsingItem())
             {
                 if (!this.gameSettings.keyBindUseItem.isKeyDown())

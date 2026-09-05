@@ -18,8 +18,11 @@ public class CameraModule extends Module {
         SMOOTH("Smooth"),
         LEAKED("Leaked"),
         INERTIA("Inertia"),
-        MOON("Moon"),
-        INVERTED("Inverted");
+        PUNCH("Punch"),
+        SWING("Swing"),
+        STELLA("Stella"),
+        STYLES("Styles"),
+        ETHEREAL("Ethereal");
 
         public final String name;
 

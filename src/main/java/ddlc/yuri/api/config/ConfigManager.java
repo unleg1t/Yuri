@@ -8,13 +8,22 @@ import ddlc.yuri.utils.misc.Manager;
 import lombok.Getter;
 import org.apache.commons.io.FilenameUtils;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 
 public final class ConfigManager extends Manager<Config> {
 
     @Getter
     private static ConfigManager instance;
+
+    @Getter
+    private final BindsConfig bindsConfig;
+
+    @Getter
+    private final VisualsConfig visualsConfig;
 
     public ConfigManager() {
         super(loadConfigs());
@@ -23,6 +32,9 @@ public final class ConfigManager extends Manager<Config> {
         if (!CONFIGS_DIR.exists()) {
             boolean ignored = CONFIGS_DIR.mkdirs();
         }
+
+        this.bindsConfig = new BindsConfig();
+        this.visualsConfig = new VisualsConfig();
     }
 
     public static final File CONFIGS_DIR = new File(Yuri.NAME, "configs");
@@ -33,13 +45,12 @@ public final class ConfigManager extends Manager<Config> {
         Config config = findConfig(configName);
 
         if (config == null) return false;
-        try {
-            FileReader reader = new FileReader(config.getFile());
+        try (FileReader reader = new FileReader(config.getFile())) {
             JsonParser parser = new JsonParser();
             JsonObject object = (JsonObject) parser.parse(reader);
             config.load(object);
             return true;
-        } catch (FileNotFoundException e) {
+        } catch (Exception e) {
             return false;
         }
     }
@@ -53,10 +64,8 @@ public final class ConfigManager extends Manager<Config> {
         }
 
         String contentPrettyPrint = new GsonBuilder().setPrettyPrinting().create().toJson(config.save());
-        try {
-            FileWriter writer = new FileWriter(config.getFile());
+        try (FileWriter writer = new FileWriter(config.getFile())) {
             writer.write(contentPrettyPrint);
-            writer.close();
             return true;
         } catch (IOException e) {
             return false;

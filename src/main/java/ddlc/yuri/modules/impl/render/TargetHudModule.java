@@ -73,6 +73,9 @@ public final class TargetHudModule extends Module {
     private long lastRender2DTime = 0;
     private final Map<UUID, TargetState> targetStates = new LinkedHashMap<>();
     private final Random particleRandom = new Random();
+    private final Set<UUID> activeTargetsThisFrame = new HashSet<>();
+    private final List<EntityLivingBase> listToRender = new ArrayList<>();
+    private final List<TargetState> allRenderStates = new ArrayList<>();
 
     public TargetHudModule() {
         modeMap.put(Mode.YURI, new YuriMode(this));
@@ -100,8 +103,8 @@ public final class TargetHudModule extends Module {
 
         if (delta < 0.0005f) return;
 
-        Set<UUID> activeTargetsThisFrame = new HashSet<>();
-        List<EntityLivingBase> listToRender = new ArrayList<>();
+        activeTargetsThisFrame.clear();
+        listToRender.clear();
 
         EntityLivingBase mainTarget = AuraModule.target;
 
@@ -120,14 +123,17 @@ public final class TargetHudModule extends Module {
 
         updateTargetStates(listToRender, activeTargetsThisFrame, delta);
 
-        List<TargetState> allRenderStates = new ArrayList<>(targetStates.values());
+        allRenderStates.clear();
+        allRenderStates.addAll(targetStates.values());
         if (allRenderStates.isEmpty()) return;
 
         TargetHudMode modeInstance = getCurrentModeInstance();
         if (modeInstance == null) return;
 
-        ScaledResolution sr = new ScaledResolution(mc);
-        initializePosition(sr, modeInstance.getMinWidth());
+        if (!positionInitialized && !DragUtils.components.containsKey("TargetHud")) {
+            ScaledResolution sr = new ScaledResolution(mc);
+            initializePosition(sr, modeInstance.getMinWidth());
+        }
 
         DragUtils.DraggableComponent draggable = DragUtils.components.get("TargetHud");
         renderGrid(allRenderStates, draggable, modeInstance, now, delta);
@@ -135,9 +141,10 @@ public final class TargetHudModule extends Module {
 
     @EventHook(EventPriority.VERY_HIGH)
     public void onShader2D(Shader2DEvent event) {
-        if (event.getShaderType() == Shader2DEvent.ShaderType.BLUR) return;
+        if (event.getShaderType() != Shader2DEvent.ShaderType.BLUR) return;
 
-        List<TargetState> allRenderStates = new ArrayList<>(targetStates.values());
+        allRenderStates.clear();
+        allRenderStates.addAll(targetStates.values());
         if (allRenderStates.isEmpty()) return;
 
         TargetHudMode modeInstance = getCurrentModeInstance();
@@ -146,7 +153,25 @@ public final class TargetHudModule extends Module {
         DragUtils.DraggableComponent draggable = DragUtils.components.get("TargetHud");
         if (draggable == null) return;
 
-        renderGrid(allRenderStates, draggable, modeInstance, System.currentTimeMillis(), 0f);
+        renderBlurMask(allRenderStates, draggable, modeInstance);
+    }
+
+    private void renderBlurMask(List<TargetState> states, DragUtils.DraggableComponent draggable, TargetHudMode modeInstance) {
+        boolean useGrid = grid.getValue();
+        int panelWidth = modeInstance.getMinWidth();
+        int panelHeight = modeInstance.getHudHeight() + modeInstance.getLabelHeight();
+
+        for (int i = 0; i < states.size(); i++) {
+            if (!useGrid && i > 0) break;
+
+            int col = i % MAX_COLS;
+            int row = i / MAX_COLS;
+
+            double baseX = draggable.getX() + col * INFO_SPACING_X;
+            double baseY = draggable.getY() + row * INFO_SPACING_Y;
+
+            Gui.drawRect((int) baseX, (int) baseY, (int) (baseX + panelWidth), (int) (baseY + panelHeight), 0xFFFFFFFF);
+        }
     }
 
     private void addAdditionalTargets(List<EntityLivingBase> list, Set<UUID> active, EntityLivingBase mainTarget) {
@@ -317,12 +342,10 @@ public final class TargetHudModule extends Module {
     }
 
     private void initializePosition(ScaledResolution sr, int width) {
-        if (!positionInitialized && !DragUtils.components.containsKey("TargetHud")) {
-            DragUtils.components.put("TargetHud", new DragUtils.DraggableComponent(
-                    (sr.getScaledWidth() - width) / 2.0,
-                    (double) sr.getScaledHeight() / 10));
-            positionInitialized = true;
-        }
+        DragUtils.components.put("TargetHud", new DragUtils.DraggableComponent(
+                (sr.getScaledWidth() - width) / 2.0,
+                (double) sr.getScaledHeight() / 10));
+        positionInitialized = true;
     }
 
     public void renderTargetEquipment(EntityLivingBase targetEntity, int xOffset, int yOffset, float alpha) {
@@ -330,39 +353,16 @@ public final class TargetHudModule extends Module {
         RenderHelper.enableGUIStandardItemLighting();
         mc.getRenderItem().zLevel = 0.0F;
 
-        List<ItemStack> itemsToRender = new ArrayList<>();
+        int itemX = xOffset;
         if (targetEntity.getHeldItem() != null) {
-            itemsToRender.add(targetEntity.getHeldItem());
+            renderItem(targetEntity.getHeldItem(), itemX, yOffset, alpha);
+            itemX += 15;
         }
 
         for (int i = 3; i >= 0; i--) {
             ItemStack armor = targetEntity.getCurrentArmor(i);
             if (armor != null) {
-                itemsToRender.add(armor);
-            }
-        }
-
-        int itemX = xOffset;
-        for (ItemStack item : itemsToRender) {
-            if (item != null) {
-                GlStateManager.pushMatrix();
-                GlStateManager.translate(itemX, yOffset, 0);
-                GlStateManager.scale(0.75f, 0.75f, 0.75f);
-
-                GlStateManager.enableRescaleNormal();
-                GlStateManager.enableAlpha();
-                GlStateManager.alphaFunc(516, 0.1F);
-                GlStateManager.enableBlend();
-                GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
-                GlStateManager.color(1.0F, 1.0F, 1.0F, alpha);
-
-                mc.getRenderItem().renderItemAndEffectIntoGUI(item, 0, 0);
-                mc.getRenderItem().renderItemOverlayIntoGUI(mc.fontRendererObj, item, 0, 0, null);
-
-                GlStateManager.disableAlpha();
-                GlStateManager.disableBlend();
-                GlStateManager.popMatrix();
-
+                renderItem(armor, itemX, yOffset, alpha);
                 itemX += 15;
             }
         }
@@ -372,6 +372,26 @@ public final class TargetHudModule extends Module {
         GlStateManager.enableTexture2D();
         GlStateManager.disableLighting();
         GlStateManager.disableDepth();
+    }
+
+    private void renderItem(ItemStack item, int itemX, int yOffset, float alpha) {
+        GlStateManager.pushMatrix();
+        GlStateManager.translate(itemX, yOffset, 0);
+        GlStateManager.scale(0.75f, 0.75f, 0.75f);
+
+        GlStateManager.enableRescaleNormal();
+        GlStateManager.enableAlpha();
+        GlStateManager.alphaFunc(516, 0.1F);
+        GlStateManager.enableBlend();
+        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
+        GlStateManager.color(1.0F, 1.0F, 1.0F, alpha);
+
+        mc.getRenderItem().renderItemAndEffectIntoGUI(item, 0, 0);
+        mc.getRenderItem().renderItemOverlayIntoGUI(mc.fontRendererObj, item, 0, 0, null);
+
+        GlStateManager.disableAlpha();
+        GlStateManager.disableBlend();
+        GlStateManager.popMatrix();
     }
 
     public void renderPlayerFace(AbstractClientPlayer player, float x, float y, float size, float scale, float tintAmount, float alpha) {

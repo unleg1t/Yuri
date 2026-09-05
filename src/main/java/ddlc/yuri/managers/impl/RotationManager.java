@@ -25,6 +25,9 @@ public class RotationManager {
     private static Function<Vector2f, Boolean> raycast;
     private static float randomAngle;
     private static final Vector2f offset = new Vector2f(0, 0);
+    private static final Vector2f identity = new Vector2f(0, 0);
+    private static final Vector2f playerRotations = new Vector2f(0, 0);
+    private static final Vector2f serverRotations = new Vector2f(0, 0);
 
     // added more call methods so it's easier to call. that's what I wanted with completely making my own rotation manager tbh, but I just pasted simp.
 
@@ -54,7 +57,7 @@ public class RotationManager {
 
     public static void setRotations(final Vector2f rotations, final double rotationSpeed, final MovementFix correctMovement, final Function<Vector2f, Boolean> raycast) {
         RotationManager.targetRotations = rotations;
-        RotationManager.rotationSpeed = rotationSpeed * 36;
+        RotationManager.rotationSpeed = rotationSpeed * 18;
         RotationManager.correctMovement = correctMovement;
         RotationManager.raycast = raycast;
         active = true;
@@ -65,7 +68,8 @@ public class RotationManager {
     @EventHook(value = EventPriority.HIGH)
     public void onPreUpdate(PreUpdateEvent event) {
         if (!active || rotations == null || lastRotations == null || targetRotations == null || lastServerRotations == null) {
-            rotations = lastRotations = targetRotations = lastServerRotations = new Vector2f(mc.thePlayer.rotationYaw, mc.thePlayer.rotationPitch);
+            identity.set(mc.thePlayer.rotationYaw, mc.thePlayer.rotationPitch);
+            rotations = lastRotations = targetRotations = lastServerRotations = identity;
         }
 
         if (active) {
@@ -123,7 +127,8 @@ public class RotationManager {
             mc.thePlayer.rotationYawHead = yaw;
             mc.thePlayer.renderPitchHead = pitch;
 
-            lastServerRotations = new Vector2f(yaw, pitch);
+            serverRotations.set(yaw, pitch);
+            lastServerRotations = serverRotations;
 
             if (Math.abs((rotations.x - mc.thePlayer.rotationYaw) % 360) < 1 && Math.abs((rotations.y - mc.thePlayer.rotationPitch)) < 1) {
                 active = false;
@@ -133,10 +138,12 @@ public class RotationManager {
 
             lastRotations = rotations;
         } else {
-            lastRotations = new Vector2f(mc.thePlayer.rotationYaw, mc.thePlayer.rotationPitch);
+            playerRotations.set(mc.thePlayer.rotationYaw, mc.thePlayer.rotationPitch);
+            lastRotations = playerRotations;
         }
 
-        targetRotations = new Vector2f(mc.thePlayer.rotationYaw, mc.thePlayer.rotationPitch);
+        playerRotations.set(mc.thePlayer.rotationYaw, mc.thePlayer.rotationPitch);
+        targetRotations = playerRotations;
         smoothed = false;
     }
 

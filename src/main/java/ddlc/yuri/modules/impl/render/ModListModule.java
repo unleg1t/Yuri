@@ -47,6 +47,12 @@ public class ModListModule extends Module implements IMinecraft {
 
     private static final float TEXT_HEIGHT = 8f;
 
+    private static final int[][] MTF_COLORS = {
+            {91, 206, 250},
+            {245, 169, 184},
+            {255, 255, 255}
+    };
+
     private static final Map<Module, String> displayLabelCache = new HashMap<>();
     public static List<Module> moduleCache;
 
@@ -69,7 +75,8 @@ public class ModListModule extends Module implements IMinecraft {
 
     public enum ColorMode {
         STATIC("Static"),
-        FADE("Fade");
+        FADE("Fade"),
+        MTF("MTF");
 
         public final String name;
 
@@ -215,7 +222,7 @@ public class ModListModule extends Module implements IMinecraft {
                     Gui.drawRect(bgLeft, (float) translateY - pad, bgRight, (float) translateY + TEXT_HEIGHT + pad, getColorForBG().getRGB());
                 }
 
-                float textX = line.getValue() ? (float) (translateX - 1.0f) : (float) ((float) offset.getValue().floatValue() == 0 ? translateX - 0.5f : (float) translateX);
+                float textX = line.getValue() && !outline.getValue() ? (float) (translateX - 1.0f - lw) : (float) ((float) offset.getValue().floatValue() == 0 ? translateX - 0.5f : (float) translateX);
                 if (pad > 0) {
                     textX -= pad / getTextWidth(fr, name);
                 }
@@ -223,14 +230,12 @@ public class ModListModule extends Module implements IMinecraft {
                 drawText(fr, name, useCustomFont.getValue() ? offset.getValue().intValue() > 0 ? textX - 1.0f : textX : textX + 0.8f, (float) translateY, aColor);
 
                 if (outline.getValue()) {
-                    // Left outline line
                     Gui.drawRect((float) translateX - pad - lw, (float) translateY - pad, (float) translateX - pad, (float) translateY + TEXT_HEIGHT + pad, aColor);
 
                     double outlineTop = translateY - pad - lw;
                     double outlineBottom = translateY + TEXT_HEIGHT + pad;
                     float rightEdge = (off > 0) ? screenX + lw : screenX;
 
-                    // Step line connecting to PREVIOUS module
                     if (i != firstVisibleModuleIndex) {
                         Module prevModule = null;
                         for (int j = i - 1; j >= 0; j--) {
@@ -251,7 +256,6 @@ public class ModListModule extends Module implements IMinecraft {
                         Gui.drawRect((float) translateX - pad - lw, (float) outlineTop, rightEdge, (float) outlineTop + lw, aColor);
                     }
 
-                    // Step line connecting to NEXT module
                     if (i != lastVisibleModuleIndex) {
                         Module nextModule = null;
                         for (int j = i + 1; j <= lastVisibleModuleIndex; j++) {
@@ -274,7 +278,6 @@ public class ModListModule extends Module implements IMinecraft {
                         Gui.drawRect((float) translateX - pad - lw, (float) outlineBottom, rightEdge, (float) outlineBottom + lw, aColor);
                     }
 
-                    // Right outline line when HUD offset > 0
                     if (off > 0) {
                         Gui.drawRect(screenX, (float) translateY - pad, screenX + lw, (float) translateY + TEXT_HEIGHT + pad, aColor);
                     }
@@ -337,6 +340,11 @@ public class ModListModule extends Module implements IMinecraft {
     }
 
     private int getColorForModule(int visibleModuleIndex) {
+        if (colorMode.getValue() == ColorMode.MTF) {
+            int[] c = MTF_COLORS[visibleModuleIndex % MTF_COLORS.length];
+            return new Color(c[0], c[1], c[2]).getRGB();
+        }
+
         int index = colorMode.getValue() == ColorMode.FADE ? visibleModuleIndex : 0;
 
         if (ClickGUIModule.color.getValue() == ClickGUIModule.Color.ASTOLFO) {

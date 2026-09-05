@@ -17,6 +17,12 @@ public final class AstolfoMode extends TargetHudMode {
 
     private final TargetHudModule parentModule;
 
+    private float cachedAlpha = -1f;
+    private int cachedBaseRGB;
+    private Color cachedBgRectColor;
+    private Color cachedBorderRectColor;
+    private Color cachedFadedColor;
+
     public AstolfoMode(TargetHudModule parentModule) {
         super("Astolfo");
         this.parentModule = parentModule;
@@ -45,12 +51,21 @@ public final class AstolfoMode extends TargetHudMode {
         float healthPercentage = Math.max(0f, Math.min(1f, state.displayHealth / maxHealth));
 
         float currentAlpha = state.alpha;
-        int bgAlpha = (int) (150 * currentAlpha);
-        int borderAlpha = (int) (255 * currentAlpha);
-        int textAlpha = (int) (255 * currentAlpha);
-
         Color baseColor = ColorManager.getColor();
-        Color fadedColor = new Color(baseColor.getRed(), baseColor.getGreen(), baseColor.getBlue(), (int) (baseColor.getAlpha() * currentAlpha));
+        int baseRGB = baseColor.getRGB();
+
+        if (currentAlpha != cachedAlpha || baseRGB != cachedBaseRGB) {
+            cachedAlpha = currentAlpha;
+            cachedBaseRGB = baseRGB;
+            int bgAlpha = (int) (150 * currentAlpha);
+            int borderAlpha = (int) (255 * currentAlpha);
+            cachedBgRectColor = new Color(0, 0, 0, bgAlpha);
+            cachedBorderRectColor = new Color(0, 0, 0, borderAlpha);
+            cachedFadedColor = new Color(baseColor.getRed(), baseColor.getGreen(), baseColor.getBlue(), (int) (baseColor.getAlpha() * currentAlpha));
+        }
+
+        Color fadedColor = cachedFadedColor;
+        int textAlpha = (int) (255 * currentAlpha);
 
         GlStateManager.pushMatrix();
         GlStateManager.translate(x, y, 0);
@@ -58,9 +73,9 @@ public final class AstolfoMode extends TargetHudMode {
         GL11.glEnable(GL11.GL_BLEND);
         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
 
-        Gui.drawRect(0, 0, 125, 36, new Color(0, 0, 0, bgAlpha).getRGB());
+        Gui.drawRect(0, 0, 125, 36, cachedBgRectColor.getRGB());
 
-        Gui.drawRect(37, 26, 89, 32, new Color(0, 0, 0, borderAlpha).getRGB());
+        Gui.drawRect(37, 26, 89, 32, cachedBorderRectColor.getRGB());
         int healthWidth = (int) (52 * healthPercentage);
         Gui.drawRect(37, 26, 37 + healthWidth, 32, fadedColor.getRGB());
 

@@ -33,6 +33,7 @@ public final class ImageRendererModule extends Module {
         YURI_2("Yuri 2", false),
         YURI_3("Yuri 3", false),
         YURI_NSFW("Yuri NSFW", false),
+        NATSUKI("Natsuki", false),
         DEATH_THREATS("Death Threats", true),
         NEP("Nep", false),
         GAMER("Gamer", false),

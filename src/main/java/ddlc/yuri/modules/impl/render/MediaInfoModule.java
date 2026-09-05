@@ -74,6 +74,13 @@ public class MediaInfoModule extends Module implements IMinecraft {
     private static final Color BODY_COLOR = new Color(18, 18, 20, 150);
     private static final Color BAR_BG_COLOR = new Color(255, 255, 255, 40);
     private static final Color COVER_PLACEHOLDER_COLOR = new Color(255, 255, 255, 25);
+    private static final Color TEXT_SECONDARY_COLOR = new Color(220, 220, 220);
+    private static final Color TEXT_TERTIARY_COLOR = new Color(190, 190, 190);
+    private static final Color TEXT_QUATERNARY_COLOR = new Color(150, 150, 150);
+    private static final int WHITE_RGB = Color.WHITE.getRGB();
+    private static final int TEXT_SECONDARY_RGB = TEXT_SECONDARY_COLOR.getRGB();
+    private static final int TEXT_TERTIARY_RGB = TEXT_TERTIARY_COLOR.getRGB();
+    private static final int TEXT_QUATERNARY_RGB = TEXT_QUATERNARY_COLOR.getRGB();
 
     private final DragUtils.DraggableComponent component = new DragUtils.DraggableComponent(20, 20);
     private final MediaTracker tracker = new MediaTracker();
@@ -188,7 +195,7 @@ public class MediaInfoModule extends Module implements IMinecraft {
         float cx = x + width / 2f;
         float cursorY = y + YURI_PADDING_Y;
 
-        titleFont.drawStringWithShadow(titleText, cx - titleWidth / 2f, cursorY, Color.WHITE.getRGB());
+        titleFont.drawStringWithShadow(titleText, cx - titleWidth / 2f, cursorY, WHITE_RGB);
         cursorY += titleHeight + YURI_GAP_TITLE_COVER;
 
         ResourceLocation cover = track != null ? tracker.getCoverLocation() : null;
@@ -201,10 +208,10 @@ public class MediaInfoModule extends Module implements IMinecraft {
         }
         cursorY += YURI_COVER_SIZE + YURI_GAP_COVER_TRACK;
 
-        trackFont.drawStringWithShadow(trackText, cx - trackWidth / 2f, cursorY, Color.WHITE.getRGB());
+        trackFont.drawStringWithShadow(trackText, cx - trackWidth / 2f, cursorY, WHITE_RGB);
         cursorY += trackHeight + YURI_GAP_TRACK_ARTIST;
 
-        body.drawStringWithShadow(artistText, cx - artistWidth / 2f, cursorY, new Color(220, 220, 220).getRGB());
+        body.drawStringWithShadow(artistText, cx - artistWidth / 2f, cursorY, TEXT_SECONDARY_RGB);
         cursorY += lineHeight + YURI_GAP_ARTIST_BAR;
 
         float barX = cx - YURI_BAR_WIDTH / 2f;
@@ -219,7 +226,7 @@ public class MediaInfoModule extends Module implements IMinecraft {
         }
         cursorY += BAR_HEIGHT + YURI_GAP_BAR_TIME;
 
-        body.drawStringWithShadow(timeText, cx - timeWidth / 2f, cursorY, new Color(220, 220, 220).getRGB());
+        body.drawStringWithShadow(timeText, cx - timeWidth / 2f, cursorY, TEXT_SECONDARY_RGB);
     }
 
     private void renderPulsive(boolean shaderPass) {
@@ -284,8 +291,8 @@ public class MediaInfoModule extends Module implements IMinecraft {
         float cx = x + width / 2f;
         float headerTitleX = cx - headerTitleWidth / 2f;
         float headerTitleY = y + HEADER_PADDING_Y;
-        bold.drawStringWithShadow(nowWord, headerTitleX, headerTitleY, Color.WHITE.getRGB());
-        regular.drawStringWithShadow(playingWord, headerTitleX + nowWidth, headerTitleY, new Color(220, 220, 220).getRGB());
+        bold.drawStringWithShadow(nowWord, headerTitleX, headerTitleY, WHITE_RGB);
+        regular.drawStringWithShadow(playingWord, headerTitleX + nowWidth, headerTitleY, TEXT_SECONDARY_RGB);
 
         float coverX = x + PADDING_X;
         float coverY = y + headerHeight + PADDING_Y + (bodyContentHeight - COVER_SIZE) / 2f;
@@ -301,10 +308,10 @@ public class MediaInfoModule extends Module implements IMinecraft {
         float textX = coverX + COVER_SIZE + GAP_COVER_TEXT;
         float textY = y + headerHeight + PADDING_Y + (bodyContentHeight - textStackHeight) / 2f;
 
-        title.drawStringWithShadow(titleText, textX, textY, Color.WHITE.getRGB());
+        title.drawStringWithShadow(titleText, textX, textY, WHITE_RGB);
         textY += title.getHeight() + GAP_TITLE_ARTIST;
 
-        artist.drawStringWithShadow(artistText, textX, textY, new Color(190, 190, 190).getRGB());
+        artist.drawStringWithShadow(artistText, textX, textY, TEXT_TERTIARY_RGB);
         textY += artist.getHeight() + GAP_ARTIST_BAR;
 
         float barWidth = (x + width - PADDING_X) - textX;
@@ -319,7 +326,7 @@ public class MediaInfoModule extends Module implements IMinecraft {
         }
         textY += BAR_HEIGHT + GAP_BAR_TIME;
 
-        time.drawStringWithShadow(timeText, textX, textY, new Color(150, 150, 150).getRGB());
+        time.drawStringWithShadow(timeText, textX, textY, TEXT_QUATERNARY_RGB);
     }
 
     private void drawCoverTexture(ResourceLocation location, float x, float y, float size) {

@@ -38,7 +38,6 @@ public final class StealerModule extends Module {
     private final NumberProperty maxDelay = new NumberProperty("Max Delay", 5.0, 0.0, 1000.0, 25.0, () -> !instant.getValue());
     private final Property<Boolean> stealTrashItems = new Property<>("Steal Trash Items", false);
     private final Property<Boolean> autoClose = new Property<>("Auto Close", true);
-    private final Property<Boolean> chestName = new Property<>("Check Chest Name", false);
     private final Property<Boolean> grabMouse = new Property<>("Grab Mouse", false);
     public static final Property<Boolean> autoDisable = new Property<>("Auto Disable", false);
 
@@ -55,15 +54,13 @@ public final class StealerModule extends Module {
         if (guiChest.lowerChestInventory == null) {
             return false;
         }
+
         String name = guiChest.lowerChestInventory.getDisplayName().getUnformattedText().toLowerCase();
         String[] menuKeywords = {"menu", "selector", "game", "shop", "server", "teleport", "lobby", "hub", "profile", "setting", "play", "vault", "collectible", "bountique", "choisir", "choose", "recipe"};
         for (String keyword : menuKeywords) {
             if (name.contains(keyword)) {
                 return false;
             }
-        }
-        if (this.chestName.getValue() && !name.contains("chest") && !name.contains("container")) {
-            return false;
         }
         return mc.thePlayer.openContainer instanceof ContainerChest;
     }

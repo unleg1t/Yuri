@@ -2,6 +2,7 @@ package ddlc.yuri.managers;
 
 import ddlc.yuri.api.events.EventBus;
 import ddlc.yuri.managers.impl.*;
+import ddlc.yuri.utils.player.FriendUtils;
 
 import java.util.Arrays;
 
@@ -17,6 +18,8 @@ public class ManagerWrapper {
     private static BreakerWhitelistManager breakerWhitelistManager;
     private static ProgressBarManager progressBarManager;
     private static BadPacketsManager badPacketsManager;
+    private static LastConnectionManager lastConnectionManager;
+    private static NotificationManager notificationManager;
     private static SessionStatsManager sessionStatsManager;
 
     public static void init() {
@@ -32,9 +35,10 @@ public class ManagerWrapper {
         breakerWhitelistManager = new BreakerWhitelistManager();
         progressBarManager = new ProgressBarManager();
         badPacketsManager = new BadPacketsManager();
-        // Last, so a stat feed can never delay anything the client needs, and
-        // after the module manager exists - its constructor publishes once.
+        lastConnectionManager = new LastConnectionManager();
+        notificationManager = new NotificationManager();
         sessionStatsManager = new SessionStatsManager();
+        FriendUtils.init();
     }
 
     public static void subscribe(EventBus eventBus) {
@@ -46,11 +50,11 @@ public class ManagerWrapper {
         eventBus.subscribe(targetManager);
         eventBus.subscribe(blinkManager);
         eventBus.subscribe(lagManager);
+        eventBus.subscribe(lastConnectionManager);
         eventBus.subscribe(badPacketsManager);
         eventBus.subscribe(breakerWhitelistManager);
         eventBus.subscribe(progressBarManager);
-        // Never unsubscribed, which is the whole point: kills, deaths and wins
-        // now count whether or not the Session Info overlay is switched on.
+        eventBus.subscribe(notificationManager);
         eventBus.subscribe(sessionStatsManager);
     }
 }
