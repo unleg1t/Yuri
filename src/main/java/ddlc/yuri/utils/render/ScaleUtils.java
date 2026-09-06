@@ -9,23 +9,27 @@ public final class ScaleUtils {
     private ScaleUtils() {
     }
 
-    public static void scale(Minecraft mc) {
-        ScaledResolution resolution = new ScaledResolution(mc);
+    public static float getScale(Minecraft mc) {
         if (mc.gameSettings.guiScale <= 1) {
+            return 1f;
+        }
+        ScaledResolution resolution = new ScaledResolution(mc);
+        return resolution.getScaleFactor() / 2.0F;
+    }
+
+    public static void scale(Minecraft mc) {
+        float scale = getScale(mc);
+        if (scale == 1f) {
             return;
         }
-
-        float scale = resolution.getScaleFactor() / 2.0F;
         GlStateManager.scale(scale, scale, scale);
     }
 
     public static int[] getScaledMouseCoordinates(Minecraft mc, int mouseX, int mouseY) {
-        ScaledResolution resolution = new ScaledResolution(mc);
-        if (mc.gameSettings.guiScale <= 1) {
+        float scale = getScale(mc);
+        if (scale == 1f) {
             return new int[]{mouseX, mouseY};
         }
-
-        float scale = resolution.getScaleFactor() / 2.0F;
         return new int[]{(int) (mouseX / scale), (int) (mouseY / scale)};
     }
 }

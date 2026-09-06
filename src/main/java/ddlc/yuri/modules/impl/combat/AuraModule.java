@@ -35,17 +35,16 @@ import java.util.LinkedList;
 @ModuleInfo(label = "Aura", description = "Automatically attacks entities around you", category = ModuleCategory.COMBAT)
 public class AuraModule extends Module {
 
-    // my daddy larryngton is gonna make polar shit so i remove it for now, but he will add it back later
-
     private final MultiModeProperty<TargetManager.Targets> targets = new MultiModeProperty<>("Targets", TargetManager.Targets.PLAYERS, TargetManager.Targets.HOSTILES, TargetManager.Targets.TEAMMATES, TargetManager.Targets.INVISIBLES);
     private static final ModeProperty<TargetManager.Mode> mode = new ModeProperty<>("Mode", TargetManager.Mode.SINGLE);
+    private static final NumberProperty switchDelay = new NumberProperty("Switch Delay", 1, 1, 40, 1, () -> mode.getValue() == TargetManager.Mode.SWITCH);
     public static NumberProperty seekRange = new NumberProperty("Seek Range", 6.0, 3, 6, 0.1);
     public static final Property<Boolean> useOnlyMouse = new Property<>("Simulate Mouse Clicks", true);
     public static NumberProperty attackRange = new NumberProperty("Attack Range", 3.0, 3, 6, 0.1, () -> !useOnlyMouse.getValue());
     public static NumberProperty swingRange = new NumberProperty("Swing Range", 6.0, 3, 6, 0.1);
     public static NumberProperty blockRange = new NumberProperty("Block Range", 6.0, 3, 6, 0.1);
-    private static final NumberProperty min = new NumberProperty("Min CPS", 9.0, 0.0, 20.0, 0.5);
-    private static final NumberProperty max = new NumberProperty("Max CPS", 13.0, 0.0, 20.0, 0.5);
+    private static final NumberProperty min = new NumberProperty("Min CPS", 9.0, 1, 20.0, 0.1);
+    private static final NumberProperty max = new NumberProperty("Max CPS", 13.0, 1, 20.0, 0.1);
     public static ModeProperty<AutoBlock> ab = new ModeProperty<>("Auto Block", AutoBlock.FAKE);
     public static Property<Boolean> onlyBlockIfHurt = new Property<>("Only Block If Hurt", false);
     private static final NumberProperty predictLeadTicks = new NumberProperty("Predict Lead", 3, 0, 10, 1, () -> ab.getValue() == AutoBlock.PREDICTIVE);
@@ -55,8 +54,8 @@ public class AuraModule extends Module {
     private final NumberProperty blockOnHurtTicks = new NumberProperty("Block On Hurt Ticks", 4, 0, 10, 1, onlyBlockIfHurt::getValue);
     public static final Property<Boolean> throughWalls = new Property<>("Through Walls", false);
     public static ModeProperty<Rotations> rotations = new ModeProperty<>("Rotations", Rotations.NORMAL);
-    private final NumberProperty minRotSpeed = new NumberProperty("Min Rotation Speed", 3, 0, 10, 0.5f);
-    private final NumberProperty maxRotSpeed = new NumberProperty("Max Rotation Speed", 7, 0, 10, 0.5f);
+    private final NumberProperty minRotSpeed = new NumberProperty("Min Rotation Speed", 3, 0.1, 10, 0.1f);
+    private final NumberProperty maxRotSpeed = new NumberProperty("Max Rotation Speed", 7, 0.1, 10, 0.1f);
     private final NumberProperty bodyEase = new NumberProperty("Body Ease", 0.2, 0.01, 1.0, 0.01, () -> rotations.getValue() == Rotations.ML);
     private final NumberProperty mlEase = new NumberProperty("ML Ease", 0.2, 0.01, 1.0, 0.01, () -> rotations.getValue() == Rotations.ML);
     public static final Property<Boolean> rayCast = new Property<>("Ray Cast", true);
@@ -64,6 +63,23 @@ public class AuraModule extends Module {
     public static final Property<Boolean> sprint = new Property<>("Keep Sprint", false);
     public static final Property<Boolean> hypixelSprint = new Property<>("Hypixel Keep Sprint", false, sprint::getValue);
     public static final Property<Boolean> autoDisable = new Property<>("Auto Disable", true);
+    public static final Property<Boolean> advanced = new Property<>("Advanced Mode", false);
+    public static final Property<Boolean> hitVecOverride = new Property<>("Hit Vec Override", false, advanced::getValue);
+    public static final ModeProperty<RotationUtils.HitVecMode> hitVecMode = new ModeProperty<>("Hit Vec Mode", RotationUtils.HitVecMode.RANDOMIZED, () -> advanced.getValue() && hitVecOverride.getValue());
+    private final NumberProperty hitVecRandomization = new NumberProperty("Hit Vec Randomization", 5, 0, 10, 0.5f, () -> advanced.getValue() && hitVecOverride.getValue());
+    private static final Property<Boolean> cyclePoints = new Property<>("Cycle Hit Points", false, () -> advanced.getValue() && hitVecOverride.getValue());
+    private static final NumberProperty cycleTicks = new NumberProperty("Cycle Ticks", 10, 2, 40, 1, () -> advanced.getValue() && hitVecOverride.getValue() && cyclePoints.getValue());
+    public static final Property<Boolean> overshoot = new Property<>("Overshoot", false, advanced::getValue);
+    private static final NumberProperty overshootAmount = new NumberProperty("Overshoot Amount", 8, 1, 30, 1, () -> advanced.getValue() && overshoot.getValue());
+    private static final NumberProperty overshootRecovery = new NumberProperty("Overshoot Recovery", 4, 1, 15, 1, () -> advanced.getValue() && overshoot.getValue());
+    public static final Property<Boolean> noise = new Property<>("Noise", false, advanced::getValue);
+    public static final ModeProperty<RotationUtils.NoiseMode> noiseMode = new ModeProperty<>("Noise Mode", RotationUtils.NoiseMode.GAUSSIAN, () -> advanced.getValue() && noise.getValue());
+    private final NumberProperty noiseFrequency = new NumberProperty("Noise Frequency", 50, 1, 100, 1.0f, () -> advanced.getValue() && noise.getValue());
+    public static final Property<Boolean> flick = new Property<>("Flick", false, advanced::getValue);
+    private static final NumberProperty flickChance = new NumberProperty("Flick Chance", 15, 0, 100, 1, () -> advanced.getValue() && flick.getValue());
+    private static final NumberProperty flickAngle = new NumberProperty("Flick Angle", 35, 5, 90, 1, () -> advanced.getValue() && flick.getValue());
+    private static final NumberProperty flickTicks = new NumberProperty("Flick Ticks", 2, 1, 10, 1, () -> advanced.getValue() && flick.getValue());
+    private static final NumberProperty flickCooldown = new NumberProperty("Flick Cooldown", 20, 0, 100, 1, () -> advanced.getValue() && flick.getValue());
 
     public enum MoveFix {
         NONE("None"),
@@ -85,7 +101,6 @@ public class AuraModule extends Module {
     public enum Rotations {
         NORMAL("Normal"),
         ML("ML"),
-/*        POLAR("Polar"),*/
         NONE("None");
 
         public final String name;
@@ -138,6 +153,13 @@ public class AuraModule extends Module {
     private int predictPad = 0;
     private EntityLivingBase lastPredictTarget;
     private final LinkedList<Integer> swingIntervals = new LinkedList<>();
+
+    private int targetSwitchCooldown = 0;
+    private int cycleCounter = 0;
+    private RotationUtils.HitVecMode cycledMode = RotationUtils.HitVecMode.HEAD;
+    private final long noiseSeedOffset = (long) (Math.random() * 10000);
+    private final RotationUtils.FlickHandler flickHandler = new RotationUtils.FlickHandler();
+    private final RotationUtils.OvershootHandler overshootHandler = new RotationUtils.OvershootHandler();
 
     @EventHook
     public void onPreUpdate(PreUpdateEvent event) {
@@ -223,21 +245,54 @@ public class AuraModule extends Module {
         if (target != lastTarget) {
             smoothedBodyPoint = null;
             RotationLearnerManager.resetSmoothing();
+            if (advanced.getValue() && overshoot.getValue() && lastTarget != null) {
+                float direction = MathUtils.getRandom(0.0, 1.0) < 0.5 ? -1f : 1f;
+                overshootHandler.trigger(direction * overshootAmount.getValue().floatValue(), overshootRecovery.getValue().intValue());
+            }
             lastTarget = target;
         }
 
         float rotSpeed = (float) MathUtils.getRandom(minRotSpeed.getValue(), maxRotSpeed.getValue());
         Vector2f rotation;
 
-       /* if (rotations.getValue() == Rotations.POLAR) {
-            rotation = RotationUtils.getPolarRotations(target, (float) MathUtils.getRandom(7.5f, 9.0f));
-        } else */if (rotations.getValue() == Rotations.ML && RotationLearnerManager.hasModelLoaded()) {
+        if (rotations.getValue() == Rotations.ML && RotationLearnerManager.hasModelLoaded()) {
             rotation = RotationLearnerManager.humanize(getWholeBodyRotation(target), 1.0f, mlEase.getValue().floatValue());
+        } else if (advanced.getValue() && hitVecOverride.getValue()) {
+            rotation = RotationUtils.getHitVecRotation(target, resolveHitVecMode(), hitVecRandomization.getValue().doubleValue());
         } else {
             rotation = RotationUtils.calculate(target, false, seekRange.getValue());
         }
 
+        rotation = overshootHandler.apply(rotation);
+
+        if (advanced.getValue() && noise.getValue()) {
+            rotation = RotationUtils.applyNoise(rotation, noiseMode.getValue(), noiseFrequency.getValue().doubleValue() / 5.0, noiseSeedOffset);
+        }
+
+        boolean inFlickRange = mc.thePlayer.getDistanceToEntity(target) <= attackRange.getValue() + 1.0;
+        flickHandler.update(advanced.getValue() && flick.getValue(), true, inFlickRange,
+                flickChance.getValue().doubleValue(), flickAngle.getValue().doubleValue(),
+                flickTicks.getValue().intValue(), flickCooldown.getValue().intValue());
+
+        if (flickHandler.isFlicking()) {
+            rotation = new Vector2f(rotation.x + flickHandler.getOffset(), rotation.y);
+        }
+
         RotationManager.setRotations(rotation, rotSpeed, fix.getValue() != MoveFix.NONE ? fix.getValue() == MoveFix.SILENT ? RotationManager.MovementFix.NORMAL : RotationManager.MovementFix.TRADITIONAL : RotationManager.MovementFix.OFF);
+    }
+
+    private RotationUtils.HitVecMode resolveHitVecMode() {
+        if (!cyclePoints.getValue()) return hitVecMode.getValue();
+
+        if (cycleCounter <= 0) {
+            RotationUtils.HitVecMode[] pool = {RotationUtils.HitVecMode.HEAD, RotationUtils.HitVecMode.BODY, RotationUtils.HitVecMode.FEET};
+            cycledMode = pool[(int) MathUtils.getRandom(0.0, pool.length - 0.001)];
+            cycleCounter = cycleTicks.getValue().intValue();
+        } else {
+            cycleCounter--;
+        }
+
+        return cycledMode;
     }
 
     private Vector2f getWholeBodyRotation(EntityLivingBase entity) {
@@ -472,6 +527,10 @@ public class AuraModule extends Module {
         predictPad = 0;
         lastPredictTarget = null;
         swingIntervals.clear();
+        targetSwitchCooldown = 0;
+        cycleCounter = 0;
+        flickHandler.reset();
+        overshootHandler.reset();
     }
 
     @Override
@@ -511,7 +570,24 @@ public class AuraModule extends Module {
     }
 
     private void getTarget() {
-        target = TargetManager.getTarget();
+        EntityLivingBase newTarget = TargetManager.getTarget();
+
+        if (!mode.getValue().equals(TargetManager.Mode.SWITCH) || switchDelay.getValue().intValue() <= 0 || target == null) {
+            target = newTarget;
+            return;
+        }
+
+        if (newTarget == target) {
+            targetSwitchCooldown = switchDelay.getValue().intValue();
+            return;
+        }
+
+        if (targetSwitchCooldown > 0) {
+            targetSwitchCooldown--;
+            return;
+        }
+
+        target = newTarget;
     }
 
     private boolean canSeeEntity(Entity entity) {

@@ -8,7 +8,6 @@ import ddlc.yuri.utils.client.MathUtils;
 import ddlc.yuri.utils.render.FontUtils;
 import ddlc.yuri.utils.render.RenderUtils;
 import ddlc.yuri.utils.render.RoundedUtils;
-import ddlc.yuri.utils.render.shader.impl.Blur;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
@@ -23,7 +22,8 @@ public class CategoryWindow {
 
     public static final float WIDTH = 115f;
     private static final float HEADER_HEIGHT = 22f;
-    private static final float MAX_BODY_HEIGHT = 260f;
+    private static final float MAX_BODY_HEIGHT = 257f;
+    private static final float RADIUS = 8f;
 
     private final ModuleCategory category;
     private float x, y;
@@ -74,9 +74,13 @@ public class CategoryWindow {
     }
 
     public float getBodyHeight() {
-        float total = 4f;
+        float total = 2f;
         for (ModuleRow module : visibleModules()) total += module.getHeight() + 2f;
         return total;
+    }
+
+    private static int scaledAlpha(Color base, float safeAlpha) {
+        return MathHelper.clamp_int((int) (base.getAlpha() * safeAlpha), 0, 255);
     }
 
     public String drawScreen(int mouseX, int mouseY, float alpha) {
@@ -92,17 +96,12 @@ public class CategoryWindow {
         animatedBodyHeight = MathUtils.lerp(animatedBodyHeight, targetHeight, 0.3f);
         if (Math.abs(animatedBodyHeight - targetHeight) < 0.2f) animatedBodyHeight = targetHeight;
 
-        float totalHeight = HEADER_HEIGHT + animatedBodyHeight + (opened ? 4f : 0f);
+        float totalHeight = HEADER_HEIGHT + animatedBodyHeight;
 
-        Blur.startBlur();
-        RoundedUtils.drawRoundedRect(x, y, WIDTH, totalHeight, 6f, Color.WHITE);
-        Blur.endBlur(10f * safeAlpha, 2f, 1f);
+        Color panelBg = RenderUtils.withAlphaColor(Theme.WINDOW_BG, scaledAlpha(Theme.WINDOW_BG, safeAlpha));
 
-        int panelBgAlpha = MathHelper.clamp_int((int) (80 * safeAlpha), 0, 255);
-        Color windowBg = new Color(Theme.WINDOW_BG.getRed(), Theme.WINDOW_BG.getGreen(), Theme.WINDOW_BG.getBlue(), panelBgAlpha);
-
-        RoundedUtils.drawRoundOutline(x, y, WIDTH, totalHeight, 6f, -0.5f,
-                windowBg, RenderUtils.withAlphaColor(Theme.accent(), argb));
+        RoundedUtils.drawRoundOutline(x, y, WIDTH, totalHeight, RADIUS, -0.5f,
+                panelBg, RenderUtils.withAlphaColor(Theme.accent(), argb));
 
         CustomFontRenderer headerFont = FontUtils.getFont("sf-bold", 16);
         float headerTextY = y + (HEADER_HEIGHT - headerFont.getHeight()) / 2f;
@@ -122,14 +121,19 @@ public class CategoryWindow {
             ScaledResolution sr = new ScaledResolution(mc);
             int scale = sr.getScaleFactor();
 
+            float scissoredBodyHeight = Math.max(0f, animatedBodyHeight - 3f);
+
             GL11.glEnable(GL11.GL_SCISSOR_TEST);
-            GL11.glScissor((int) (x * scale), (int) (mc.displayHeight - (y + HEADER_HEIGHT + animatedBodyHeight) * scale),
-                    (int) (WIDTH * scale), (int) (animatedBodyHeight * scale));
+            GL11.glScissor((int) (x * scale), (int) ((mc.displayHeight - (y + HEADER_HEIGHT + scissoredBodyHeight) * scale)),
+                    (int) (WIDTH * scale), (int) (scissoredBodyHeight * scale));
 
             float rowY = y + HEADER_HEIGHT + 2f - scrollOffset;
-            for (ModuleRow module : visible) {
+            int size = visible.size();
+            for (int i = 0; i < size; i++) {
+                ModuleRow module = visible.get(i);
                 module.setY(rowY);
-                String moduleTooltip = module.drawScreen(mouseX, mouseY, safeAlpha);
+                boolean isLast = (i == size - 1);
+                String moduleTooltip = module.drawScreen(mouseX, mouseY, safeAlpha, isLast);
                 if (moduleTooltip != null) tooltip = moduleTooltip;
                 rowY += module.getHeight() + 2f;
             }

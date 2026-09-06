@@ -7,10 +7,124 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.*;
 import org.lwjgl.util.vector.Vector2f;
 
 public class RotationUtils implements IMinecraft {
+    public enum HitVecMode {
+        RANDOMIZED("Randomized"),
+        HEAD("Head"),
+        BODY("Body"),
+        FEET("Feet");
+
+        public final String name;
+
+        HitVecMode(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String toString() {
+            return name;
+        }
+    }
+
+    public enum NoiseMode {
+        GAUSSIAN("Gaussian"),
+        PERLIN("Perlin"),
+        FRACTAL3D("Fractal3D"),
+        MIXED("Mixed");
+
+        public final String name;
+
+        NoiseMode(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String toString() {
+            return name;
+        }
+    }
+
+    public static class FlickHandler {
+        private boolean flicking = false;
+        private int ticksLeft = 0;
+        private int cooldownTicks = 0;
+        private float offset = 0f;
+
+        public void update(boolean enabled, boolean hasTarget, boolean inRange, double chance, double angle, int holdTicks, int cooldown) {
+            if (!enabled || !hasTarget) {
+                flicking = false;
+                ticksLeft = 0;
+                offset = 0f;
+                return;
+            }
+
+            if (cooldownTicks > 0) {
+                cooldownTicks--;
+            }
+
+            if (flicking) {
+                ticksLeft--;
+                if (ticksLeft <= 0) {
+                    flicking = false;
+                    offset = 0f;
+                    cooldownTicks = cooldown;
+                }
+                return;
+            }
+
+            if (cooldownTicks <= 0 && inRange && MathUtils.getRandom(0.0, 100.0) < chance) {
+                flicking = true;
+                ticksLeft = holdTicks;
+                offset = (MathUtils.getRandom(0.0, 1.0) < 0.5 ? -1f : 1f) * (float) angle;
+            }
+        }
+
+        public boolean isFlicking() {
+            return flicking;
+        }
+
+        public float getOffset() {
+            return offset;
+        }
+
+        public void reset() {
+            flicking = false;
+            ticksLeft = 0;
+            cooldownTicks = 0;
+            offset = 0f;
+        }
+    }
+
+    public static class OvershootHandler {
+        private float remaining = 0f;
+        private int decayTicks = 0;
+
+        public void trigger(float amount, int ticks) {
+            remaining = amount;
+            decayTicks = Math.max(1, ticks);
+        }
+
+        public Vector2f apply(Vector2f rotation) {
+            if (decayTicks <= 0 || remaining == 0f) return rotation;
+
+            float step = remaining / decayTicks;
+            Vector2f result = new Vector2f(rotation.x + remaining, rotation.y);
+            remaining -= step;
+            decayTicks--;
+            if (decayTicks <= 0) remaining = 0f;
+            return result;
+        }
+
+        public void reset() {
+            remaining = 0f;
+            decayTicks = 0;
+        }
+    }
+
     public static float[] getRotationsTo(Vec3 from, Vec3 to) {
         double dx = to.xCoord - from.xCoord;
         double dy = to.yCoord - from.yCoord;
@@ -168,15 +282,9 @@ public class RotationUtils implements IMinecraft {
                     pitch -= Math.random() / 200;
                 }
 
-                /*
-                 * Fixing GCD
-                 */
                 final Vector2f rotations = new Vector2f(yaw, pitch);
                 final Vector2f fixedRotations = RotationUtils.applySensitivityPatch(rotations);
 
-                /*
-                 * Setting rotations
-                 */
                 yaw = fixedRotations.x;
                 pitch = Math.max(-90, Math.min(90, fixedRotations.y));
             }
@@ -281,5 +389,84 @@ public class RotationUtils implements IMinecraft {
         y += (double) enumFacing.getDirectionVec().getY() * 0.5D;
         z += (double) enumFacing.getDirectionVec().getZ() * 0.5D;
         return calculate(new Vector3d(x, y, z));
+    }
+
+    public static Vec3 getHitVecPoint(EntityLivingBase entity, HitVecMode mode, double randomization) {
+        AxisAlignedBB box = entity.getEntityBoundingBox();
+        double targetX;
+        double targetY;
+        double targetZ;
+
+        switch (mode) {
+            case HEAD:
+                targetX = box.minX + (box.maxX - box.minX) * 0.5;
+                targetY = box.maxY - (box.maxY - box.minY) * 0.1;
+                targetZ = box.minZ + (box.maxZ - box.minZ) * 0.5;
+                break;
+            case BODY:
+                targetX = box.minX + (box.maxX - box.minX) * 0.5;
+                targetY = box.minY + (box.maxY - box.minY) * 0.5;
+                targetZ = box.minZ + (box.maxZ - box.minZ) * 0.5;
+                break;
+            case FEET:
+                targetX = box.minX + (box.maxX - box.minX) * 0.5;
+                targetY = box.minY + (box.maxY - box.minY) * 0.1;
+                targetZ = box.minZ + (box.maxZ - box.minZ) * 0.5;
+                break;
+            case RANDOMIZED:
+            default:
+                targetX = box.minX + (box.maxX - box.minX) * MathUtils.getRandom(0.0, 1.0);
+                targetY = box.minY + (box.maxY - box.minY) * MathUtils.getRandom(0.0, 1.0);
+                targetZ = box.minZ + (box.maxZ - box.minZ) * MathUtils.getRandom(0.0, 1.0);
+                break;
+        }
+
+        if (mode != HitVecMode.RANDOMIZED && randomization > 0) {
+            double jitter = randomization / 10.0;
+            targetX += (box.maxX - box.minX) * (MathUtils.getRandom(-0.5, 0.5) * jitter);
+            targetY += (box.maxY - box.minY) * (MathUtils.getRandom(-0.5, 0.5) * jitter);
+            targetZ += (box.maxZ - box.minZ) * (MathUtils.getRandom(-0.5, 0.5) * jitter);
+        }
+
+        return new Vec3(targetX, targetY, targetZ);
+    }
+
+    public static Vector2f getHitVecRotation(EntityLivingBase entity, HitVecMode mode, double randomization) {
+        Vec3 point = getHitVecPoint(entity, mode, randomization);
+        Vec3 eyePos = new Vec3(mc.thePlayer.posX, mc.thePlayer.posY + mc.thePlayer.getEyeHeight(), mc.thePlayer.posZ);
+        float[] rot = getRotationsTo(eyePos, point);
+        return new Vector2f(rot[0], rot[1]);
+    }
+
+    public static Vector2f applyNoise(Vector2f rotation, NoiseMode mode, double frequency, long seedOffset) {
+        double freq = Math.max(0.1, frequency);
+        double t = (System.currentTimeMillis() + seedOffset) / 1000.0 * freq;
+        double amplitude = 0.4 + freq * 0.15;
+        double yawNoise;
+        double pitchNoise;
+
+        switch (mode) {
+            case GAUSSIAN:
+                yawNoise = MathUtils.getRandom(-1.0, 1.0);
+                pitchNoise = MathUtils.getRandom(-1.0, 1.0);
+                break;
+            case PERLIN:
+                yawNoise = Math.sin(t) * 0.6 + Math.sin(t * 2.13) * 0.3;
+                pitchNoise = Math.cos(t * 1.7) * 0.6 + Math.sin(t * 3.1) * 0.3;
+                break;
+            case FRACTAL3D:
+                yawNoise = Math.sin(t) + Math.sin(t * 2.0) * 0.5 + Math.sin(t * 4.0) * 0.25;
+                pitchNoise = Math.cos(t) + Math.cos(t * 2.0) * 0.5 + Math.cos(t * 4.0) * 0.25;
+                break;
+            case MIXED:
+            default:
+                yawNoise = (Math.sin(t) + MathUtils.getRandom(-1.0, 1.0)) * 0.5;
+                pitchNoise = (Math.cos(t) + MathUtils.getRandom(-1.0, 1.0)) * 0.5;
+                break;
+        }
+
+        float yaw = rotation.x + (float) (yawNoise * amplitude);
+        float pitch = MathHelper.clamp_float(rotation.y + (float) (pitchNoise * amplitude * 0.5), -90f, 90f);
+        return new Vector2f(yaw, pitch);
     }
 }

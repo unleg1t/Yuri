@@ -17,17 +17,15 @@ import org.lwjgl.input.Keyboard;
 import org.lwjgl.opengl.GL11;
 
 import java.awt.*;
-import java.util.List;
-import java.util.stream.Collectors;
 
 public class PropertyRow {
 
-    private static final float PADDING_X = 4f;
-    private static final float GAP = 3f;
+    private static final float PADDING_X = 5f;
+    private static final float GAP = 2f;
+    private static final float ITEM_HEIGHT = 11f;
 
     public final Property<?> property;
     private final ModuleRow module;
-    public boolean opened;
     private boolean dragging;
     private boolean listening;
     private boolean textHovered;
@@ -40,78 +38,69 @@ public class PropertyRow {
     }
 
     private String[] getOptions() {
+        Enum<?>[] values = null;
         if (property instanceof ModeProperty) {
-            Enum<?>[] values = ((ModeProperty<?>) property).getValues();
-            String[] names = new String[values.length];
-            for (int i = 0; i < values.length; i++) names[i] = values[i].toString();
-            return names;
+            values = ((ModeProperty<?>) property).getValues();
         } else if (property instanceof MultiModeProperty) {
-            Enum<?>[] values = ((MultiModeProperty<?>) property).getValues();
-            String[] names = new String[values.length];
-            for (int i = 0; i < values.length; i++) names[i] = values[i].toString();
-            return names;
+            values = ((MultiModeProperty<?>) property).getValues();
         }
-        return new String[0];
+        if (values == null) return new String[0];
+        String[] names = new String[values.length];
+        for (int i = 0; i < values.length; i++) {
+            names[i] = values[i].toString();
+        }
+        return names;
     }
 
     private float getModeLayoutHeight(String[] options) {
         float innerX = module.getX() + PADDING_X;
         float rightX = module.getX() + module.getWidth() - PADDING_X;
         float currentX = innerX;
-        float currentY = 15f;
-        float itemHeight = 14f;
+        float currentY = 10f;
         CustomFontRenderer font = FontUtils.getFont("sf", 12);
 
         for (String opt : options) {
-            float itemWidth = font.getStringWidth(opt) + 8f;
+            float itemWidth = font.getStringWidth(opt) + 5f;
             if (currentX + itemWidth > rightX && currentX > innerX) {
                 currentX = innerX;
-                currentY += itemHeight + GAP;
+                currentY += ITEM_HEIGHT + GAP;
             }
             currentX += itemWidth + GAP;
         }
-        return currentY + itemHeight + 3f;
+        return currentY + ITEM_HEIGHT + 2f;
     }
 
     public int getHeight() {
-        if (property instanceof NumberProperty) {
-            return 22;
-        }
-        if (property.getValue() instanceof Boolean) {
-            return 18;
-        }
+        if (property instanceof NumberProperty) return 16;
+        if (property.getValue() instanceof Boolean) return 10;
         if (property instanceof ModeProperty || property instanceof MultiModeProperty) {
             return (int) Math.ceil(getModeLayoutHeight(getOptions()));
         }
         if (property instanceof DescriptorProperty) {
             DescriptorProperty desc = (DescriptorProperty) property;
-            return Math.max(16, desc.getPaddingTop() + desc.getPaddingBottom());
+            return Math.max(10, desc.getPaddingTop() + desc.getPaddingBottom());
         }
-        if (property.getValue() instanceof String) {
-            return 26;
-        }
-        if (property.getValue() instanceof Integer) {
-            return 18;
-        }
-        return 18;
+        if (property.getValue() instanceof String) return 22;
+        return 12;
     }
 
     public float getY() {
         float y = module.getY() + 16f;
-        for (PropertyRow row : visibleRows()) {
+        for (PropertyRow row : module.settings) {
+            if (!row.property.isAvailable()) continue;
             if (row == this) break;
             y += row.getHeight() + 2f;
         }
         return y;
     }
 
-    private List<PropertyRow> visibleRows() {
-        return module.settings.stream().filter(row -> row.property.isAvailable()).collect(Collectors.toList());
+    private static int scaledAlpha(Color base, float safeAlpha) {
+        return MathHelper.clamp_int((int) (base.getAlpha() * safeAlpha), 0, 255);
     }
 
     public void drawScreen(int mouseX, int mouseY, float alpha) {
         float safeAlpha = MathHelper.clamp_float(alpha, 0.0f, 1.0f);
-        if (safeAlpha < 0.08f) return;
+        if (safeAlpha < 0.05f) return;
 
         GlStateManager.enableBlend();
         GlStateManager.tryBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ZERO);
@@ -122,105 +111,93 @@ public class PropertyRow {
         float y = getY();
 
         int argb = MathHelper.clamp_int((int) (255 * safeAlpha), 0, 255);
-        Color accent = Theme.accent();
-
-        int barAlpha = MathHelper.clamp_int((int) (Theme.BAR_BG.getAlpha() * safeAlpha), 0, 255);
-        Color barBgColor = new Color(Theme.BAR_BG.getRed(), Theme.BAR_BG.getGreen(), Theme.BAR_BG.getBlue(), barAlpha);
-
-        CustomFontRenderer mainFont = FontUtils.getFont("sf", 16);
-        CustomFontRenderer subFont = FontUtils.getFont("sf", 13);
+        Color barBgColor = RenderUtils.withAlphaColor(Theme.BAR_BG, scaledAlpha(Theme.BAR_BG, safeAlpha));
+        CustomFontRenderer font = FontUtils.getFont("sf", 12);
 
         if (property instanceof NumberProperty) {
             NumberProperty number = (NumberProperty) property;
-            double percent = MathHelper.clamp_double(
-                    (number.getValue() - number.getMin()) / (number.getMax() - number.getMin()), 0.0, 1.0);
+            double percent = MathHelper.clamp_double((number.getValue() - number.getMin()) / (number.getMax() - number.getMin()), 0.0, 1.0);
 
-            mainFont.drawString(property.getLabel(), innerX, y + 2f, RenderUtils.withAlpha(Theme.TEXT, argb));
+            font.drawString(property.getLabel(), innerX, y, RenderUtils.withAlpha(Theme.TEXT, argb));
 
             String valStr = formatNumber(number);
-            float valWidth = subFont.getStringWidth(valStr);
-            subFont.drawString(valStr, rightX - valWidth, y + 3f, RenderUtils.withAlpha(Theme.TEXT_MUTED, argb));
+            font.drawString(valStr, rightX - font.getStringWidth(valStr), y, RenderUtils.withAlpha(Theme.TEXT_MUTED, argb));
 
-            float trackY = y + 16f;
-            float trackH = 4f;
+            float trackY = y + 10f;
+            float trackH = 3f;
 
-            RoundedUtils.drawCustomRoundedRect(innerX, trackY, innerWidth, trackH, 2f, true, true, true, true, barBgColor);
+            float sliderX = innerX + 2f;
+
+            RoundedUtils.drawCustomRoundedRect(sliderX, trackY, innerWidth, trackH, 1f, true, true, true, true,
+                    RenderUtils.withAlphaColor(Theme.SLIDER_TRACK, scaledAlpha(Theme.SLIDER_TRACK, safeAlpha)));
 
             if (percent > 0) {
                 float progressW = Math.max(trackH, (float) (innerWidth * percent));
-                RoundedUtils.drawCustomRoundedRect(innerX, trackY, progressW, trackH, 2f, true, true, true, true,
-                        RenderUtils.withAlphaColor(accent, argb));
+                RoundedUtils.drawCustomRoundedRect(sliderX, trackY, progressW, trackH, 1f, true, true, true, true,
+                        RenderUtils.withAlphaColor(Theme.accent().brighter(), argb));
             }
 
             if (dragging) {
-                double value = number.getMin() + MathHelper.clamp_double((mouseX - innerX) / innerWidth, 0.0, 1.0)
-                        * (number.getMax() - number.getMin());
+                double value = number.getMin() + MathHelper.clamp_double((mouseX - innerX) / innerWidth, 0.0, 1.0) * (number.getMax() - number.getMin());
                 number.setValue(RenderUtils.incValue(value, number.getIncrement()));
             }
         } else if (property.getValue() instanceof Boolean) {
             boolean enabled = (Boolean) property.getValue();
             toggleAnimation = MathUtils.lerp(toggleAnimation, enabled ? 1f : 0f, 0.25f);
 
-            float rowHeight = getHeight();
-            float textY = y + (rowHeight - mainFont.getHeight()) / 2f;
-            mainFont.drawString(property.getLabel(), innerX, textY, RenderUtils.withAlpha(Theme.TEXT, argb));
+            font.drawString(property.getLabel(), innerX, y + 1, RenderUtils.withAlpha(Theme.TEXT, argb));
 
-            float boxSize = 12f;
-            float boxX = rightX - boxSize;
-            float boxY = y + (rowHeight - boxSize) / 2f;
+            float boxSize = 9f;
+            float boxX = rightX - boxSize + 2f;
+            float boxY = y + (getHeight() - boxSize) / 2f - 1;
 
-            RoundedUtils.drawCustomRoundedRect(boxX, boxY, boxSize, boxSize, 3f, true, true, true, true, barBgColor);
+            RoundedUtils.drawRoundOutline(boxX, boxY, boxSize, boxSize, 2.5f, -0.5f,
+                    barBgColor, RenderUtils.withAlphaColor(Theme.BAR_BORDER, scaledAlpha(Theme.BAR_BORDER, safeAlpha)));
 
-            if (toggleAnimation > 0.001f) {
-                float maxInnerSize = boxSize - 4f;
-                float currentInnerSize = maxInnerSize * toggleAnimation;
-                float innerBoxX = boxX + 2f + (maxInnerSize - currentInnerSize) / 2f;
-                float innerBoxY = boxY + 2f + (maxInnerSize - currentInnerSize) / 2f;
-                Color fillColor = RenderUtils.withAlphaColor(accent, MathHelper.clamp_int((int) (255 * safeAlpha * toggleAnimation), 0, 255));
-                RoundedUtils.drawCustomRoundedRect(innerBoxX, innerBoxY, currentInnerSize, currentInnerSize, 2f, true, true, true, true, fillColor);
+            if (toggleAnimation > 0.01f) {
+                float maxInner = boxSize - 3f;
+                float currentInner = maxInner * toggleAnimation;
+                float innerBoxX = boxX + 1.5f + (maxInner - currentInner) / 2f;
+                float innerBoxY = boxY + 1.5f + (maxInner - currentInner) / 2f;
+                Color fillColor = RenderUtils.withAlphaColor(Theme.accent().brighter(), MathHelper.clamp_int((int) (255 * safeAlpha * toggleAnimation), 0, 255));
+                RoundedUtils.drawCustomRoundedRect(innerBoxX, innerBoxY, currentInner, currentInner, 1f, true, true, true, true, fillColor);
             }
         } else if (property instanceof ModeProperty || property instanceof MultiModeProperty) {
-            mainFont.drawString(property.getLabel(), innerX, y + 2f, RenderUtils.withAlpha(Theme.TEXT, argb));
+            font.drawString(property.getLabel(), innerX, y, RenderUtils.withAlpha(Theme.TEXT, argb));
 
             String[] options = getOptions();
             float currentX = innerX;
-            float currentY = y + 15f;
-            float itemHeight = 14f;
+            float currentY = y + 10f;
 
             for (int i = 0; i < options.length; i++) {
                 String opt = options[i];
-                float strWidth = subFont.getStringWidth(opt);
-                float itemWidth = strWidth + 8f;
+                float strWidth = font.getStringWidth(opt);
+                float itemWidth = strWidth + 5f;
 
                 if (currentX + itemWidth > rightX && currentX > innerX) {
                     currentX = innerX;
-                    currentY += itemHeight + GAP;
+                    currentY += ITEM_HEIGHT + GAP;
                 }
 
-                boolean selected;
-                if (property instanceof ModeProperty) {
-                    selected = ((ModeProperty<?>) property).getValue().ordinal() == i;
-                } else {
-                    MultiModeProperty<?> multi = (MultiModeProperty<?>) property;
-                    selected = multi.isSelected(multi.getValues()[i]);
-                }
+                boolean selected = (property instanceof ModeProperty)
+                        ? ((ModeProperty<?>) property).getValue().ordinal() == i
+                        : ((MultiModeProperty<?>) property).isSelected(((MultiModeProperty<?>) property).getValues()[i]);
 
-                float optTextY = currentY + (itemHeight - subFont.getHeight()) / 2f;
+                float optTextX = currentX + (itemWidth - strWidth) / 2f - 1f;
+                float optTextY = currentY + (ITEM_HEIGHT - font.getHeight()) / 2f;
 
-                if (selected) {
-                    Color pillBg = RenderUtils.withAlphaColor(accent, MathHelper.clamp_int((int) (200 * safeAlpha), 0, 255));
-                    RoundedUtils.drawCustomRoundedRect(currentX, currentY, itemWidth, itemHeight, 3f, true, true, true, true, pillBg);
-                    subFont.drawString(opt, currentX + 3f, optTextY, RenderUtils.withAlpha(Theme.TEXT, argb));
-                } else {
-                    RoundedUtils.drawCustomRoundedRect(currentX, currentY, itemWidth, itemHeight, 3f, true, true, true, true, barBgColor);
-                    subFont.drawString(opt, currentX + 3f, optTextY, RenderUtils.withAlpha(Theme.TEXT_MUTED, argb));
-                }
+                Color bg = selected ? RenderUtils.withAlphaColor(Theme.accent().darker(), argb) : barBgColor;
+                int textCol = selected ? RenderUtils.withAlpha(Theme.TEXT, argb) : RenderUtils.withAlpha(Theme.TEXT_MUTED, argb);
+
+                RoundedUtils.drawRoundOutline(currentX, currentY, itemWidth, ITEM_HEIGHT, 2f, -0.5f,
+                        bg, RenderUtils.withAlphaColor(Theme.BAR_BORDER, scaledAlpha(Theme.BAR_BORDER, safeAlpha)));
+                font.drawString(opt, optTextX, optTextY, textCol);
 
                 currentX += itemWidth + GAP;
             }
         } else if (property instanceof DescriptorProperty) {
             DescriptorProperty desc = (DescriptorProperty) property;
-            subFont.drawString(desc.getLabel(), innerX, y + desc.getPaddingTop(),
+            font.drawString(desc.getLabel(), innerX, y + desc.getPaddingTop(),
                     RenderUtils.withAlpha(Theme.TEXT_MUTED, MathHelper.clamp_int((int) (200 * safeAlpha), 0, 255)));
         } else if (property.getValue() instanceof String) {
             String value = (String) property.getValue();
@@ -228,24 +205,24 @@ public class PropertyRow {
                 ((Property<String>) property).setValue(value.substring(0, value.length() - 1));
             }
 
-            mainFont.drawString(property.getLabel(), innerX, y + 2f, RenderUtils.withAlpha(Theme.TEXT_MUTED, argb));
+            font.drawString(property.getLabel(), innerX, y, RenderUtils.withAlpha(Theme.TEXT_MUTED, argb));
 
-            float boxY = y + 14f;
-            float boxH = 10f;
-            Color boxBg = textHovered ? RenderUtils.withAlphaColor(accent, MathHelper.clamp_int((int) (40 * safeAlpha), 0, 255)) : barBgColor;
-            RoundedUtils.drawCustomRoundedRect(innerX, boxY, innerWidth, boxH, 2f, true, true, true, true, boxBg);
+            float boxY = y + 10f;
+            float boxH = 11f;
+            Color boxBg = textHovered
+                    ? RenderUtils.withAlphaColor(Theme.accent().brighter(), MathHelper.clamp_int((int) (40 * safeAlpha), 0, 255))
+                    : barBgColor;
+
+            RoundedUtils.drawRoundOutline(innerX, boxY, innerWidth, boxH, 2.5f, -0.5f,
+                    boxBg, RenderUtils.withAlphaColor(Theme.BAR_BORDER, scaledAlpha(Theme.BAR_BORDER, safeAlpha)));
 
             String displayVal = value + (textHovered && (System.currentTimeMillis() % 1000 > 500) ? "_" : "");
-            float textY = boxY + (boxH - subFont.getHeight()) / 2f;
-            subFont.drawString(displayVal, innerX + 3f, textY, RenderUtils.withAlpha(Theme.TEXT, argb));
+            float textY = boxY + (boxH - font.getHeight()) / 2f - 0.5f;
+            font.drawString(displayVal, innerX + 3f, textY, RenderUtils.withAlpha(Theme.TEXT, argb));
         } else if (property.getValue() instanceof Integer) {
-            float rowHeight = getHeight();
-            float textY = y + (rowHeight - mainFont.getHeight()) / 2f;
-
-            mainFont.drawString(property.getLabel(), innerX, textY, RenderUtils.withAlpha(Theme.TEXT, argb));
+            font.drawString(property.getLabel(), innerX, y + 0.5f, RenderUtils.withAlpha(Theme.TEXT, argb));
             String key = listening ? "..." : Keyboard.getKeyName((Integer) property.getValue());
-            float keyY = y + (rowHeight - subFont.getHeight()) / 2f;
-            subFont.drawString(key, rightX - subFont.getStringWidth(key), keyY, RenderUtils.withAlpha(Theme.TEXT_MUTED, argb));
+            font.drawString(key, rightX - font.getStringWidth(key), y + 0.5f, RenderUtils.withAlpha(Theme.TEXT_MUTED, argb));
         }
     }
 
@@ -288,28 +265,26 @@ public class PropertyRow {
             float innerX = module.getX() + PADDING_X;
             float rightX = module.getX() + module.getWidth() - PADDING_X;
             float currentX = innerX;
-            float currentY = getY() + 15f;
-            float itemHeight = 14f;
-            CustomFontRenderer optionFont = FontUtils.getFont("sf", 12);
+            float currentY = getY() + 10f;
 
             String[] options = getOptions();
+            CustomFontRenderer optionFont = FontUtils.getFont("sf", 12);
+
             for (int i = 0; i < options.length; i++) {
-                float itemWidth = optionFont.getStringWidth(options[i]) + 8f;
+                float itemWidth = optionFont.getStringWidth(options[i]) + 5f;
                 if (currentX + itemWidth > rightX && currentX > innerX) {
                     currentX = innerX;
-                    currentY += itemHeight + GAP;
+                    currentY += ITEM_HEIGHT + GAP;
                 }
 
-                if (mouseX >= currentX && mouseX <= currentX + itemWidth && mouseY >= currentY && mouseY <= currentY + itemHeight) {
+                if (mouseX >= currentX && mouseX <= currentX + itemWidth && mouseY >= currentY && mouseY <= currentY + ITEM_HEIGHT) {
                     if (property instanceof ModeProperty) {
                         ((ModeProperty<?>) property).setValue(i);
                     } else {
-                        MultiModeProperty<?> multi = (MultiModeProperty<?>) property;
-                        multi.setValue(i);
+                        ((MultiModeProperty<?>) property).setValue(i);
                     }
                     break;
                 }
-
                 currentX += itemWidth + GAP;
             }
         } else if (property.getValue() instanceof String) {
@@ -332,12 +307,8 @@ public class PropertyRow {
                 stringProperty.setValue(stringProperty.getValue() + typedChar);
             }
         } else if (property.getValue() instanceof Integer && listening) {
-            if (keyCode == Keyboard.KEY_ESCAPE) {
-                listening = false;
-            } else {
-                ((Property<Integer>) property).setValue(keyCode);
-                listening = false;
-            }
+            ((Property<Integer>) property).setValue(keyCode == Keyboard.KEY_ESCAPE ? 0 : keyCode);
+            listening = false;
         }
     }
 

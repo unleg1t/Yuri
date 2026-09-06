@@ -31,6 +31,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class YuriClickGUI extends GuiScreen {
 
     private static final List<CategoryWindow> windows = new CopyOnWriteArrayList<>();
+    private static final OnlineConfigPanel onlineConfigPanel = new OnlineConfigPanel();
     private static boolean firstOpen = true;
 
     public static String searchQuery = "";
@@ -107,8 +108,12 @@ public class YuriClickGUI extends GuiScreen {
         GlStateManager.enableBlend();
         GlStateManager.tryBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ZERO);
 
+        float guiScale = ScaleUtils.getScale(mc);
+        float effectiveWidth = sr.getScaledWidth() / guiScale;
+        float effectiveHeight = sr.getScaledHeight() / guiScale;
+
         int backgroundAlpha = MathHelper.clamp_int((int) (130 * progress), 0, 255);
-        drawRect(0, 0, sr.getScaledWidth(), sr.getScaledHeight(), RenderUtils.withAlpha(new Color(0, 0, 0), backgroundAlpha));
+        drawRect(0, 0, (int) effectiveWidth, (int) effectiveHeight, RenderUtils.withAlpha(new Color(0, 0, 0), backgroundAlpha));
 
         CategoryWindow topmostHovered = null;
         for (int i = windows.size() - 1; i >= 0; i--) {
@@ -128,28 +133,32 @@ public class YuriClickGUI extends GuiScreen {
             }
         }
 
-        drawSearchBar(sr, progress);
+        onlineConfigPanel.drawScreen(scaledMouseX, scaledMouseY, progress);
+        drawSearchBar(sr, progress, effectiveWidth, effectiveHeight);
 
         if (tooltip != null) {
-            drawTooltip(tooltip, scaledMouseX, scaledMouseY, progress, sr);
+            drawTooltip(tooltip, scaledMouseX, scaledMouseY, progress, effectiveWidth, effectiveHeight);
         }
 
         GL11.glPopMatrix();
     }
 
-    private void drawSearchBar(ScaledResolution sr, float progress) {
+    private static int scaledAlpha(Color base, float safeAlpha) {
+        return MathHelper.clamp_int((int) (base.getAlpha() * safeAlpha), 0, 255);
+    }
+
+    private void drawSearchBar(ScaledResolution sr, float progress, float effectiveWidth, float effectiveHeight) {
         int argb = MathHelper.clamp_int((int) (255 * progress), 0, 255);
         float width = 140f;
         float height = 18f;
-        float x = sr.getScaledWidth() / 2f - width / 2f;
-        float y = sr.getScaledHeight() - 38f;
+        float x = effectiveWidth / 2f - width / 2f;
+        float y = effectiveHeight - 38f;
 
         Blur.startBlur();
         RoundedUtils.drawRoundedRect(x, y, width, height, 5f, Color.WHITE);
         Blur.endBlur(8f * progress, 2f, 1f);
 
-        int panelBgAlpha = MathHelper.clamp_int((int) (80 * progress), 0, 255);
-        Color searchBg = new Color(Theme.WINDOW_BG.getRed(), Theme.WINDOW_BG.getGreen(), Theme.WINDOW_BG.getBlue(), panelBgAlpha);
+        Color searchBg = RenderUtils.withAlphaColor(Theme.WINDOW_BG, scaledAlpha(Theme.WINDOW_BG, progress));
 
         RoundedUtils.drawRoundOutline(x, y, width, height, 5f, -0.5f,
                 searchBg, RenderUtils.withAlphaColor(Theme.accent(), argb));
@@ -158,10 +167,10 @@ public class YuriClickGUI extends GuiScreen {
         Color color = searchQuery.isEmpty() ? Theme.TEXT_MUTED : Theme.TEXT;
         CustomFontRenderer font = FontUtils.getFont("sf", 14);
         float textY = y + (height - font.getHeight()) / 2f;
-        font.drawCenteredStringWithShadow(text, sr.getScaledWidth() / 2f, textY, RenderUtils.withAlpha(color, argb));
+        font.drawCenteredStringWithShadow(text, effectiveWidth / 2f, textY, RenderUtils.withAlpha(color, argb));
     }
 
-    private void drawTooltip(String description, int mouseX, int mouseY, float progress, ScaledResolution sr) {
+    private void drawTooltip(String description, int mouseX, int mouseY, float progress, float effectiveWidth, float effectiveHeight) {
         GlStateManager.disableDepth();
         GlStateManager.enableBlend();
         GlStateManager.tryBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ZERO);
@@ -173,12 +182,13 @@ public class YuriClickGUI extends GuiScreen {
         int height = 14;
         int x = mouseX + 8;
         int y = mouseY + 8;
-        if (x + width > sr.getScaledWidth()) x = mouseX - width - 4;
-        if (y + height > sr.getScaledHeight()) y = mouseY - height - 4;
+        if (x + width > effectiveWidth) x = mouseX - width - 4;
+        if (y + height > effectiveHeight) y = mouseY - height - 4;
+
+        Color tooltipBg = RenderUtils.withAlphaColor(Theme.TOOLTIP_BG, scaledAlpha(Theme.TOOLTIP_BG, progress));
 
         RoundedUtils.drawRoundOutline(x, y, width, height, 4f, -0.5f,
-                RenderUtils.withAlphaColor(Theme.TOOLTIP_BG, argb),
-                RenderUtils.withAlphaColor(Theme.accent(), argb));
+                tooltipBg, RenderUtils.withAlphaColor(Theme.accent(), argb));
 
         float textY = y + (height - font.getHeight()) / 2f;
         font.drawString(description, x + padding - 1f, textY, RenderUtils.withAlpha(Theme.TEXT, argb));
@@ -192,13 +202,21 @@ public class YuriClickGUI extends GuiScreen {
 
         Minecraft mc = Minecraft.getMinecraft();
         ScaledResolution sr = new ScaledResolution(mc);
+        float guiScale = ScaleUtils.getScale(mc);
+        float effectiveWidth = sr.getScaledWidth() / guiScale;
+        float effectiveHeight = sr.getScaledHeight() / guiScale;
+
         int[] scaled = ScaleUtils.getScaledMouseCoordinates(mc, mouseX, mouseY);
         int scaledMouseX = scaled[0];
         int scaledMouseY = scaled[1];
 
+        if (onlineConfigPanel.mouseClicked(scaledMouseX, scaledMouseY, mouseButton)) {
+            return;
+        }
+
         float searchW = 140f;
-        float searchX = sr.getScaledWidth() / 2f - searchW / 2f;
-        float searchY = sr.getScaledHeight() - 38f;
+        float searchX = effectiveWidth / 2f - searchW / 2f;
+        float searchY = effectiveHeight - 38f;
 
         if (scaledMouseX >= searchX && scaledMouseX <= searchX + searchW && scaledMouseY >= searchY && scaledMouseY <= searchY + 18) {
             searching = true;
@@ -254,6 +272,10 @@ public class YuriClickGUI extends GuiScreen {
         int[] scaled = ScaleUtils.getScaledMouseCoordinates(mc, guiMouseX, guiMouseY);
         int scaledMouseX = scaled[0];
         int scaledMouseY = scaled[1];
+
+        if (onlineConfigPanel.scroll(wheel > 0 ? -16f : 16f)) {
+            return;
+        }
 
         for (int i = windows.size() - 1; i >= 0; i--) {
             CategoryWindow window = windows.get(i);

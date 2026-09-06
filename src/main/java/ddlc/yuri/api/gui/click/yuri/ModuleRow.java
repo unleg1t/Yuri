@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 public class ModuleRow {
 
     private static final IntBuffer SCISSOR_BUFFER = BufferUtils.createIntBuffer(16);
+    private static final float RADIUS = 5f;
 
     private final Module module;
     private final CategoryWindow window;
@@ -82,7 +83,15 @@ public class ModuleRow {
         return settings.stream().filter(row -> row.property.isAvailable()).collect(Collectors.toList());
     }
 
+    private static int scaledAlpha(Color base, float safeAlpha) {
+        return MathHelper.clamp_int((int) (base.getAlpha() * safeAlpha), 0, 255);
+    }
+
     public String drawScreen(int mouseX, int mouseY, float alpha) {
+        return drawScreen(mouseX, mouseY, alpha, false);
+    }
+
+    public String drawScreen(int mouseX, int mouseY, float alpha, boolean isLast) {
         float safeAlpha = MathHelper.clamp_float(alpha, 0.0f, 1.0f);
         if (safeAlpha < 0.08f) return null;
 
@@ -100,23 +109,27 @@ public class ModuleRow {
 
         int argb = MathHelper.clamp_int((int) (255 * safeAlpha), 0, 255);
         Color baseBg = RenderUtils.interpolateColorC(Theme.MODULE_BG, Theme.MODULE_HOVER, hoverFraction);
-        Color rowBg = RenderUtils.interpolateColorC(baseBg, Theme.MODULE_ACTIVE, fraction);
+        Color rowBg = RenderUtils.interpolateColorC(baseBg, RenderUtils.withAlphaColor(Theme.accent().darker(), 55), fraction);
 
         int bgAlpha = MathHelper.clamp_int((int) (rowBg.getAlpha() * safeAlpha), 0, 255);
         Color finalBg = new Color(rowBg.getRed(), rowBg.getGreen(), rowBg.getBlue(), bgAlpha);
 
-        RoundedUtils.drawCustomRoundedRect(getX(), y, getWidth(), height, 0, true, true, true, true, finalBg);
+        if (isLast) {
+            RoundedUtils.drawCustomRoundedRect(getX(), y, getWidth(), height + 2, RADIUS, false, false, true, true, finalBg);
+        } else {
+            RoundedUtils.drawRoundedRect(getX(), y, getWidth(), height + 0.6f, 0f, finalBg);
+        }
 
         CustomFontRenderer titleFont = FontUtils.getFont("sf-bold", 14);
         CustomFontRenderer iconFont = FontUtils.getFont("sf", 14);
 
         float textY = y + (15f - titleFont.getHeight()) / 2f;
         Color textColor = RenderUtils.interpolateColorC(Theme.TEXT_MUTED, Theme.TEXT, Math.max(fraction, hoverFraction));
-        titleFont.drawString(module.getLabel(), getX() + 4f, textY, RenderUtils.withAlpha(textColor, argb));
+        iconFont.drawString(module.getLabel(), getX() + 4f, textY, RenderUtils.withAlpha(textColor, argb));
 
         if (!settings.isEmpty()) {
             float iconY = y + (15f - iconFont.getHeight()) / 2f;
-            iconFont.drawString(opened ? "-" : "+", getX() + getWidth() - 11f, iconY,
+            iconFont.drawString(opened ? "-" : "+", getX() + getWidth() - 10f, iconY,
                     RenderUtils.withAlpha(Theme.TEXT_MUTED, argb));
         }
 
