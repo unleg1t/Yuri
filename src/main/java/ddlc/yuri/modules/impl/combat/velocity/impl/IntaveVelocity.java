@@ -19,6 +19,7 @@ public class IntaveVelocity implements VelocityMode {
     public void onAttack(PlayerAttackEvent event) {
         switch (parent.intaveMode.getValue()) {
             case INTAVE_13:
+                // rip Intave 13, I made this bypass in mid 2025, people were so jealous :sob:
                 if (event.target instanceof EntityLivingBase && mc.thePlayer.hurtTime > 0 && !isInLiquidOrWeb()) {
                     if (mc.thePlayer.onGround) {
                         mc.thePlayer.motionX *= 0.52;

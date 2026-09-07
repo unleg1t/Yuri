@@ -14,18 +14,21 @@ import ddlc.yuri.utils.client.TimerUtils;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemAppleGold;
 import net.minecraft.item.ItemStack;
-import net.minecraft.potion.Potion;
 
 @ModuleInfo(label = "Auto Apple", category = ModuleCategory.COMBAT, description = "Automatically eats a golden apple when your health is low")
 public final class AutoAppleModule extends Module {
 
     private final NumberProperty health = new NumberProperty("Health", 15, 1, 20, 1);
     private final NumberProperty delay = new NumberProperty("Delay", 50, 0, 100, 5);
+    private final NumberProperty maxEatTicks = new NumberProperty("Max Eat Ticks", 40, 20, 60, 1);
 
     private final TimerUtils stopWatch = new TimerUtils();
     private int attackTicks;
     private long nextEat;
-    private boolean eating;
+
+    private boolean eating = false;
+    private boolean itemUseStarted = false;
+    private int eatTicks = 0;
 
     @EventHook
     public void onUpdate(PreUpdateEvent event) {
@@ -35,15 +38,12 @@ public final class AutoAppleModule extends Module {
             this.attackTicks = 0;
         }
 
-        if (mc.thePlayer.isPotionActive(Potion.regeneration) && eating) {
-            mc.gameSettings.keyBindUseItem.setPressed(false);
-            eating = false;
-            if (Yuri.INSTANCE.getModuleManager().getModule(AuraModule.class).isEnabled() && AuraModule.target != null && !AuraModule.canAttack) {
-                AuraModule.canAttack = true;
-            }
+        if (eating) {
+            handleEating();
+            return;
         }
 
-        if (mc.thePlayer.onGroundTicks <= 1 || !stopWatch.hasTimeElapsed(nextEat) || attackTicks < 10 || Yuri.INSTANCE.getModuleManager().getModule(ScaffoldModule.class).isEnabled() || mc.thePlayer.isPotionActive(Potion.regeneration)) {
+        if (mc.thePlayer.onGroundTicks <= 1 || !stopWatch.hasTimeElapsed(nextEat) || attackTicks < 10 || Yuri.INSTANCE.getModuleManager().getModule(ScaffoldModule.class).isEnabled()) {
             return;
         }
 
@@ -57,31 +57,75 @@ public final class AutoAppleModule extends Module {
             final Item item = stack.getItem();
 
             if (item instanceof ItemAppleGold && mc.thePlayer.getHealth() <= this.health.getValue().floatValue()) {
-                mc.thePlayer.inventory.currentItem = i;
-
-                mc.playerController.syncCurrentPlayItem();
-                mc.gameSettings.keyBindUseItem.setPressed(true);
-                eating = true;
-                if (Yuri.INSTANCE.getModuleManager().getModule(AuraModule.class).isEnabled() && AuraModule.target != null)
-                    AuraModule.canAttack = false;
-                this.nextEat = delay.getValue().longValue() * 10;
-                stopWatch.reset();
+                startEating(i);
                 break;
             }
         }
     }
 
+    private void startEating(int slot) {
+        mc.thePlayer.inventory.currentItem = slot;
+        mc.playerController.syncCurrentPlayItem();
+        mc.gameSettings.keyBindUseItem.setPressed(true);
 
-    @EventHook
-    public void onWorldJoin(WorldJoinEvent event) {
-        if (eating) {
-            mc.gameSettings.keyBindUseItem.setPressed(false);
-            eating = false;
-            if (Yuri.INSTANCE.getModuleManager().getModule(AuraModule.class).isEnabled() && AuraModule.target != null && !AuraModule.canAttack)
-                AuraModule.canAttack = true;
+        eating = true;
+        itemUseStarted = false;
+        eatTicks = 0;
+
+        AuraModule aura = Yuri.INSTANCE.getModuleManager().getModule(AuraModule.class);
+        if (aura.isEnabled() && AuraModule.target != null) {
+            AuraModule.canAttack = false;
         }
     }
 
+    private void handleEating() {
+        eatTicks++;
+
+        if (mc.thePlayer.isUsingItem()) {
+            itemUseStarted = true;
+        } else if (itemUseStarted) {
+            finishEating();
+            return;
+        }
+
+        if (eatTicks >= maxEatTicks.getValue().intValue()) {
+            finishEating();
+        }
+    }
+
+    private void finishEating() {
+        mc.gameSettings.keyBindUseItem.setPressed(false);
+        eating = false;
+        itemUseStarted = false;
+        eatTicks = 0;
+
+        this.nextEat = delay.getValue().longValue() * 10;
+        stopWatch.reset();
+
+        AuraModule aura = Yuri.INSTANCE.getModuleManager().getModule(AuraModule.class);
+        if (aura.isEnabled() && AuraModule.target != null && !AuraModule.canAttack) {
+            AuraModule.canAttack = true;
+        }
+    }
+
+    private void cancelEating() {
+        if (!eating) return;
+
+        mc.gameSettings.keyBindUseItem.setPressed(false);
+        eating = false;
+        itemUseStarted = false;
+        eatTicks = 0;
+
+        AuraModule aura = Yuri.INSTANCE.getModuleManager().getModule(AuraModule.class);
+        if (aura.isEnabled() && AuraModule.target != null && !AuraModule.canAttack) {
+            AuraModule.canAttack = true;
+        }
+    }
+
+    @EventHook
+    public void onWorldJoin(WorldJoinEvent event) {
+        cancelEating();
+    }
 
     @EventHook
     public void onAttack(PlayerAttackEvent event) {
@@ -90,12 +134,7 @@ public final class AutoAppleModule extends Module {
 
     @Override
     public void onDisable() {
-        if (eating) {
-            mc.gameSettings.keyBindUseItem.setPressed(false);
-            eating = false;
-            if (Yuri.INSTANCE.getModuleManager().getModule(AuraModule.class).isEnabled() && AuraModule.target != null && !AuraModule.canAttack)
-                AuraModule.canAttack = true;
-        }
+        cancelEating();
         super.onDisable();
     }
 }

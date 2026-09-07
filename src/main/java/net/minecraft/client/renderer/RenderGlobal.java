@@ -4,6 +4,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.gson.JsonSyntaxException;
+import ddlc.yuri.Yuri;
+import ddlc.yuri.api.events.impl.render.RenderSkyEvent;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -1623,6 +1625,16 @@ public class RenderGlobal implements IWorldAccess, IResourceManagerReloadListene
 
     public void renderSky(float partialTicks, int pass)
     {
+        if (Yuri.INSTANCE != null && Yuri.INSTANCE.getEventBus() != null)
+        {
+            final RenderSkyEvent eventRenderSky = new RenderSkyEvent(partialTicks);
+            Yuri.INSTANCE.getEventBus().post(eventRenderSky);
+            if (eventRenderSky.isCancelled())
+            {
+                return;
+            }
+        }
+
         if (Reflector.ForgeWorldProvider_getSkyRenderer.exists())
         {
             WorldProvider worldprovider = this.mc.theWorld.provider;

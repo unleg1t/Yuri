@@ -52,7 +52,7 @@ public final class MenuShaderBackground {
                     "    vec2 flow = uv * 1.6 + vec2(uTime * 0.02, uTime * 0.015);\n" +
                     "    float n = fbm(flow);\n" +
                     "    vec3 purple = vec3(0.42, 0.20, 0.62);\n" +
-                    "    float alpha = n * 0.22;\n" +
+                    "    float alpha = n * 0.8;\n" +
                     "    gl_FragColor = vec4(purple, alpha);\n" +
                     "}\n";
 

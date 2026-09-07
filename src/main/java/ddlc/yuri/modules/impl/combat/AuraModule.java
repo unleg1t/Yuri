@@ -138,6 +138,7 @@ public class AuraModule extends Module {
     public static EntityLivingBase target;
     public static boolean autoBlocking = false;
     public static boolean canAttack = true;
+    public static boolean rotationOverride = false;
     private static final TimerUtils attackTimer = new TimerUtils();
     private int blockTicks = 0;
     private static long delay = 0;
@@ -241,6 +242,7 @@ public class AuraModule extends Module {
 
     private void calculateRotations() {
         if (mc.thePlayer == null || target == null || rotations.getValue() == Rotations.NONE) return;
+        if (rotationOverride) return;
 
         if (target != lastTarget) {
             smoothedBodyPoint = null;

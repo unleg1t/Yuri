@@ -528,14 +528,14 @@ public final class ScaffoldModule extends Module {
                 mc.entityRenderer.getMouseOver(1);
                 if (mc.thePlayer.onGround && MoveUtils.isMoving()) {
                     if (hypixelTelly.getValue()) {
-                        rotSpeed = isDiagonal() || mc.gameSettings.keyBindJump.isKeyDown() ? 11.0f : 10.0f;
+                        rotSpeed = 10.0f;
                     } else {
                         rotSpeed = 20.0f;
                     }
                     target[0] = mc.thePlayer.rotationYaw;
                 } else {
                     if (hypixelTelly.getValue()) {
-                        rotSpeed = isDiagonal() || mc.gameSettings.keyBindJump.isKeyDown() ? 7.6f : 2.1f;
+                        rotSpeed = isDiagonal() || mc.gameSettings.keyBindJump.isKeyDown() ? 5.0f : 2.1f;
                     }
                 }
                 break;
@@ -644,7 +644,7 @@ public final class ScaffoldModule extends Module {
     public void tower() {
         if (towerMode.getValue() == TowerMode.NONE || !mc.gameSettings.keyBindJump.isKeyDown() || !PlayerUtils.isBlockUnder(2))
             return;
-        if (!towerMove.getValue() && !MoveUtils.isMoving()) return;
+        if (!towerMove.getValue() && MoveUtils.isMoving()) return;
 
         switch (towerMode.getValue()) {
             case NCP:
