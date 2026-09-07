@@ -18,6 +18,8 @@ import net.minecraft.client.gui.inventory.GuiChest;
 import net.minecraft.init.Items;
 import net.minecraft.inventory.ContainerChest;
 import net.minecraft.item.*;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.BlockPos;
 import org.apache.commons.lang3.RandomUtils;
 import org.lwjgl.opengl.Display;
 
@@ -31,6 +33,7 @@ public final class StealerModule extends Module {
 
     public final TimerUtils timer = new TimerUtils();
     public final TimerUtils startTimer = new TimerUtils();
+    public final TimerUtils missClickTimer = new TimerUtils();
 
     private final Property<Boolean> instant = new Property<>("Instant", false);
     private final NumberProperty stealDelay = new NumberProperty("Steal Delay", 50.0, 0.0, 1000.0, 25.0, () -> !instant.getValue());
@@ -40,11 +43,24 @@ public final class StealerModule extends Module {
     private final Property<Boolean> autoClose = new Property<>("Auto Close", true);
     private final Property<Boolean> grabMouse = new Property<>("Grab Mouse", false);
     public static final Property<Boolean> autoDisable = new Property<>("Auto Disable", false);
+    private final Property<Boolean> distanceScaling = new Property<>("Distance Scaling", false);
+    private final NumberProperty distanceMultiplier = new NumberProperty("Distance Multiplier", 15.0, 0.0, 100.0, 5.0, distanceScaling::getValue);
+    private final Property<Boolean> positionScaling = new Property<>("Position Scaling", false);
+    private final NumberProperty positionMultiplier = new NumberProperty("Position Multiplier", 5.0, 0.0, 50.0, 5.0, positionScaling::getValue);
+    private final Property<Boolean> missClickEnabled = new Property<>("Miss Click", false);
+    private final NumberProperty missClickChance = new NumberProperty("Miss Click Chance", 15.0, 0.0, 100.0, 5.0, missClickEnabled::getValue);
+    private final NumberProperty missClickRecoveryMin = new NumberProperty("Miss Recovery Min", 80.0, 0.0, 1000.0, 25.0, missClickEnabled::getValue);
+    private final NumberProperty missClickRecoveryMax = new NumberProperty("Miss Recovery Max", 220.0, 0.0, 1000.0, 25.0, missClickEnabled::getValue);
 
     private int decidedTimer = 0;
     private boolean gotItems;
     private int ticksInChest;
     private boolean lastInChest;
+
+    private int targetSlot = -1;
+    private boolean missClickPending;
+    private boolean missClickDone;
+    private int missClickRecovery;
 
     private boolean isValidChest() {
         if (!(mc.currentScreen instanceof GuiChest)) {
@@ -63,6 +79,54 @@ public final class StealerModule extends Module {
             }
         }
         return mc.thePlayer.openContainer instanceof ContainerChest;
+    }
+
+    private double getChestDistance(ContainerChest chest) {
+        if (mc.thePlayer == null) {
+            return 0;
+        }
+        if (!(chest.getLowerChestInventory() instanceof TileEntity)) {
+            return 0;
+        }
+        TileEntity te = (TileEntity) chest.getLowerChestInventory();
+        BlockPos pos = te.getPos();
+        return mc.thePlayer.getDistance(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
+    }
+
+    private int computeDynamicDelay(int baseDelay, ContainerChest chest, int slotIndex) {
+        int delay = baseDelay;
+        if (this.distanceScaling.getValue()) {
+            double distance = getChestDistance(chest);
+            delay += (int) Math.round(distance * this.distanceMultiplier.getValue());
+        }
+        if (this.positionScaling.getValue()) {
+            delay += (int) Math.round(slotIndex * this.positionMultiplier.getValue());
+        }
+        return delay;
+    }
+
+    private int findMissSlot(ContainerChest chest, int targetIndex) {
+        int size = chest.getLowerChestInventory().getSizeInventory();
+        if (size <= 1) {
+            return -1;
+        }
+        ArrayList<Integer> emptySlots = new ArrayList<>();
+        for (int i = 0; i < size; i++) {
+            if (i == targetIndex) {
+                continue;
+            }
+            if (chest.getLowerChestInventory().getStackInSlot(i) == null) {
+                emptySlots.add(i);
+            }
+        }
+        if (!emptySlots.isEmpty()) {
+            return emptySlots.get(RandomUtils.nextInt(0, emptySlots.size()));
+        }
+        int slot;
+        do {
+            slot = RandomUtils.nextInt(0, size);
+        } while (slot == targetIndex);
+        return slot;
     }
 
     @EventHook
@@ -87,6 +151,9 @@ public final class StealerModule extends Module {
         } else {
             --this.ticksInChest;
             this.gotItems = false;
+            this.targetSlot = -1;
+            this.missClickPending = false;
+            this.missClickDone = false;
             if (this.ticksInChest < 0) {
                 this.ticksInChest = 0;
             }
@@ -103,51 +170,99 @@ public final class StealerModule extends Module {
             this.startTimer.reset();
         }
         this.lastInChest = validChest;
-        if (validChest) {
-            ContainerChest chest = (ContainerChest) mc.thePlayer.openContainer;
-            if (this.instant.getValue()) {
-                boolean tookAny = false;
-                int size = chest.getLowerChestInventory().getSizeInventory();
-                for (int i = 0; i < size; i++) {
-                    ItemStack stack = chest.getLowerChestInventory().getStackInSlot(i);
-                    if (stack != null && this.itemWhitelisted(stack) && !this.stealTrashItems.getValue()) {
-                        mc.playerController.windowClick(chest.windowId, i, 0, 1, mc.thePlayer);
-                        tookAny = true;
-                        this.gotItems = true;
-                    }
+        if (!validChest) {
+            return;
+        }
+        ContainerChest chest = (ContainerChest) mc.thePlayer.openContainer;
+        if (this.instant.getValue()) {
+            boolean tookAny = false;
+            int size = chest.getLowerChestInventory().getSizeInventory();
+            for (int i = 0; i < size; i++) {
+                ItemStack stack = chest.getLowerChestInventory().getStackInSlot(i);
+                if (stack != null && this.itemWhitelisted(stack) && !this.stealTrashItems.getValue()) {
+                    mc.playerController.windowClick(chest.windowId, i, 0, 1, mc.thePlayer);
+                    tookAny = true;
+                    this.gotItems = true;
                 }
-                if (tookAny && this.autoClose.getValue()) {
-                    mc.thePlayer.closeScreen();
+            }
+            if (tookAny && this.autoClose.getValue()) {
+                mc.thePlayer.closeScreen();
+            }
+            return;
+        }
+        if (!this.startTimer.hasTimeElapsed(stealDelay.getValue(), false)) {
+            return;
+        }
+
+        int size = chest.getLowerChestInventory().getSizeInventory();
+        int foundSlot = -1;
+        for (int i = 0; i < size; i++) {
+            ItemStack stack = chest.getLowerChestInventory().getStackInSlot(i);
+            if (stack != null && this.itemWhitelisted(stack) && !this.stealTrashItems.getValue()) {
+                foundSlot = i;
+                break;
+            }
+        }
+
+        if (foundSlot == -1) {
+            if (this.gotItems && this.autoClose.getValue() && this.ticksInChest > 3) {
+                mc.thePlayer.closeScreen();
+            }
+            this.targetSlot = -1;
+            this.missClickPending = false;
+            this.missClickDone = false;
+            this.decidedTimer = 0;
+            return;
+        }
+
+        if (foundSlot != this.targetSlot) {
+            this.targetSlot = foundSlot;
+            this.decidedTimer = 0;
+            this.missClickPending = false;
+            this.missClickDone = false;
+        }
+
+        if (this.decidedTimer == 0) {
+            int delayFirst = (int) Math.floor(Math.min(this.minDelay.getValue(), this.maxDelay.getValue()));
+            int delaySecond = (int) Math.ceil(Math.max(this.minDelay.getValue(), this.maxDelay.getValue()));
+            int base = RandomUtils.nextInt(delayFirst, delaySecond);
+            this.decidedTimer = computeDynamicDelay(base, chest, this.targetSlot);
+        }
+
+        if (this.missClickEnabled.getValue() && !this.missClickDone && !this.missClickPending) {
+            if (RandomUtils.nextDouble(0.0, 100.0) < this.missClickChance.getValue()) {
+                int missSlot = findMissSlot(chest, this.targetSlot);
+                if (missSlot != -1) {
+                    mc.playerController.windowClick(chest.windowId, missSlot, 0, 1, mc.thePlayer);
+                    int recFirst = (int) Math.floor(Math.min(this.missClickRecoveryMin.getValue(), this.missClickRecoveryMax.getValue()));
+                    int recSecond = (int) Math.ceil(Math.max(this.missClickRecoveryMin.getValue(), this.missClickRecoveryMax.getValue()));
+                    this.missClickRecovery = RandomUtils.nextInt(recFirst, recSecond);
+                    this.missClickPending = true;
+                    this.missClickTimer.reset();
+                    return;
                 }
+            }
+            this.missClickDone = true;
+        }
+
+        if (this.missClickPending) {
+            if (!this.missClickTimer.hasTimeElapsed(this.missClickRecovery, false)) {
                 return;
             }
-            if (!this.startTimer.hasTimeElapsed(stealDelay.getValue(), false)) {
-                return;
+            this.missClickPending = false;
+            this.missClickDone = true;
+        }
+
+        if (this.timer.hasTimeElapsed(this.decidedTimer, false)) {
+            ItemStack stack = chest.getLowerChestInventory().getStackInSlot(this.targetSlot);
+            if (stack != null && this.itemWhitelisted(stack) && !this.stealTrashItems.getValue()) {
+                mc.playerController.windowClick(chest.windowId, this.targetSlot, 0, 1, mc.thePlayer);
+                this.gotItems = true;
             }
-            if (this.decidedTimer == 0) {
-                int delayFirst = (int)Math.floor(Math.min(this.minDelay.getValue(), this.maxDelay.getValue()));
-                int delaySecond = (int)Math.ceil(Math.max(this.minDelay.getValue(), this.maxDelay.getValue()));
-                this.decidedTimer = RandomUtils.nextInt(delayFirst, delaySecond);
-            }
-            if (this.timer.hasTimeElapsed(this.decidedTimer, false)) {
-                int i = 0;
-                while (i < chest.inventorySlots.size()) {
-                    ItemStack stack = chest.getLowerChestInventory().getStackInSlot(i);
-                    if (stack != null && this.itemWhitelisted(stack) && !this.stealTrashItems.getValue()) {
-                        mc.playerController.windowClick(chest.windowId, i, 0, 1, mc.thePlayer);
-                        this.timer.reset();
-                        int delayFirst = (int)Math.floor(Math.min(this.minDelay.getValue(), this.maxDelay.getValue()));
-                        int delaySecond = (int)Math.ceil(Math.max(this.minDelay.getValue(), this.maxDelay.getValue()));
-                        this.decidedTimer = RandomUtils.nextInt(delayFirst, delaySecond);
-                        this.gotItems = true;
-                        return;
-                    }
-                    ++i;
-                }
-                if (this.gotItems && this.autoClose.getValue() && this.ticksInChest > 3) {
-                    mc.thePlayer.closeScreen();
-                }
-            }
+            this.timer.reset();
+            this.decidedTimer = 0;
+            this.targetSlot = -1;
+            this.missClickDone = false;
         }
     }
 

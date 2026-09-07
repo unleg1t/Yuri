@@ -28,7 +28,7 @@ public class Module extends Manager<Property<?>> implements Toggleable, Serializ
     private final String label = getClass().getAnnotation(ModuleInfo.class).label();
     private final String description = getClass().getAnnotation(ModuleInfo.class).description();
     private final ModuleCategory category = getClass().getAnnotation(ModuleInfo.class).category();
-    private int key = getClass().getAnnotation(ModuleInfo.class).key();
+    public final Property<Integer> keybind = new Property<>("Keybind", getClass().getAnnotation(ModuleInfo.class).key());
     private boolean enabled;
     private boolean hidden;
     @Getter
@@ -50,19 +50,28 @@ public class Module extends Manager<Property<?>> implements Toggleable, Serializ
     }
 
     public void reflectProperties() {
-        for (final Field field : getClass().getDeclaredFields()) {
-            final Class<?> type = field.getType();
-            if (type.isAssignableFrom(Property.class) ||
-                    type.isAssignableFrom(NumberProperty.class) ||
-                    type.isAssignableFrom(ModeProperty.class) ||
-                    type.isAssignableFrom(MultiModeProperty.class) ||
-                    type.isAssignableFrom(DescriptorProperty.class)) {
-                if (!field.isAccessible()) {
-                    field.setAccessible(true);
-                }
-                try {
-                    elements.add((Property<?>) field.get(this));
-                } catch (IllegalAccessException ignored) {
+        List<Class<?>> hierarchy = new ArrayList<>();
+        for (Class<?> clazz = getClass(); clazz != null && clazz != Object.class; clazz = clazz.getSuperclass()) {
+            hierarchy.add(clazz);
+        }
+        for (int i = hierarchy.size() - 1; i >= 0; i--) {
+            for (final Field field : hierarchy.get(i).getDeclaredFields()) {
+                final Class<?> type = field.getType();
+                if (type.isAssignableFrom(Property.class) ||
+                        type.isAssignableFrom(NumberProperty.class) ||
+                        type.isAssignableFrom(ModeProperty.class) ||
+                        type.isAssignableFrom(MultiModeProperty.class) ||
+                        type.isAssignableFrom(DescriptorProperty.class)) {
+                    if (!field.isAccessible()) {
+                        field.setAccessible(true);
+                    }
+                    try {
+                        Property<?> property = (Property<?>) field.get(this);
+                        if (!elements.contains(property)) {
+                            elements.add(property);
+                        }
+                    } catch (IllegalAccessException ignored) {
+                    }
                 }
             }
         }
@@ -85,11 +94,11 @@ public class Module extends Manager<Property<?>> implements Toggleable, Serializ
     }
 
     public int getKey() {
-        return key;
+        return keybind.getValue();
     }
 
     public void setKey(int key) {
-        this.key = key;
+        keybind.setValue(key);
     }
 
     @Override
@@ -167,7 +176,7 @@ public class Module extends Manager<Property<?>> implements Toggleable, Serializ
                 } else if (property.getType() == Boolean.class) {
                     propertiesObject.addProperty(property.getLabel(), (Boolean) property.getValue());
                 } else if (property.getType() == Integer.class) {
-                    propertiesObject.addProperty(property.getLabel(), Integer.toHexString((Integer) property.getValue()));
+                    propertiesObject.addProperty(property.getLabel(), (Integer) property.getValue());
                 } else if (property.getType() == String.class) {
                     propertiesObject.addProperty(property.getLabel(), (String) property.getValue());
                 }
@@ -207,7 +216,12 @@ public class Module extends Manager<Property<?>> implements Toggleable, Serializ
                     } else if (property.getValue() instanceof Boolean) {
                         ((Property<Boolean>) property).setValue(propertiesObject.get(property.getLabel()).getAsBoolean());
                     } else if (property.getValue() instanceof Integer) {
-                        ((Property<Integer>) property).setValue((int) Long.parseLong(propertiesObject.get(property.getLabel()).getAsString(), 16));
+                        JsonElement intElement = propertiesObject.get(property.getLabel());
+                        if (intElement.isJsonPrimitive() && intElement.getAsJsonPrimitive().isNumber()) {
+                            ((Property<Integer>) property).setValue(intElement.getAsInt());
+                        } else {
+                            ((Property<Integer>) property).setValue((int) Long.parseLong(intElement.getAsString(), 16));
+                        }
                     } else if (property.getValue() instanceof String) {
                         ((Property<String>) property).setValue(propertiesObject.get(property.getLabel()).getAsString());
                     }

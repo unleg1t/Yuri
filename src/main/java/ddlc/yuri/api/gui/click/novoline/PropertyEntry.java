@@ -5,9 +5,11 @@ import ddlc.yuri.api.properties.impl.DescriptorProperty;
 import ddlc.yuri.api.properties.impl.ModeProperty;
 import ddlc.yuri.api.properties.impl.MultiModeProperty;
 import ddlc.yuri.api.properties.impl.NumberProperty;
+import ddlc.yuri.utils.client.KeyUtil;
 import ddlc.yuri.utils.misc.Timer;
 import ddlc.yuri.utils.render.FontUtils;
 import ddlc.yuri.utils.render.RenderUtils;
+import ddlc.yuri.utils.render.ScaleUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.ScaledResolution;
@@ -49,10 +51,14 @@ public class PropertyEntry {
 
         if (property instanceof NumberProperty) {
             NumberProperty numberProperty = (NumberProperty) property;
-            if (module.yPerModule == module.getTargetHeight() && scissor) {
+            boolean rowClipped = false;
+            float rowClipTop = Math.max(module.tab.bodyTop, y);
+            float rowClipBottom = Math.min(module.tab.bodyBottom, y + getHeight());
+            if (module.yPerModule == module.getTargetHeight() && scissor && rowClipBottom > rowClipTop) {
                 GL11.glPushMatrix();
-                GL11.glScissor((int) (module.tab.getPosX() * 2 + 1), 0, 197, 999999999);
+                ScaleUtils.applyScissor(Minecraft.getMinecraft(), module.tab.getPosX() + 1, rowClipTop, module.tab.getPosX() + 99, rowClipBottom);
                 GL11.glEnable(GL11.GL_SCISSOR_TEST);
+                rowClipped = true;
             }
 
             double rounded = Math.round(numberProperty.getValue() * 100.0D) / 100.0D;
@@ -77,7 +83,7 @@ public class PropertyEntry {
                 numberProperty.setValue(RenderUtils.incValue(value, numberProperty.getIncrement()));
             }
 
-            if (module.yPerModule == module.getTargetHeight() && scissor) {
+            if (rowClipped) {
                 GL11.glDisable(GL11.GL_SCISSOR_TEST);
                 GL11.glPopMatrix();
             }
@@ -182,7 +188,7 @@ public class PropertyEntry {
                     y + 6,
                     new Color(255, 255, 255, alpha).getRGB()
             );
-            String key = "[" + (listening ? ".." : Keyboard.getKeyName((Integer) property.getValue())) + "]";
+            String key = "[" + (listening ? ".." : KeyUtil.getKeyName((Integer) property.getValue())) + "]";
             FontUtils.getFont("sf", 18).drawStringWithShadow(
                     key,
                     module.tab.getPosX() + 97.5F - FontUtils.getFont("sf", 18).getStringWidth(key),
@@ -239,8 +245,13 @@ public class PropertyEntry {
             }
         } else if (property.getValue() instanceof String) {
             textHovered = !textHovered;
-        } else if (property.getValue() instanceof Integer && (mouseButton == 0 || mouseButton == 2)) {
-            listening = !listening;
+        } else if (property.getValue() instanceof Integer) {
+            if (listening) {
+                ((Property<Integer>) property).setValue(KeyUtil.mouseButtonToKeyCode(mouseButton));
+                listening = false;
+            } else if (mouseButton == 0 || mouseButton == 2) {
+                listening = !listening;
+            }
         }
     }
 
@@ -295,7 +306,7 @@ public class PropertyEntry {
                     && mouseX <= module.tab.getPosX() + 99 && mouseY <= y + 14;
         }
         if (property.getValue() instanceof Integer) {
-            String key = "[" + Keyboard.getKeyName((Integer) property.getValue()) + "]";
+            String key = "[" + KeyUtil.getKeyName((Integer) property.getValue()) + "]";
             return mouseX >= module.tab.getPosX() + 97.5F - FontUtils.getFont("sf", 18).getStringWidth(key)
                     && mouseX <= module.tab.getPosX() + 97.5F && mouseY >= y + 4 && mouseY <= y + 14;
         }

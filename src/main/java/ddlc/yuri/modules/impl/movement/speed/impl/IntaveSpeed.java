@@ -7,6 +7,8 @@ import ddlc.yuri.utils.player.MoveUtils;
 
 public class IntaveSpeed implements SpeedMode {
 
+    // oh, hi @larryngton! what are you going to do about it? :P
+
     @Override
     public void onStrafe(StrafeEvent event) {
         if (MoveUtils.isMoving() && mc.thePlayer.onGround && !mc.gameSettings.keyBindJump.pressed && !(mc.thePlayer.isInLava() || mc.thePlayer.isInWater() || mc.thePlayer.isInWeb)) {

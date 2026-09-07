@@ -6,8 +6,11 @@ import ddlc.yuri.modules.ModuleCategory;
 import ddlc.yuri.utils.client.MathUtils;
 import ddlc.yuri.utils.render.FontUtils;
 import ddlc.yuri.utils.render.RenderUtils;
+import ddlc.yuri.utils.render.ScaleUtils;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.renderer.GlStateManager;
+import org.lwjgl.opengl.GL11;
 
 import java.awt.*;
 import java.io.IOException;
@@ -15,6 +18,8 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class CategoryTab {
+
+    private static final float MAX_TAB_HEIGHT = 260.0F;
 
     private final ModuleCategory category;
     private float posX;
@@ -29,6 +34,10 @@ public class CategoryTab {
     private float lastMouseY;
     private float angle;
     private float angularVelocity;
+    private float scrollOffset;
+    private float targetScrollOffset;
+    public float bodyTop;
+    public float bodyBottom;
 
     public CategoryTab(ModuleCategory category, float posX, float posY) {
         this.category = category;
@@ -82,14 +91,31 @@ public class CategoryTab {
 
         String tooltip = null;
         if (opened) {
-            Gui.drawRect(drawX - 1, drawY + 15, drawX + 101, drawY + 15 + getTabHeight() + 1,
+            float maxScroll = Math.max(0.0F, getTabHeight() - MAX_TAB_HEIGHT);
+            targetScrollOffset = Math.max(0.0F, Math.min(maxScroll, targetScrollOffset));
+            scrollOffset = MathUtils.lerp(scrollOffset, targetScrollOffset, 0.25F);
+
+            int bodyHeight = (int) Math.min(getTabHeight(), MAX_TAB_HEIGHT);
+            float bodyTop = drawY + 15;
+            float bodyBottom = bodyTop + bodyHeight;
+            this.bodyTop = bodyTop;
+            this.bodyBottom = bodyBottom;
+
+            Gui.drawRect(drawX - 1, bodyTop, drawX + 101, bodyBottom + 1,
                     RenderUtils.withAlpha(GuiTheme.PANEL, headerAlpha));
+
+            Minecraft mc = Minecraft.getMinecraft();
+
             for (ModuleEntry module : modules) {
-                String moduleTooltip = module.drawScreen(mouseX, mouseY, drawX, drawY, animationProgress);
+                GL11.glEnable(GL11.GL_SCISSOR_TEST);
+                ScaleUtils.applyScissor(mc, drawX - 1, bodyTop, drawX + 101, bodyBottom);
+                String moduleTooltip = module.drawScreen(mouseX, mouseY, drawX, drawY - scrollOffset, animationProgress);
                 if (moduleTooltip != null) {
                     tooltip = moduleTooltip;
                 }
             }
+
+            GL11.glDisable(GL11.GL_SCISSOR_TEST);
         } else {
             modules.forEach(module -> module.yPerModule = 0);
         }
@@ -135,6 +161,26 @@ public class CategoryTab {
 
     public boolean isHovered(int mouseX, int mouseY) {
         return mouseX >= posX && mouseY >= posY && mouseX <= posX + 101 && mouseY <= posY + 15;
+    }
+
+    public boolean isMouseOver(int mouseX, int mouseY) {
+        float bodyHeight = opened ? Math.min(getTabHeight(), MAX_TAB_HEIGHT) : 0.0F;
+        return mouseX >= posX && mouseX <= posX + 101 && mouseY >= posY
+                && mouseY <= posY + 15 + bodyHeight;
+    }
+
+    public void scroll(float amount) {
+        if (!opened) {
+            return;
+        }
+        if (getTabHeight() > MAX_TAB_HEIGHT) {
+            float maxScroll = getTabHeight() - MAX_TAB_HEIGHT;
+            targetScrollOffset = Math.max(0.0F, Math.min(maxScroll, targetScrollOffset + amount));
+        }
+    }
+
+    public float getCurrentScrollOffset() {
+        return scrollOffset;
     }
 
     public void mouseReleased(int mouseX, int mouseY, int state) {

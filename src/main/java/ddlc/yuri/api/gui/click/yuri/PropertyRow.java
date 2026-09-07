@@ -6,6 +6,7 @@ import ddlc.yuri.api.properties.impl.DescriptorProperty;
 import ddlc.yuri.api.properties.impl.ModeProperty;
 import ddlc.yuri.api.properties.impl.MultiModeProperty;
 import ddlc.yuri.api.properties.impl.NumberProperty;
+import ddlc.yuri.utils.client.KeyUtil;
 import ddlc.yuri.utils.client.MathUtils;
 import ddlc.yuri.utils.misc.Timer;
 import ddlc.yuri.utils.render.FontUtils;
@@ -73,6 +74,7 @@ public class PropertyRow {
     public int getHeight() {
         if (property instanceof NumberProperty) return 16;
         if (property.getValue() instanceof Boolean) return 10;
+        if (property.getValue() instanceof Integer) return 9;
         if (property instanceof ModeProperty || property instanceof MultiModeProperty) {
             return (int) Math.ceil(getModeLayoutHeight(getOptions()));
         }
@@ -221,7 +223,7 @@ public class PropertyRow {
             font.drawString(displayVal, innerX + 3f, textY, RenderUtils.withAlpha(Theme.TEXT, argb));
         } else if (property.getValue() instanceof Integer) {
             font.drawString(property.getLabel(), innerX, y + 0.5f, RenderUtils.withAlpha(Theme.TEXT, argb));
-            String key = listening ? "..." : Keyboard.getKeyName((Integer) property.getValue());
+            String key = listening ? "..." : KeyUtil.getKeyName((Integer) property.getValue());
             font.drawString(key, rightX - font.getStringWidth(key), y + 0.5f, RenderUtils.withAlpha(Theme.TEXT_MUTED, argb));
         }
     }
@@ -289,8 +291,13 @@ public class PropertyRow {
             }
         } else if (property.getValue() instanceof String) {
             textHovered = !textHovered;
-        } else if (property.getValue() instanceof Integer && (button == 0 || button == 2)) {
-            listening = !listening;
+        } else if (property.getValue() instanceof Integer) {
+            if (listening) {
+                ((Property<Integer>) property).setValue(KeyUtil.mouseButtonToKeyCode(button));
+                listening = false;
+            } else if (button == 0 || button == 2) {
+                listening = !listening;
+            }
         }
     }
 

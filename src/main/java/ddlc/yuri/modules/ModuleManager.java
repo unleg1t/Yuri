@@ -8,7 +8,9 @@ import org.reflections.Reflections;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -47,7 +49,7 @@ public final class ModuleManager {
 
     @SuppressWarnings("unchecked")
     private ImmutableClassToInstanceMap<Module> scanAndBuildInstanceMap() {
-        ImmutableClassToInstanceMap.Builder<Module> modulesBuilder = ImmutableClassToInstanceMap.builder();
+        List<Module> modules = new ArrayList<>();
         Reflections reflections = new Reflections("ddlc.yuri.modules");
 
         for (Class<? extends Module> clazz : reflections.getSubTypesOf(Module.class)) {
@@ -56,8 +58,15 @@ public final class ModuleManager {
 
             Module module = instantiate(clazz);
             if (module != null) {
-                modulesBuilder.put((Class<Module>) clazz, module);
+                modules.add(module);
             }
+        }
+
+        modules.sort(Comparator.comparing(Module::getLabel, String.CASE_INSENSITIVE_ORDER));
+
+        ImmutableClassToInstanceMap.Builder<Module> modulesBuilder = ImmutableClassToInstanceMap.builder();
+        for (Module module : modules) {
+            modulesBuilder.put((Class<Module>) module.getClass(), module);
         }
 
         return modulesBuilder.build();

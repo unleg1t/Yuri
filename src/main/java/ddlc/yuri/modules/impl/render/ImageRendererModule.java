@@ -60,7 +60,7 @@ public final class ImageRendererModule extends Module {
     }
 
     public final ModeProperty<Images> image = new ModeProperty<>("Image", Images.YURI);
-    public final Property<String> customUrl = new Property<>("URL", "https://i.imgur.com/example.gif");
+    public final Property<String> customUrl = new Property<>("URL", "https://i.imgur.com/example.gif", () -> image.getValue() == Images.CUSTOM);
     public static NumberProperty size = new NumberProperty("Size", 100, 100, 1000, 50);
 
     public static final ImageRendererModule INSTANCE = new ImageRendererModule();

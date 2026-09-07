@@ -15,6 +15,7 @@ import ddlc.yuri.modules.ModuleInfo;
 import ddlc.yuri.modules.impl.combat.velocity.VelocityMode;
 import ddlc.yuri.modules.impl.combat.velocity.impl.CancelVelocity;
 import ddlc.yuri.modules.impl.combat.velocity.impl.CustomVelocity;
+import ddlc.yuri.modules.impl.combat.velocity.impl.IntaveVelocity;
 import ddlc.yuri.modules.impl.combat.velocity.impl.LegitVelocity;
 
 import java.util.EnumMap;
@@ -30,13 +31,16 @@ public final class VelocityModule extends Module {
     public final NumberProperty yModify = new NumberProperty("Velocity Y Modifier", 1.0, 0.0, 5.0, 1.0, () -> mode.getValue() == Mode.CUSTOM);
     public final NumberProperty zModify = new NumberProperty("Velocity Z Modifier", 0.0, 0.0, 5.0, 1.0, () -> mode.getValue() == Mode.CUSTOM);
 
+    public final ModeProperty<IntaveMode> intaveMode = new ModeProperty<>("Intave Mode", IntaveMode.INTAVE_LATEST, () -> mode.getValue() == Mode.INTAVE);
+
     public final Property<Boolean> universalReduce = new Property<>("Reduce", true, () -> mode.getValue() == Mode.LEGIT);
     public final NumberProperty attackTimes = new NumberProperty("Attack Times", 1, 1, 5, 1, () -> mode.getValue() == Mode.LEGIT && universalReduce.getValue());
     public final Property<Boolean> onlySprinting = new Property<>("Only Sprinting", true, () -> mode.getValue() == Mode.LEGIT && universalReduce.getValue());
     public final Property<Boolean> reduceWhenCanAttack = new Property<>("Reduce When Can Attack", true, () -> mode.getValue() == Mode.LEGIT && universalReduce.getValue());
 
-    private enum Mode {
+    public enum Mode {
         LEGIT("Legit"),
+        INTAVE("Intave"),
         CANCEL("Cancel"),
         CUSTOM("Custom");
 
@@ -51,13 +55,29 @@ public final class VelocityModule extends Module {
         }
     }
 
+    public enum IntaveMode {
+        INTAVE_LATEST("Intave Latest"),
+        INTAVE_13("Intave 13");
+
+        public final String name;
+
+        IntaveMode(String name) {
+            this.name = name;
+        }
+
+        public String toString() {
+            return name;
+        }
+    }
+
     private final Map<Mode, VelocityMode> velocityMode;
 
     {
         velocityMode = new EnumMap<>(Mode.class);
 
-        velocityMode.put(Mode.CANCEL, new CancelVelocity(this));
         velocityMode.put(Mode.LEGIT, new LegitVelocity(this));
+        velocityMode.put(Mode.INTAVE, new IntaveVelocity(this));
+        velocityMode.put(Mode.CANCEL, new CancelVelocity(this));
         velocityMode.put(Mode.CUSTOM, new CustomVelocity(this));
     }
 

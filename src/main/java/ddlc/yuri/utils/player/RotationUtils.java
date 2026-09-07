@@ -5,7 +5,6 @@ import ddlc.yuri.utils.client.MathUtils;
 import ddlc.yuri.utils.misc.IMinecraft;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityPlayerSP;
-import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.*;
@@ -147,31 +146,6 @@ public class RotationUtils implements IMinecraft {
         return new float[]{yaw, pitch};
     }
 
-    public static float[] getNormalRotationsFromPosition(double x, double y, double z, float currentYaw,
-                                                         float currentPitch, float yawSpeed, float pitchSpeed) {
-        if (yawSpeed < 0) {
-            yawSpeed *= -1;
-        }
-
-        if (pitchSpeed < 0) {
-            pitchSpeed *= -1;
-        }
-
-        float sYaw = (float) updateRotation((float) currentYaw, (float) getRotationFromPosition(x, y, z)[0], yawSpeed);
-        float sPitch = (float) updateRotation((float) currentPitch, (float) getRotationFromPosition(x, y, z)[1],
-                pitchSpeed);
-        currentYaw = updateRotation(currentYaw, sYaw, 360);
-        currentPitch = updateRotation(currentPitch, sPitch, 360);
-
-        if (currentPitch > 90) {
-            currentPitch = 90;
-        } else if (currentPitch < -90) {
-            currentPitch = -90;
-        }
-
-        return new float[]{currentYaw, currentPitch};
-    }
-
     public static float updateRotation(float current, float intended, float factor) {
         float var4 = MathHelper.wrapAngleTo180_float(intended - current);
 
@@ -293,38 +267,6 @@ public class RotationUtils implements IMinecraft {
         return new Vector2f(yaw, pitch);
     }
 
-    public static float getMovementYaw() {
-        float yaw = 180.0f;
-        KeyBinding forward = RotationUtils.mc.gameSettings.keyBindForward;
-        KeyBinding back = RotationUtils.mc.gameSettings.keyBindBack;
-        KeyBinding right = RotationUtils.mc.gameSettings.keyBindRight;
-        KeyBinding left = RotationUtils.mc.gameSettings.keyBindLeft;
-        if (back.isKeyDown()) {
-            yaw -= 180.0f;
-            if (right.isKeyDown()) {
-                yaw -= 45.0f;
-            }
-            if (left.isKeyDown()) {
-                yaw += 45.0f;
-            }
-        } else if (forward.isKeyDown()) {
-            if (right.isKeyDown()) {
-                yaw += 45.0f;
-            }
-            if (left.isKeyDown()) {
-                yaw -= 45.0f;
-            }
-        } else {
-            if (right.isKeyDown()) {
-                yaw += 90.0f;
-            }
-            if (left.isKeyDown()) {
-                yaw -= 90.0f;
-            }
-        }
-        return (MathHelper.wrapAngleTo180_float(RotationUtils.mc.thePlayer.rotationYaw) + yaw % 360.0f + 360.0f) % 360.0f;
-    }
-
     public static Vector2f calculate(final Vector3d from, final Vector3d to) {
         final Vector3d diff = to.subtract(from);
         final double distance = Math.hypot(diff.getX(), diff.getZ());
@@ -364,10 +306,6 @@ public class RotationUtils implements IMinecraft {
         return normalRotations;
     }
 
-    public Vector2f calculate(final Vec3 to, final EnumFacing enumFacing) {
-        return calculate(new Vector3d(to.xCoord, to.yCoord, to.zCoord), enumFacing);
-    }
-
     public static Vector2f calculate(final Vec3 to) {
         return calculate(mc.thePlayer.getCustomPositionVector().add(0, mc.thePlayer.getEyeHeight(), 0), new Vector3d(to.xCoord, to.yCoord, to.zCoord));
     }
@@ -397,21 +335,23 @@ public class RotationUtils implements IMinecraft {
         double targetY;
         double targetZ;
 
+        double finalTargetX = box.minX + (box.maxX - box.minX) * 0.5;
+        double finalTargetZ = box.minZ + (box.maxZ - box.minZ) * 0.5;
         switch (mode) {
             case HEAD:
-                targetX = box.minX + (box.maxX - box.minX) * 0.5;
+                targetX = finalTargetX;
                 targetY = box.maxY - (box.maxY - box.minY) * 0.1;
-                targetZ = box.minZ + (box.maxZ - box.minZ) * 0.5;
+                targetZ = finalTargetZ;
                 break;
             case BODY:
-                targetX = box.minX + (box.maxX - box.minX) * 0.5;
+                targetX = finalTargetX;
                 targetY = box.minY + (box.maxY - box.minY) * 0.5;
-                targetZ = box.minZ + (box.maxZ - box.minZ) * 0.5;
+                targetZ = finalTargetZ;
                 break;
             case FEET:
-                targetX = box.minX + (box.maxX - box.minX) * 0.5;
+                targetX = finalTargetX;
                 targetY = box.minY + (box.maxY - box.minY) * 0.1;
-                targetZ = box.minZ + (box.maxZ - box.minZ) * 0.5;
+                targetZ = finalTargetZ;
                 break;
             case RANDOMIZED:
             default:

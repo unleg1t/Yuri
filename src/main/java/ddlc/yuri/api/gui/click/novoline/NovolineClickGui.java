@@ -15,6 +15,7 @@ import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
 import org.lwjgl.input.Keyboard;
+import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.GL11;
 
 import java.awt.Color;
@@ -182,6 +183,30 @@ public class NovolineClickGui extends GuiScreen implements IMinecraft {
         }
 
         tabs.forEach(tab -> tab.keyTyped(typedChar, keyCode));
+    }
+
+    @Override
+    public void handleMouseInput() throws IOException {
+        super.handleMouseInput();
+        int wheel = Mouse.getEventDWheel();
+        if (wheel == 0 || closing) {
+            return;
+        }
+
+        int guiMouseX = Mouse.getEventX() * this.width / mc.displayWidth;
+        int guiMouseY = this.height - Mouse.getEventY() * this.height / mc.displayHeight - 1;
+
+        int[] scaled = ScaleUtils.getScaledMouseCoordinates(mc, guiMouseX, guiMouseY);
+        int scaledMouseX = scaled[0];
+        int scaledMouseY = scaled[1];
+
+        float amount = wheel > 0 ? -16.0F : 16.0F;
+        for (CategoryTab tab : tabs) {
+            if (tab.isMouseOver(scaledMouseX, scaledMouseY)) {
+                tab.scroll(amount);
+                break;
+            }
+        }
     }
 
     @Override

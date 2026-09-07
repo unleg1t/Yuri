@@ -40,14 +40,6 @@ public class CustomFontRenderer extends CustomFont {
         return this.nameFontTTF;
     }
 
-    private String fixBedSymbols(String text) {
-        if (text == null) return "";
-        return text.replace("\u2714", "[Y]")
-                .replace("\u2718", "[N]")
-                .replace("\u2713", "[Y]")
-                .replace("\u2716", "[N]");
-    }
-
     public float drawString(String text, float x, float y, int color) {
         if (useMCustomFont) {
             return Minecraft.getMinecraft().fontRendererObj.drawString(text, x, y, color, false);
@@ -133,8 +125,6 @@ public class CustomFontRenderer extends CustomFont {
     }
 
     public float drawString(String text, double x, double y, int color, boolean shadow) {
-        text = fixBedSymbols(text);
-
         if (useMCustomFont) {
             return Minecraft.getMinecraft().fontRendererObj.drawString(text, (float) x, (float) y, color, shadow);
         }
@@ -307,8 +297,6 @@ public class CustomFontRenderer extends CustomFont {
     }
 
     public int getStringWidth(String text) {
-        text = fixBedSymbols(text);
-
         if (text == null) {
             return 0;
         }

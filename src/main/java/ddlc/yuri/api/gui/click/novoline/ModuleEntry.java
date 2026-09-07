@@ -7,6 +7,7 @@ import ddlc.yuri.modules.ModuleInfo;
 import ddlc.yuri.modules.impl.render.ClickGUIModule;
 import ddlc.yuri.utils.render.FontUtils;
 import ddlc.yuri.utils.render.RenderUtils;
+import ddlc.yuri.utils.render.ScaleUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.ScaledResolution;
@@ -125,20 +126,18 @@ public class ModuleEntry {
             ScaledResolution scaledResolution = new ScaledResolution(mc);
             List<PropertyEntry> visibleSettings = getVisibleSettings();
             if (yPerModule != getTargetHeight() && scaledResolution.getScaleFactor() != 1) {
-                GL11.glScissor(
-                        0,
-                        scaledResolution.getScaledHeight() * 2 - y * 2 - yPerModule * 2,
-                        scaledResolution.getScaledWidth() * 2,
-                        yPerModule * 2
-                );
-                GL11.glEnable(GL11.GL_SCISSOR_TEST);
-                visibleSettings.forEach(setting -> setting.drawScreen(mouseX, mouseY, animationProgress));
-                GL11.glDisable(GL11.GL_SCISSOR_TEST);
+                float clipTop = Math.max(tab.bodyTop, y);
+                float clipBottom = Math.min(tab.bodyBottom, y + yPerModule);
+                if (clipBottom > clipTop) {
+                    drawSettingsClipped(mc, visibleSettings, tab.getPosX() - 1, clipTop, tab.getPosX() + 101, clipBottom,
+                            mouseX, mouseY, animationProgress);
+                }
                 settings.stream()
                         .filter(setting -> !setting.property.isAvailable())
                         .forEach(setting -> setting.setPercent(0));
             } else {
-                visibleSettings.forEach(setting -> setting.drawScreen(mouseX, mouseY, animationProgress));
+                drawSettingsClipped(mc, visibleSettings, tab.getPosX() - 1, tab.bodyTop, tab.getPosX() + 101, tab.bodyBottom,
+                        mouseX, mouseY, animationProgress);
             }
         } else {
             settings.forEach(setting -> setting.setPercent(0));
@@ -202,7 +201,7 @@ public class ModuleEntry {
     }
 
     public boolean isHovered(int mouseX, int mouseY) {
-        y = (int) (tab.getPosY() + 15);
+        y = (int) (tab.getPosY() + 15 - tab.getCurrentScrollOffset());
         for (ModuleEntry tabModule : tab.modules) {
             if (tabModule == this) {
                 break;
@@ -224,5 +223,14 @@ public class ModuleEntry {
         return settings.stream()
                 .filter(setting -> setting.property.isAvailable())
                 .collect(Collectors.toList());
+    }
+
+    private void drawSettingsClipped(Minecraft mc, List<PropertyEntry> settingsToDraw, float clipX1, float clipY1,
+                                     float clipX2, float clipY2, int mouseX, int mouseY, float animationProgress) {
+        for (PropertyEntry setting : settingsToDraw) {
+            GL11.glEnable(GL11.GL_SCISSOR_TEST);
+            ScaleUtils.applyScissor(mc, clipX1, clipY1, clipX2, clipY2);
+            setting.drawScreen(mouseX, mouseY, animationProgress);
+        }
     }
 }

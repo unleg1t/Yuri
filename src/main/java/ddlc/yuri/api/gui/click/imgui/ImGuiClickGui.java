@@ -10,6 +10,7 @@ import ddlc.yuri.api.properties.impl.NumberProperty;
 import ddlc.yuri.modules.Module;
 import ddlc.yuri.modules.ModuleCategory;
 import ddlc.yuri.modules.impl.render.ClickGUIModule;
+import ddlc.yuri.utils.client.KeyUtil;
 import ddlc.yuri.utils.render.animations.Direction;
 import ddlc.yuri.utils.render.animations.impl.DecelerateAnimation;
 import ddlc.yuri.utils.render.imgui.ImGuiManager;
@@ -237,7 +238,7 @@ public class ImGuiClickGui extends GuiScreen {
         } else if (property.getValue() instanceof Integer) {
             Property<Integer> keybindProperty = (Property<Integer>) property;
             boolean listening = listeningKeybind == keybindProperty;
-            String label = property.getLabel() + ": " + (listening ? ".." : Keyboard.getKeyName(keybindProperty.getValue()));
+            String label = property.getLabel() + ": " + (listening ? ".." : KeyUtil.getKeyName(keybindProperty.getValue()));
             if (ImGui.button(label)) {
                 listeningKeybind = listening ? null : keybindProperty;
             }
@@ -252,6 +253,11 @@ public class ImGuiClickGui extends GuiScreen {
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
+        if (listeningKeybind != null && mouseButton != -1) {
+            listeningKeybind.setValue(KeyUtil.mouseButtonToKeyCode(mouseButton));
+            listeningKeybind = null;
+            return;
+        }
         ImGuiManager.get().mouseClicked(mouseButton);
         if (!ImGuiManager.get().wantsMouse()) {
             super.mouseClicked(mouseX, mouseY, mouseButton);
@@ -286,7 +292,7 @@ public class ImGuiClickGui extends GuiScreen {
     @Override
     protected void keyTyped(char typedChar, int keyCode) throws IOException {
         if (listeningKeybind != null) {
-            listeningKeybind.setValue(keyCode);
+            listeningKeybind.setValue(keyCode == Keyboard.KEY_ESCAPE ? 0 : keyCode);
             listeningKeybind = null;
             return;
         }

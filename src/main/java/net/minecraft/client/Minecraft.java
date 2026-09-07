@@ -1646,6 +1646,11 @@ public class Minecraft implements IThreadListener, IPlayerUsage
 
                 if (Mouse.getEventButtonState())
                 {
+                    if (this.currentScreen == null)
+                    {
+                        Yuri.INSTANCE.getEventBus().post(new KeyPressEvent(i - 100));
+                    }
+
                     if (this.thePlayer.isSpectator() && i == 2)
                     {
                         this.ingameGUI.getSpectatorGui().func_175261_b();
