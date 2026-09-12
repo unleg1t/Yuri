@@ -13,7 +13,6 @@ import net.minecraft.util.*;
 import org.lwjgl.util.vector.Vector2f;
 
 import java.awt.*;
-import java.util.PriorityQueue;
 
 public final class ScaffoldUtils {
 
@@ -22,52 +21,11 @@ public final class ScaffoldUtils {
 
     private ScaffoldUtils() {}
 
-    private static final class AStarNode implements Comparable<AStarNode> {
-        final float yaw, pitch;
-        final float g, h, f;
-        final Vec3 hitVec;
-
-        AStarNode(float yaw, float pitch, float g, float h, Vec3 hitVec) {
-            this.yaw = yaw;
-            this.pitch = pitch;
-            this.g = g;
-            this.h = h;
-            this.f = g + h;
-            this.hitVec = hitVec;
-        }
-
-        @Override
-        public int compareTo(AStarNode o) {
-            return Float.compare(this.f, o.f);
-        }
-    }
-
     private static Vector2f serverRotations() {
         return RotationManager.rotations != null ? RotationManager.rotations : new Vector2f(mc.thePlayer.rotationYaw, mc.thePlayer.rotationPitch);
     }
 
-    private static float stabilityPenalty(BlockPos blockFace) {
-        int exposed = 0;
-        for (EnumFacing face : EnumFacing.HORIZONTALS) {
-            BlockPos neighbor = blockFace.offset(face);
-            if (mc.theWorld.getBlockState(neighbor).getBlock().isReplaceable(mc.theWorld, neighbor)) {
-                exposed++;
-            }
-        }
-        return exposed * 2.5f;
-    }
-
-    private static float directionalCost(BlockPos blockFace, EnumFacingOffset enumFacing) {
-        double dx = blockFace.getX() + 0.5 - mc.thePlayer.posX;
-        double dz = blockFace.getZ() + 0.5 - mc.thePlayer.posZ;
-        double movYaw = Math.toDegrees(Math.atan2(dz, dx)) - 90.0;
-        double playerYaw = mc.thePlayer.rotationYaw;
-        double diff = Math.abs(MathHelper.wrapAngleTo180_double(movYaw - playerYaw));
-        return (float) (diff / 180.0) * 4.0f;
-    }
-
-    private static void computeAStarRotations(BlockPos blockFace, EnumFacingOffset enumFacing,
-                                              float[] target, boolean strict) {
+    private static void computeJPSRotations(BlockPos blockFace, EnumFacingOffset enumFacing, float[] target, boolean strict) {
         Vector2f server = serverRotations();
         float serverYaw = server.x;
         float serverPitch = server.y;
@@ -80,65 +38,42 @@ public final class ScaffoldUtils {
         float baseYaw = (float) Math.toDegrees(Math.atan2(deltaZ, deltaX)) - 90.0f;
         float basePitch = (float) -Math.toDegrees(Math.atan2(deltaY, horizontal));
 
-        float hBase = stabilityPenalty(blockFace) + directionalCost(blockFace, enumFacing);
+        float[] angularJumps = {0f, -5f, 5f, -12f, 12f, -25f, 25f, -45f, 45f};
 
-        float[][] passes = {
-                {20f, 2.5f},
-                {45f, 5f},
-                {90f, 7.5f},
-                {180f, 10f}
-        };
+        float bestYaw = baseYaw;
+        float bestPitch = basePitch;
+        float closestRotationDelta = Float.MAX_VALUE;
+        boolean foundStrict = false;
 
-        AStarNode best = null;
-        AStarNode bestUnstrict = null;
+        for (float yawOffset : angularJumps) {
+            for (float pitchOffset : angularJumps) {
+                float testYaw = MathHelper.wrapAngleTo180_float(baseYaw + yawOffset);
+                float testPitch = MathHelper.clamp_float(basePitch + pitchOffset, -90, 90);
+                Vector2f testRot = new Vector2f(testYaw, testPitch);
 
-        for (float[] pass : passes) {
-            float range = pass[0];
-            float step = pass[1];
-            PriorityQueue<AStarNode> open = new PriorityQueue<>();
-            PriorityQueue<AStarNode> openUnstrict = strict ? new PriorityQueue<>() : null;
+                float yawDiff = Math.abs(MathHelper.wrapAngleTo180_float(testYaw - serverYaw));
+                float pitchDiff = Math.abs(testPitch - serverPitch);
+                float totalDelta = yawDiff + pitchDiff;
 
-            for (float dy = -range; dy <= range; dy += step) {
-                for (float dp = -range; dp <= range; dp += step) {
-                    float testYaw = MathHelper.wrapAngleTo180_float(baseYaw + dy);
-                    float testPitch = MathHelper.clamp_float(basePitch + dp, -90, 90);
-                    Vector2f testRot = new Vector2f(testYaw, testPitch);
+                if (totalDelta >= closestRotationDelta) continue;
 
-                    float yawDiff = Math.abs(MathHelper.wrapAngleTo180_float(testYaw - serverYaw));
-                    float pitchDiff = Math.abs(testPitch - serverPitch);
-                    float g = (float) Math.sqrt(yawDiff * yawDiff + pitchDiff * pitchDiff);
-
-                    Vec3 hitVec = new Vec3(
-                            blockFace.getX() + 0.5,
-                            blockFace.getY() + 0.5,
-                            blockFace.getZ() + 0.5);
-
-                    if (RayCastUtils.overBlock(testRot, enumFacing.getEnumFacing(), blockFace, strict)) {
-                        open.add(new AStarNode(testYaw, testPitch, g, hBase, hitVec));
-                    } else if (openUnstrict != null && RayCastUtils.overBlock(testRot, enumFacing.getEnumFacing(), blockFace, false)) {
-                        openUnstrict.add(new AStarNode(testYaw, testPitch, g, hBase, hitVec));
-                    }
+                if (RayCastUtils.overBlock(testRot, enumFacing.getEnumFacing(), blockFace, strict)) {
+                    closestRotationDelta = totalDelta;
+                    bestYaw = testYaw;
+                    bestPitch = testPitch;
+                    foundStrict = true;
+                } else if (!strict && !foundStrict && RayCastUtils.overBlock(testRot, enumFacing.getEnumFacing(), blockFace, false)) {
+                    closestRotationDelta = totalDelta;
+                    bestYaw = testYaw;
+                    bestPitch = testPitch;
                 }
             }
-
-            if (!open.isEmpty()) {
-                best = open.poll();
-                break;
-            }
-            if (openUnstrict != null && bestUnstrict == null && !openUnstrict.isEmpty()) {
-                bestUnstrict = openUnstrict.poll();
-            }
+            if (foundStrict && closestRotationDelta < 15f) break;
         }
 
-        if (best != null) {
-            target[0] = best.yaw;
-            target[1] = best.pitch;
-            return;
-        }
-
-        if (bestUnstrict != null) {
-            target[0] = bestUnstrict.yaw;
-            target[1] = bestUnstrict.pitch;
+        if (closestRotationDelta != Float.MAX_VALUE) {
+            target[0] = bestYaw;
+            target[1] = bestPitch;
             return;
         }
 
@@ -159,7 +94,6 @@ public final class ScaffoldUtils {
         target[0] = fallback.x;
         target[1] = fallback.y;
     }
-
 
     public static void computeNormalRotations(BlockPos blockFace, EnumFacingOffset enumFacing, float[] target, ScaffoldModule.SearchAlgorithm algorithm, boolean strict) {
         if (ScaffoldModule.rotations.getValue() == ScaffoldModule.Rotations.OLD) {
@@ -246,7 +180,7 @@ public final class ScaffoldUtils {
                 break;
             }
             case ULTRA_SAFE: {
-                computeAStarRotations(blockFace, enumFacing, target, true);
+                computeJPSRotations(blockFace, enumFacing, target, true);
                 break;
             }
         }
@@ -283,43 +217,26 @@ public final class ScaffoldUtils {
         double randX = minMargin + Math.random() * (maxMargin - minMargin);
         double randY = minMargin + Math.random() * (maxMargin - minMargin);
         double randZ = minMargin + Math.random() * (maxMargin - minMargin);
-
         double x = (facing.getAxis() == EnumFacing.Axis.X) ? (facing == EnumFacing.EAST ? blockFace.getX() + 1.0 : blockFace.getX()) : blockFace.getX() + randX;
         double y = (facing.getAxis() == EnumFacing.Axis.Y) ? (facing == EnumFacing.UP   ? blockFace.getY() + 1.0 : blockFace.getY()) : blockFace.getY() + randY;
         double z = (facing.getAxis() == EnumFacing.Axis.Z) ? (facing == EnumFacing.SOUTH ? blockFace.getZ() + 1.0 : blockFace.getZ()) : blockFace.getZ() + randZ;
-
         Vec3 hitVec = new Vec3(x, y, z);
-
-        final MovingObjectPosition mop = RayCastUtils.rayCast(
-                serverRotations(),
-                mc.playerController.getBlockReachDistance()
-        );
-
-        if (mop != null && mop.getBlockPos() != null && mop.hitVec != null
-                && mop.getBlockPos().equals(blockFace)
-                && mop.sideHit == facing) {
-
+        final MovingObjectPosition mop = RayCastUtils.rayCast(serverRotations(),mc.playerController.getBlockReachDistance());
+        if (mop != null && mop.getBlockPos() != null && mop.hitVec != null&& mop.getBlockPos().equals(blockFace)&& mop.sideHit == facing) {
             double jitter = 0.03;
             double jX = (Math.random() - 0.5) * (jitter * 2);
             double jY = (Math.random() - 0.5) * (jitter * 2);
             double jZ = (Math.random() - 0.5) * (jitter * 2);
-
-            double mopX = facing.getAxis() == EnumFacing.Axis.X ? mop.hitVec.xCoord
-                    : Math.max(blockFace.getX() + minMargin, Math.min(blockFace.getX() + maxMargin, mop.hitVec.xCoord + jX));
-            double mopY = facing.getAxis() == EnumFacing.Axis.Y ? mop.hitVec.yCoord
-                    : Math.max(blockFace.getY() + minMargin, Math.min(blockFace.getY() + maxMargin, mop.hitVec.yCoord + jY));
-            double mopZ = facing.getAxis() == EnumFacing.Axis.Z ? mop.hitVec.zCoord
-                    : Math.max(blockFace.getZ() + minMargin, Math.min(blockFace.getZ() + maxMargin, mop.hitVec.zCoord + jZ));
-
+            double mopX = facing.getAxis() == EnumFacing.Axis.X ? mop.hitVec.xCoord: Math.max(blockFace.getX() + minMargin, Math.min(blockFace.getX() + maxMargin, mop.hitVec.xCoord + jX));
+            double mopY = facing.getAxis() == EnumFacing.Axis.Y ? mop.hitVec.yCoord: Math.max(blockFace.getY() + minMargin, Math.min(blockFace.getY() + maxMargin, mop.hitVec.yCoord + jY));
+            double mopZ = facing.getAxis() == EnumFacing.Axis.Z ? mop.hitVec.zCoord: Math.max(blockFace.getZ() + minMargin, Math.min(blockFace.getZ() + maxMargin, mop.hitVec.zCoord + jZ));
             hitVec = new Vec3(mopX, mopY, mopZ);
         }
-
         return hitVec;
     }
 
     public static boolean doesNotContainBlock(Vec3i offset, int down) {
-        return BlockUtils.blockRelativeToPlayer(offset.getX(), -down + offset.getY(), offset.getZ())
-                .isReplaceable(mc.theWorld, new BlockPos(mc.thePlayer).down(down));
+        return BlockUtils.blockRelativeToPlayer(offset.getX(), -down + offset.getY(), offset.getZ()).isReplaceable(mc.theWorld, new BlockPos(mc.thePlayer).down(down));
     }
 
     public static int findPreferredBlockSlot() {
@@ -328,7 +245,6 @@ public final class ScaffoldUtils {
             ItemStack stack = mc.thePlayer.inventory.mainInventory[slot];
             if (stack == null || !(stack.getItem() instanceof ItemBlock)) continue;
             if (BlockUtils.blacklist.contains(((ItemBlock) stack.getItem()).getBlock())) continue;
-
             if (stack.stackSize > 1) {
                 return slot;
             }
@@ -343,8 +259,7 @@ public final class ScaffoldUtils {
         int count = 0;
         for (int slot = 0; slot < HOTBAR_SIZE; slot++) {
             ItemStack stack = mc.thePlayer.inventory.mainInventory[slot];
-            if (stack != null && stack.getItem() instanceof ItemBlock
-                    && !BlockUtils.blacklist.contains(((ItemBlock) stack.getItem()).getBlock())) {
+            if (stack != null && stack.getItem() instanceof ItemBlock&& !BlockUtils.blacklist.contains(((ItemBlock) stack.getItem()).getBlock())) {
                 count += stack.stackSize;
             }
         }
@@ -357,13 +272,10 @@ public final class ScaffoldUtils {
         int textWidth = FontUtils.getFont("sf", 14).getStringWidth(String.valueOf(blockCount) + EnumChatFormatting.WHITE + " blocks");
         int textX = centerX - textWidth / 2;
         int textY = sr.getScaledHeight() / 2 + 13;
-
         Color accent = ColorManager.getColor();
         int accentAlpha = RenderUtils.applyOpacity(accent.getRGB(), alpha);
-
         if (counterMode == ScaffoldModule.BlockCounter.SIMPLE) {
-            FontUtils.getFont("sf", 14).drawStringWithShadow(
-                    String.valueOf(blockCount) + EnumChatFormatting.WHITE + " blocks", textX, textY, accentAlpha);
+            FontUtils.getFont("sf", 14).drawStringWithShadow(String.valueOf(blockCount) + EnumChatFormatting.WHITE + " blocks", textX, textY, accentAlpha);
         }
     }
 }
