@@ -17,6 +17,7 @@ public class AmbienceModule extends Module {
 
     public final Property<Boolean> realTime = new Property<Boolean>("Real World Time", false);
     public final NumberProperty time = new NumberProperty("Time", 6000.0f, 0.0f, 24000.0f, 100.0f, () -> !realTime.getValue());
+    public static final Property<Boolean> clientColorFog = new Property<Boolean>("Client Color Fog", false);
 
     @EventHook
     public void onTick(ClientTickEvent event) {

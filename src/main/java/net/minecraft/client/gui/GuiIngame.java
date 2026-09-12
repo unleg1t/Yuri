@@ -402,14 +402,14 @@ public class GuiIngame extends Gui {
             }
 
             String s = "" + this.mc.thePlayer.experienceLevel;
-            int l1 = (scaledRes.getScaledWidth() - this.getFontRenderer().getStringWidth(s)) / 2;
+            int l1 = (scaledRes.getScaledWidth() - FontUtils.getFont("sf", 18).getStringWidth(s)) / 2;
             int i1 = scaledRes.getScaledHeight() - 31 - 4;
             int j1 = 0;
-            this.getFontRenderer().drawString(s, l1 + 1, i1, 0);
-            this.getFontRenderer().drawString(s, l1 - 1, i1, 0);
-            this.getFontRenderer().drawString(s, l1, i1 + 1, 0);
-            this.getFontRenderer().drawString(s, l1, i1 - 1, 0);
-            this.getFontRenderer().drawString(s, l1, i1, k1);
+            FontUtils.getFont("sf", 18).drawString(s, l1 + 1, i1, 0);
+            FontUtils.getFont("sf", 18).drawString(s, l1 - 1, i1, 0);
+            FontUtils.getFont("sf", 18).drawString(s, l1, i1 + 1, 0);
+            FontUtils.getFont("sf", 18).drawString(s, l1, i1 - 1, 0);
+            FontUtils.getFont("sf", 18).drawString(s, l1, i1, k1);
             this.mc.mcProfiler.endSection();
         }
     }
@@ -424,7 +424,7 @@ public class GuiIngame extends Gui {
                 s = EnumChatFormatting.ITALIC + s;
             }
 
-            int i = (scaledRes.getScaledWidth() - this.getFontRenderer().getStringWidth(s)) / 2;
+            int i = (scaledRes.getScaledWidth() - FontUtils.getFont("sf", 18).getStringWidth(s)) / 2;
             int j = scaledRes.getScaledHeight() - 59;
 
             if (!this.mc.playerController.shouldDrawHUD()) {
@@ -441,7 +441,7 @@ public class GuiIngame extends Gui {
                 GlStateManager.pushMatrix();
                 GlStateManager.enableBlend();
                 GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
-                this.getFontRenderer().drawStringWithShadow(s, (float) i, (float) j, 16777215 + (k << 24));
+                FontUtils.getFont("sf", 18).drawStringWithShadow(s, (float) i, (float) j, 16777215 + (k << 24));
                 GlStateManager.disableBlend();
                 GlStateManager.popMatrix();
             }

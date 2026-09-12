@@ -1,11 +1,13 @@
 package net.minecraft.client.renderer;
 
-import java.util.Collection;
+import ddlc.yuri.utils.render.FontUtils;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.inventory.Container;
 import net.minecraft.potion.Potion;
 import net.minecraft.potion.PotionEffect;
+
+import java.util.Collection;
 
 public abstract class InventoryEffectRenderer extends GuiContainer
 {
@@ -92,9 +94,9 @@ public abstract class InventoryEffectRenderer extends GuiContainer
                     s1 = s1 + " " + I18n.format("enchantment.level.4", new Object[0]);
                 }
 
-                this.fontRendererObj.drawStringWithShadow(s1, (float)(i + 10 + 18), (float)(j + 6), 16777215);
+                FontUtils.getFont("sf", 18).drawStringWithShadow(s1, (float)(i + 10 + 18), (float)(j + 6), 16777215);
                 String s = Potion.getDurationString(potioneffect);
-                this.fontRendererObj.drawStringWithShadow(s, (float)(i + 10 + 18), (float)(j + 6 + 10), 8355711);
+                FontUtils.getFont("sf", 18).drawStringWithShadow(s, (float)(i + 10 + 18), (float)(j + 6 + 10), 8355711);
                 j += l;
             }
         }

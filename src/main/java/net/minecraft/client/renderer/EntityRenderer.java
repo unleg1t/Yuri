@@ -6,6 +6,8 @@ import com.google.gson.JsonSyntaxException;
 import ddlc.yuri.Yuri;
 import ddlc.yuri.api.events.impl.player.MouseOverEvent;
 import ddlc.yuri.api.events.impl.render.Render3DEvent;
+import ddlc.yuri.managers.impl.ColorManager;
+import ddlc.yuri.modules.impl.render.AmbienceModule;
 import ddlc.yuri.modules.impl.render.CameraModule;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockBed;
@@ -2124,6 +2126,17 @@ public class EntityRenderer implements IResourceManagerReloadListener
 
     private void updateFogColor(float partialTicks)
     {
+
+        if (Yuri.INSTANCE.getModuleManager().getModule(AmbienceModule.class).isEnabled() && AmbienceModule.clientColorFog.getValue())
+        {
+            // holy aids
+            this.fogColorRed = ColorManager.getColors().getFirst().darker().darker().getRed() / 255f;
+            this.fogColorGreen = ColorManager.getColors().getFirst().darker().darker().getGreen() / 255f;
+            this.fogColorBlue = ColorManager.getColors().getFirst().darker().darker().getBlue() / 255f;
+            Shaders.setClearColor(this.fogColorRed, this.fogColorGreen, this.fogColorBlue, 0.0F);
+            return;
+        }
+
         World world = this.mc.theWorld;
         Entity entity = this.mc.getRenderViewEntity();
         float f = 0.25F + 0.75F * (float)this.mc.gameSettings.renderDistanceChunks / 32.0F;
