@@ -5,6 +5,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import ddlc.yuri.Yuri;
 import ddlc.yuri.modules.impl.render.ClickGUIModule;
+import ddlc.yuri.utils.render.FontUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.inventory.*;
 import net.minecraft.client.gui.stream.GuiTwitchUserMode;
@@ -56,7 +57,7 @@ public abstract class GuiScreen extends Gui implements GuiYesNoCallback
     private static final Set<String> PROTOCOLS = Sets.newHashSet(new String[] {"http", "https"});
     private static final Splitter NEWLINE_SPLITTER = Splitter.on('\n');
     private static final ResourceLocation LOGO_TEXTURE = new ResourceLocation("yuri/gui/logo.png");
-    private static final long FADE_DURATION = 500L; // 500 ms fade duration
+    private static final long FADE_DURATION = 500L;
 
     protected Minecraft mc;
     protected RenderItem itemRender;
@@ -72,7 +73,6 @@ public abstract class GuiScreen extends Gui implements GuiYesNoCallback
     private int touchValue;
     private URI clickedLinkURI;
 
-    // Animation state tracking
     private long openTime = 0L;
 
     public void drawScreen(int mouseX, int mouseY, float partialTicks)
@@ -95,7 +95,6 @@ public abstract class GuiScreen extends Gui implements GuiYesNoCallback
             ((GuiLabel)this.labelList.get(j)).drawLabel(this.mc, mouseX, mouseY);
         }
 
-        // Bottom-right corner placement with a 10px margin
         float padding = 10.0F;
         float logoSize = 256.0F;
         float logoX = (float) this.width - logoSize - padding;
@@ -200,11 +199,13 @@ public abstract class GuiScreen extends Gui implements GuiYesNoCallback
             RenderHelper.disableStandardItemLighting();
             GlStateManager.disableLighting();
             GlStateManager.disableDepth();
+
+            int fontHeight = FontUtils.getFont("sf", 18).getHeight();
             int i = 0;
 
             for (String s : textLines)
             {
-                int j = this.fontRendererObj.getStringWidth(s);
+                int j = FontUtils.getFont("sf", 18).getStringWidth(s);
 
                 if (j > i)
                 {
@@ -214,11 +215,11 @@ public abstract class GuiScreen extends Gui implements GuiYesNoCallback
 
             int l1 = x + 12;
             int i2 = y - 12;
-            int k = 8;
+            int k = fontHeight;
 
             if (textLines.size() > 1)
             {
-                k += 2 + (textLines.size() - 1) * 10;
+                k += 2 + (textLines.size() - 1) * (fontHeight + 1);
             }
 
             if (l1 + i > this.width)
@@ -249,14 +250,14 @@ public abstract class GuiScreen extends Gui implements GuiYesNoCallback
             for (int k1 = 0; k1 < textLines.size(); ++k1)
             {
                 String s1 = (String)textLines.get(k1);
-                this.fontRendererObj.drawStringWithShadow(s1, (float)l1, (float)i2, -1);
+                FontUtils.getFont("sf", 18).drawStringWithShadow(s1, (float)l1, (float)i2, -1);
 
                 if (k1 == 0)
                 {
                     i2 += 2;
                 }
 
-                i2 += 10;
+                i2 += fontHeight + 1;
             }
 
             this.zLevel = 0.0F;

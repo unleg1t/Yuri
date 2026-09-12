@@ -62,19 +62,18 @@ public class GuiNewChat extends Gui
 
                         if (j1 < 200 || flag)
                         {
-                            double d0 = (double)j1 / 200.0D;
-                            d0 = 1.0D - d0;
-                            d0 = d0 * 10.0D;
-                            d0 = MathHelper.clamp_double(d0, 0.0D, 1.0D);
-                            d0 = d0 * d0;
-                            int l1 = (int)(255.0D * d0);
-
-                            if (flag)
+                            double fadeOut = 1.0D;
+                            if (!flag)
                             {
-                                l1 = 255;
+                                double d0 = (double)j1 / 200.0D;
+                                d0 = 1.0D - d0;
+                                d0 = d0 * 10.0D;
+                                d0 = MathHelper.clamp_double(d0, 0.0D, 1.0D);
+                                fadeOut = d0 * d0;
                             }
 
-                            l1 = (int)((float)l1 * f);
+                            double fadeIn = MathHelper.clamp_double(((double)j1 + (double)this.mc.timer.renderPartialTicks) / 10.0D, 0.0D, 1.0D);
+                            int l1 = (int)(255.0D * fadeOut * fadeIn * f);
                             ++j;
 
                             if (l1 > 3)
@@ -235,7 +234,6 @@ public class GuiNewChat extends Gui
             if (j >= 0 && k >= 0)
             {
                 int l = Math.min(this.getLineCount(), this.drawnChatLines.size());
-                // Use your custom font's height instead of mc.fontRendererObj.FONT_HEIGHT
                 int fontHeight = FontUtils.getFont("sf", 18).getHeight() + 20;
 
                 if (j <= MathHelper.floor_float((float)this.getChatWidth() / this.getChatScale()) && k < fontHeight * l)
