@@ -24,10 +24,16 @@ import net.minecraft.util.Vec3;
 import org.lwjgl.opengl.GL11;
 
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.List;
 
 @ModuleInfo(label = "Trajectories", description = "Shows the predicted landing of projectiles", category = ModuleCategory.RENDER)
 public class TrajectoriesModule extends Module {
+
+    private static final int MAX_STEPS = 300;
+    private static final int START_ALPHA = 235;
+    private static final int END_ALPHA = 40;
+    private static final float LINE_WIDTH = 2.25F;
 
     @EventHook
     public void onRender3D(Render3DEvent event) {
@@ -38,7 +44,6 @@ public class TrajectoriesModule extends Module {
 
         Item item = heldItem.getItem();
 
-        Vec3 finalHitVec = null;
         float motionFactor = 1.5F;
         float motionSlowdown = 0.99F;
         float gravity;
@@ -100,69 +105,48 @@ public class TrajectoriesModule extends Module {
         motionY = (motionY / dist) * motionFactor;
         motionZ = (motionZ / dist) * motionFactor;
 
-        GlStateManager.pushMatrix();
-        enableGL();
+        List<Vec3> points = new ArrayList<>();
+        Vec3 hitVec = null;
 
-        double renderX = mc.getRenderManager().viewerPosX;
-        double renderY = mc.getRenderManager().viewerPosY;
-        double renderZ = mc.getRenderManager().viewerPosZ;
-
-        Color color = ColorManager.getColor();
-
-        Tessellator tessellator = Tessellator.getInstance();
-        WorldRenderer buffer = tessellator.getWorldRenderer();
-        buffer.begin(GL11.GL_LINE_STRIP, DefaultVertexFormats.POSITION);
-
-        while (posY > 0.0) {
+        for (int step = 0; step < MAX_STEPS && posY > 0.0; step++) {
             Vec3 current = new Vec3(posX, posY, posZ);
             Vec3 next = new Vec3(posX + motionX, posY + motionY, posZ + motionZ);
-            MovingObjectPosition landing = mc.theWorld.rayTraceBlocks(current, next, false, true, false);
-            if (landing != null) {
-                Vec3 hitVec = landing.hitVec;
-                finalHitVec = hitVec;
-                buffer.pos(hitVec.xCoord - renderX, hitVec.yCoord - renderY, hitVec.zCoord - renderZ).endVertex();
+
+            MovingObjectPosition blockHit = mc.theWorld.rayTraceBlocks(current, next, false, true, false);
+            if (blockHit != null) {
+                hitVec = blockHit.hitVec;
+                points.add(hitVec);
                 break;
             }
 
-            buffer.pos(posX - renderX, posY - renderY, posZ - renderZ).endVertex();
+            points.add(current);
 
             posX += motionX;
             posY += motionY;
             posZ += motionZ;
 
-            AxisAlignedBB arrowBox = new AxisAlignedBB(posX - size, posY - size, posZ - size,
+            AxisAlignedBB sweepBox = new AxisAlignedBB(posX - size, posY - size, posZ - size,
                     posX + size, posY + size, posZ + size).addCoord(motionX, motionY, motionZ).expand(1.0D, 1.0D, 1.0D);
 
-            List<Entity> entityList = mc.theWorld.getEntitiesWithinAABBExcludingEntity(mc.thePlayer, arrowBox);
-            for (Entity e : entityList) {
-                if (e.canBeCollidedWith()) {
-                    AxisAlignedBB bb = e.getEntityBoundingBox().expand(size, size, size);
-                    MovingObjectPosition intercept = bb.calculateIntercept(current, next);
-                    if (intercept != null) {
-                        Vec3 hitVec = intercept.hitVec;
-                        finalHitVec = hitVec;
-                        buffer.pos(hitVec.xCoord - renderX, hitVec.yCoord - renderY, hitVec.zCoord - renderZ).endVertex();
-                        tessellator.draw();
-                        double boxSize = 0.2D;
-                        AxisAlignedBB box = new AxisAlignedBB(
-                                finalHitVec.xCoord - boxSize - renderX,
-                                finalHitVec.yCoord - boxSize - renderY,
-                                finalHitVec.zCoord - boxSize - renderZ,
-                                finalHitVec.xCoord + boxSize - renderX,
-                                finalHitVec.yCoord + boxSize - renderY,
-                                finalHitVec.zCoord + boxSize - renderZ
-                        );
+            List<Entity> nearby = mc.theWorld.getEntitiesWithinAABBExcludingEntity(mc.thePlayer, sweepBox);
+            boolean intercepted = false;
+            for (Entity entity : nearby) {
+                if (!entity.canBeCollidedWith()) continue;
 
-                        RenderUtils.color(color.getRGB());
-                        RenderUtils.drawBoundingBox(box);
-                        disableGL();
-                        GlStateManager.popMatrix();
-                        return;
-                    }
+                AxisAlignedBB entityBox = entity.getEntityBoundingBox().expand(size, size, size);
+                MovingObjectPosition entityHit = entityBox.calculateIntercept(current, next);
+                if (entityHit != null) {
+                    hitVec = entityHit.hitVec;
+                    points.add(hitVec);
+                    intercepted = true;
+                    break;
                 }
             }
 
-            if (mc.theWorld.getBlockState(new BlockPos(posX, posY, posZ)).getBlock().getMaterial() == Material.water) {
+            if (intercepted) break;
+
+            Material material = mc.theWorld.getBlockState(new BlockPos(posX, posY, posZ)).getBlock().getMaterial();
+            if (material == Material.water) {
                 motionX *= 0.6D;
                 motionY *= 0.6D;
                 motionZ *= 0.6D;
@@ -175,23 +159,60 @@ public class TrajectoriesModule extends Module {
             motionY -= gravity;
         }
 
-        tessellator.draw();
-        if (finalHitVec != null) {
-            double boxSize = 0.2D;
-            AxisAlignedBB box = new AxisAlignedBB(
-                    finalHitVec.xCoord - boxSize - renderX,
-                    finalHitVec.yCoord - boxSize - renderY,
-                    finalHitVec.zCoord - boxSize - renderZ,
-                    finalHitVec.xCoord + boxSize - renderX,
-                    finalHitVec.yCoord + boxSize - renderY,
-                    finalHitVec.zCoord + boxSize - renderZ
-            );
+        if (points.size() < 2) return;
 
-            RenderUtils.color(color.getRGB());
-            RenderUtils.drawBoundingBox(box);
+        double renderX = mc.getRenderManager().viewerPosX;
+        double renderY = mc.getRenderManager().viewerPosY;
+        double renderZ = mc.getRenderManager().viewerPosZ;
+
+        Color color = ColorManager.getColor();
+
+        GlStateManager.pushMatrix();
+        enableGL();
+
+        Tessellator tessellator = Tessellator.getInstance();
+        WorldRenderer buffer = tessellator.getWorldRenderer();
+        buffer.begin(GL11.GL_LINE_STRIP, DefaultVertexFormats.POSITION_COLOR);
+
+        int last = points.size() - 1;
+        for (int i = 0; i <= last; i++) {
+            Vec3 point = points.get(i);
+            float progress = last == 0 ? 1F : (float) i / last;
+            int alpha = (int) (START_ALPHA + (END_ALPHA - START_ALPHA) * progress);
+
+            buffer.pos(point.xCoord - renderX, point.yCoord - renderY, point.zCoord - renderZ)
+                    .color(color.getRed(), color.getGreen(), color.getBlue(), alpha)
+                    .endVertex();
         }
+
+        tessellator.draw();
+
+        if (hitVec != null) {
+            drawImpactMarker(hitVec, renderX, renderY, renderZ, color);
+        }
+
         disableGL();
         GlStateManager.popMatrix();
+    }
+
+    private void drawImpactMarker(Vec3 hitVec, double renderX, double renderY, double renderZ, Color color) {
+        double outerSize = 0.28D;
+        double innerSize = 0.14D;
+
+        AxisAlignedBB outer = new AxisAlignedBB(
+                hitVec.xCoord - outerSize - renderX, hitVec.yCoord - outerSize - renderY, hitVec.zCoord - outerSize - renderZ,
+                hitVec.xCoord + outerSize - renderX, hitVec.yCoord + outerSize - renderY, hitVec.zCoord + outerSize - renderZ
+        );
+        AxisAlignedBB inner = new AxisAlignedBB(
+                hitVec.xCoord - innerSize - renderX, hitVec.yCoord - innerSize - renderY, hitVec.zCoord - innerSize - renderZ,
+                hitVec.xCoord + innerSize - renderX, hitVec.yCoord + innerSize - renderY, hitVec.zCoord + innerSize - renderZ
+        );
+
+        RenderUtils.color(new Color(color.getRed(), color.getGreen(), color.getBlue(), 50).getRGB());
+        RenderUtils.drawBoundingBox(outer);
+
+        RenderUtils.color(new Color(color.getRed(), color.getGreen(), color.getBlue(), 190).getRGB());
+        RenderUtils.drawBoundingBox(inner);
     }
 
     private void enableGL() {
@@ -201,8 +222,9 @@ public class TrajectoriesModule extends Module {
         GL11.glEnable(GL11.GL_BLEND);
         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
         GL11.glDisable(GL11.GL_LIGHTING);
-        GL11.glLineWidth(3.5F);
-        RenderUtils.color(ColorManager.getColor().getRGB());
+        GL11.glEnable(GL11.GL_LINE_SMOOTH);
+        GL11.glHint(GL11.GL_LINE_SMOOTH_HINT, GL11.GL_NICEST);
+        GL11.glLineWidth(LINE_WIDTH);
     }
 
     private void disableGL() {

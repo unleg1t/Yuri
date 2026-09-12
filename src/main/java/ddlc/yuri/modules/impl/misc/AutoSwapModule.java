@@ -1,5 +1,6 @@
 package ddlc.yuri.modules.impl.misc;
 
+import ddlc.yuri.Yuri;
 import ddlc.yuri.api.events.annotations.EventHook;
 import ddlc.yuri.api.events.impl.player.MotionEvent;
 import ddlc.yuri.api.properties.Property;
@@ -8,6 +9,7 @@ import ddlc.yuri.managers.impl.SlotManager;
 import ddlc.yuri.modules.Module;
 import ddlc.yuri.modules.ModuleCategory;
 import ddlc.yuri.modules.ModuleInfo;
+import ddlc.yuri.modules.impl.combat.AuraModule;
 import net.minecraft.block.Block;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.ItemSword;
@@ -49,9 +51,9 @@ public final class AutoSwapModule extends Module {
             return;
         }
 
-        if (mc.gameSettings.keyBindAttack.isKeyDown() && mc.objectMouseOver != null) {
+        if (mc.objectMouseOver != null) {
 
-            if (mc.objectMouseOver.typeOfHit == MovingObjectPosition.MovingObjectType.BLOCK) {
+            if (mc.gameSettings.keyBindAttack.isKeyDown() && mc.objectMouseOver.typeOfHit == MovingObjectPosition.MovingObjectType.BLOCK) {
                 BlockPos pos = mc.objectMouseOver.getBlockPos();
                 if (pos != null) {
                     int itemToUse = getBestToolSlot(pos);
@@ -65,7 +67,7 @@ public final class AutoSwapModule extends Module {
                 }
             }
 
-            else if (mc.objectMouseOver.typeOfHit == MovingObjectPosition.MovingObjectType.ENTITY) {
+            else if (Yuri.INSTANCE.getModuleManager().getModule(AuraModule.class).isEnabled() && AuraModule.target != null && AuraModule.canAttack) {
                 int itemToUse = getBestSwordSlot();
                 if (itemToUse != -1) {
                     if (mc.thePlayer.inventory.currentItem != itemToUse) {

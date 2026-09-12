@@ -3,12 +3,9 @@ package net.minecraft.entity.player;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 import com.mojang.authlib.GameProfile;
-import java.util.Collection;
-import java.util.List;
-import java.util.UUID;
-
 import ddlc.yuri.Yuri;
 import ddlc.yuri.api.events.impl.player.HitSlowDownEvent;
+import ddlc.yuri.managers.impl.RotationManager;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockBed;
 import net.minecraft.block.BlockDirectional;
@@ -16,14 +13,7 @@ import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.command.server.CommandBlockLogic;
 import net.minecraft.enchantment.EnchantmentHelper;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityList;
-import net.minecraft.entity.EntityLiving;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.EnumCreatureAttribute;
-import net.minecraft.entity.IEntityMultiPart;
-import net.minecraft.entity.IMerchant;
-import net.minecraft.entity.SharedMonsterAttributes;
+import net.minecraft.entity.*;
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
 import net.minecraft.entity.boss.EntityDragonPart;
 import net.minecraft.entity.item.EntityBoat;
@@ -42,41 +32,23 @@ import net.minecraft.inventory.Container;
 import net.minecraft.inventory.ContainerPlayer;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.InventoryEnderChest;
-import net.minecraft.item.EnumAction;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemArmor;
-import net.minecraft.item.ItemBlock;
-import net.minecraft.item.ItemStack;
+import net.minecraft.item.*;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.network.play.server.S12PacketEntityVelocity;
 import net.minecraft.potion.Potion;
-import net.minecraft.scoreboard.IScoreObjectiveCriteria;
-import net.minecraft.scoreboard.Score;
-import net.minecraft.scoreboard.ScoreObjective;
-import net.minecraft.scoreboard.ScorePlayerTeam;
-import net.minecraft.scoreboard.Scoreboard;
-import net.minecraft.scoreboard.Team;
+import net.minecraft.scoreboard.*;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.stats.AchievementList;
 import net.minecraft.stats.StatBase;
 import net.minecraft.stats.StatList;
 import net.minecraft.tileentity.TileEntitySign;
-import net.minecraft.util.AxisAlignedBB;
-import net.minecraft.util.BlockPos;
-import net.minecraft.util.ChatComponentText;
-import net.minecraft.util.DamageSource;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.EnumParticleTypes;
-import net.minecraft.util.FoodStats;
-import net.minecraft.util.IChatComponent;
-import net.minecraft.util.MathHelper;
-import net.minecraft.util.Vec3;
-import net.minecraft.world.EnumDifficulty;
-import net.minecraft.world.IInteractionObject;
-import net.minecraft.world.LockCode;
-import net.minecraft.world.World;
-import net.minecraft.world.WorldSettings;
+import net.minecraft.util.*;
+import net.minecraft.world.*;
+
+import java.util.Collection;
+import java.util.List;
+import java.util.UUID;
 
 @SuppressWarnings("incomplete-switch")
 public abstract class EntityPlayer extends EntityLivingBase
@@ -742,14 +714,15 @@ public abstract class EntityPlayer extends EntityLivingBase
             else
             {
                 float f2 = 0.3F;
-                entityitem.motionX = -MathHelper.sin(this.movementYaw / 180.0F * (float) Math.PI) * MathHelper.cos(this.rotationPitch / 180.0F * (float) Math.PI) * f2;
-                entityitem.motionZ = MathHelper.cos(this.movementYaw / 180.0F * (float) Math.PI) * MathHelper.cos(this.rotationPitch / 180.0F * (float) Math.PI) * f2;
-                entityitem.motionY = -MathHelper.sin(this.rotationPitch / 180.0F * (float)Math.PI) * f2 + 0.1F;
-                float f3 = this.rand.nextFloat() * (float)Math.PI * 2.0F;
+                float yaw = RotationManager.isActive() ? RotationManager.rotations.x : this.rotationYaw;
+                entityitem.motionX = -MathHelper.sin(yaw / 180.0F * (float) Math.PI) * MathHelper.cos(this.rotationPitch / 180.0F * (float) Math.PI) * f2;
+                entityitem.motionZ = MathHelper.cos(yaw / 180.0F * (float) Math.PI) * MathHelper.cos(this.rotationPitch / 180.0F * (float) Math.PI) * f2;
+                entityitem.motionY = -MathHelper.sin(this.rotationPitch / 180.0F * (float) Math.PI) * f2 + 0.1F;
+                final float f3 = this.rand.nextFloat() * (float) Math.PI * 2.0F;
                 f2 = 0.02F * this.rand.nextFloat();
-                entityitem.motionX += Math.cos(f3) * (double)f2;
+                entityitem.motionX += Math.cos(f3) * (double) f2;
                 entityitem.motionY += (this.rand.nextFloat() - this.rand.nextFloat()) * 0.1F;
-                entityitem.motionZ += Math.sin(f3) * (double)f2;
+                entityitem.motionZ += Math.sin(f3) * (double) f2;
             }
 
             this.joinEntityItemWithWorld(entityitem);

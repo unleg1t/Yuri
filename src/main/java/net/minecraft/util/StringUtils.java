@@ -23,4 +23,18 @@ public class StringUtils
     {
         return org.apache.commons.lang3.StringUtils.isEmpty(string);
     }
+
+    public static String stripColor(final String s) {
+        if (s.isEmpty()) {
+            return s;
+        }
+        final char[] array = StringUtils.stripControlCodes(s).toCharArray();
+        final StringBuilder sb = new StringBuilder();
+        for (final char c : array) {
+            if (c < '\u007f' && c > '\u0014') {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
 }

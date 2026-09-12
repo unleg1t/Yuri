@@ -46,6 +46,11 @@ public class HotbarModule extends Module {
     private static final Color TRANSPARENT = new Color(0, 0, 0, 0);
     private static final float SLOT_SIZE = 20f;
     private static final float SLOT_RADIUS = 4f;
+    private static final float POSITION_SMOOTHING = 18f;
+    private static final float MAX_DELTA = 0.05f;
+
+    private float highlightX = Float.NaN;
+    private long lastFrameNanos = System.nanoTime();
 
     @EventHook(EventPriority.VERY_HIGH)
     public void onRender2D(Render2DEvent event) {
@@ -65,6 +70,10 @@ public class HotbarModule extends Module {
         final ScaledResolution sr = new ScaledResolution(mc);
         final EntityPlayer entityplayer = (EntityPlayer) mc.getRenderViewEntity();
 
+        final long now = System.nanoTime();
+        final float delta = Math.min(MAX_DELTA, (now - lastFrameNanos) / 1_000_000_000f);
+        lastFrameNanos = now;
+
         final int posX = (int) (sr.getScaledWidth() / 2.0F - 95);
         final int posY = (int) (sr.getScaledHeight() - 21 - 2f - 18);
         final int scaleX = 95 * 2;
@@ -81,11 +90,7 @@ public class HotbarModule extends Module {
             RenderUtils.drawImage(new ResourceLocation("yuri/gui/textbox.png"), posX + 1, posY + 18, scaleX, scaleY - 18);
         }
 
-        for (int j = 0; j < 9; ++j) {
-            final int k = sr.getScaledWidth() / 2 - 90 + j * 21 - 2;
-            final int l = sr.getScaledHeight() - 16 - 3;
-            renderSlotHighlight(j, k, l - 1, entityplayer);
-        }
+        renderAnimatedHighlight(sr, entityplayer, delta);
 
         for (int j = 0; j < 9; ++j) {
             final int k = sr.getScaledWidth() / 2 - 90 + j * 21 - 2;
@@ -98,13 +103,20 @@ public class HotbarModule extends Module {
         GlStateManager.disableBlend();
     }
 
-    private void renderSlotHighlight(final int index, final int xPos, final int yPos, final EntityPlayer entityPlayer) {
-        if (entityPlayer.inventory.currentItem != index) {
-            return;
+    private void renderAnimatedHighlight(final ScaledResolution sr, final EntityPlayer entityPlayer, final float delta) {
+        final int currentItem = entityPlayer.inventory.currentItem;
+        final int slotX = sr.getScaledWidth() / 2 - 90 + currentItem * 21 - 2;
+        final int slotY = sr.getScaledHeight() - 16 - 3 - 1;
+
+        if (Float.isNaN(highlightX)) {
+            highlightX = slotX;
+        } else {
+            final float smoothing = 1f - (float) Math.exp(-delta * POSITION_SMOOTHING);
+            highlightX += (slotX - highlightX) * smoothing;
         }
 
-        final float x = xPos - 2f;
-        final float y = yPos - 2f;
+        final float x = highlightX - 2f;
+        final float y = slotY - 2f;
 
         RoundedUtils.drawCustomRoundedRect(x, y, SLOT_SIZE, SLOT_SIZE, SLOT_RADIUS,
                 true, true, true, true, HIGHLIGHT_FILL_COLOR);
