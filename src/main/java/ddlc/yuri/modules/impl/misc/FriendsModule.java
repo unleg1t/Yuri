@@ -1,5 +1,6 @@
 package ddlc.yuri.modules.impl.misc;
 
+import ddlc.yuri.Yuri;
 import ddlc.yuri.api.events.annotations.EventHook;
 import ddlc.yuri.api.events.impl.player.MiddleClickEvent;
 import ddlc.yuri.api.properties.Property;
@@ -12,7 +13,7 @@ import net.minecraft.util.MovingObjectPosition;
 
 @ModuleInfo(
         label = "Friends",
-        description = "Adds friends to a list to exclude to other modules",
+        description = "Manage your friends, added via friends commands or mid-click, to exclude from other modules",
         category = ModuleCategory.MISC)
 public final class FriendsModule extends Module {
 
@@ -31,8 +32,10 @@ public final class FriendsModule extends Module {
             if (clickedPlayer != mc.thePlayer) {
                 if (FriendUtils.isFriend(clickedPlayer)) {
                     FriendUtils.remove(clickedPlayer.getName());
+                    Yuri.INSTANCE.getNotificationHandler().pop(getLabel(),"§fRemoved §c" + clickedPlayer.getName() + "§f from exclusion list");
                 } else {
                     FriendUtils.add(clickedPlayer.getName());
+                    Yuri.INSTANCE.getNotificationHandler().pop(getLabel(),"§fAdded §c" + clickedPlayer.getName() + "§f to exclusion list");
                 }
                 event.setCancelled(true);
             }

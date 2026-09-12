@@ -7,6 +7,9 @@ import ddlc.yuri.modules.ModuleInfo;
 
 @ModuleInfo(label = "Toggle Sounds", description = "Plays sounds when toggling modules.", category = ModuleCategory.MISC)
 public class ToggleSoundsModule extends Module {
+
+    // known issues with PulseAudio on Linux. for some reason it doesn't play the sound, but it works fine on Pipewire and Windows.
+
     public ModeProperty<ToggleSounds> moduleToggleSounds = new ModeProperty<>("Toggle Sounds", ToggleSounds.NURSULTAN);
 
     public enum ToggleSounds {

@@ -1,6 +1,7 @@
 package ddlc.yuri.modules.impl.misc;
 
 import ddlc.yuri.api.events.annotations.EventHook;
+import ddlc.yuri.api.events.impl.player.MotionEvent;
 import ddlc.yuri.api.events.impl.player.PreUpdateEvent;
 import ddlc.yuri.api.events.impl.render.Render2DEvent;
 import ddlc.yuri.api.events.impl.render.Render3DEvent;
@@ -21,23 +22,33 @@ import ddlc.yuri.utils.render.FontUtils;
 import ddlc.yuri.utils.render.GLUtils;
 import ddlc.yuri.utils.render.RenderUtils;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.ScaledResolution;
+import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.Tessellator;
+import net.minecraft.client.renderer.WorldRenderer;
+import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.item.EntityArmorStand;
 import net.minecraft.entity.passive.EntityVillager;
 import net.minecraft.entity.passive.IAnimals;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Items;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.play.client.C08PacketPlayerBlockPlacement;
+import net.minecraft.scoreboard.ScoreObjective;
+import net.minecraft.scoreboard.Scoreboard;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.tileentity.TileEntitySkull;
 import net.minecraft.util.AxisAlignedBB;
+import net.minecraft.util.BlockPos;
 import net.minecraft.util.MathHelper;
 import net.minecraft.util.StringUtils;
 import net.minecraft.util.Vec3;
 import org.lwjgl.input.Keyboard;
+import org.lwjgl.opengl.GL11;
 
 import java.awt.*;
 import java.util.ArrayList;
@@ -45,13 +56,28 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 
-@ModuleInfo(label = "Zombie Aim", description = "Exhibition ZombieAim for Hypixel Zombies minigame, ported to Yuri. credits to unlegit", category = ModuleCategory.MISC)
-public final class ZombieAimModule extends Module {
+@ModuleInfo(label = "Minigame Aim", description = "Aim bots for Hypixel minigames: Zombies and Halloween Simulator", category = ModuleCategory.MISC)
+public final class MinigameAimModule extends Module {
 
     private static final Minecraft mc = IMinecraft.mc;
 
-    private boolean sneakingForRevive;
+    public enum GameMode {
+        ZOMBIE("Zombies"),
+        HALLOWEEN("Halloween Simulator");
+
+        private final String name;
+
+        GameMode(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String toString() {
+            return name;
+        }
+    }
 
     public enum FireMode {
         AUTO_FIRE("Auto Fire"),
@@ -105,24 +131,31 @@ public final class ZombieAimModule extends Module {
         }
     }
 
-    private final Property<Boolean> silent = new Property<Boolean>("Silent", true);
-    private final Property<Boolean> showPrediction = new Property<Boolean>("Show Prediction", true);
-    private final Property<Boolean> showFOV = new Property<Boolean>("Show FOV", true);
-    private final Property<Boolean> autoHeal = new Property<Boolean>("Auto Heal", true);
-    private final Property<Boolean> autoRevive = new Property<Boolean>("Auto Revive", true);
-    private final Property<Boolean> autoAmmo = new Property<Boolean>("Auto Ammo", false);
-    private final Property<Boolean> hud = new Property<Boolean>("Hud", true);
+    private final ModeProperty<GameMode> gameMode = new ModeProperty<>("Game", GameMode.ZOMBIE);
 
-    private final NumberProperty predictionScale = new NumberProperty("Prediction Scale", 1, 0, 2, 0.05, showPrediction::getValue);
-    private final NumberProperty predictionTicks = new NumberProperty("Prediction Ticks", 2, 0, 10, 1, showPrediction::getValue);
-    private final NumberProperty delay = new NumberProperty("Delay", 4, 0, 20, 1, this::isAutoFireMode);
-    private final NumberProperty bufferSize = new NumberProperty("Buffer", 3, 1, 10, 1, showPrediction::getValue);
-    private final NumberProperty fov = new NumberProperty("FOV", 90, 1, 180, 0.1);
-    private final NumberProperty health = new NumberProperty("Health", 3, 1, 20, 1, autoHeal::getValue);
+    private final Property<Boolean> silent = new Property<Boolean>("Silent", true, this::isZombies);
+    private final Property<Boolean> showPrediction = new Property<Boolean>("Show Prediction", true, this::isZombies);
+    private final Property<Boolean> showFOV = new Property<Boolean>("Show FOV", true, this::isZombies);
+    private final Property<Boolean> autoHeal = new Property<Boolean>("Auto Heal", true, this::isZombies);
+    private final Property<Boolean> autoRevive = new Property<Boolean>("Auto Revive", true, this::isZombies);
+    private final Property<Boolean> autoAmmo = new Property<Boolean>("Auto Ammo", false, this::isZombies);
+    private final Property<Boolean> hud = new Property<Boolean>("Hud", true, this::isZombies);
 
-    private final ModeProperty<FireMode> fireMode = new ModeProperty<>("Aimbot Mode", FireMode.AUTO_FIRE);
-    private final ModeProperty<Hitbox> hitbox = new ModeProperty<>("Hitbox", Hitbox.HITSCAN_HEAD);
-    private final ModeProperty<PriorityMode> priorityMode = new ModeProperty<>("Priority", PriorityMode.CLOSEST);
+    private final NumberProperty predictionScale = new NumberProperty("Prediction Scale", 1, 0, 2, 0.05, () -> isZombies() && showPrediction.getValue());
+    private final NumberProperty predictionTicks = new NumberProperty("Prediction Ticks", 2, 0, 10, 1, () -> isZombies() && showPrediction.getValue());
+    private final NumberProperty delay = new NumberProperty("Delay", 4, 0, 20, 1, () -> isZombies() && isAutoFireMode());
+    private final NumberProperty bufferSize = new NumberProperty("Buffer", 3, 1, 10, 1, () -> isZombies() && showPrediction.getValue());
+    private final NumberProperty fov = new NumberProperty("FOV", 90, 1, 180, 0.1, this::isZombies);
+    private final NumberProperty health = new NumberProperty("Health", 3, 1, 20, 1, () -> isZombies() && autoHeal.getValue());
+
+    private final ModeProperty<FireMode> fireMode = new ModeProperty<>("Aimbot Mode", FireMode.AUTO_FIRE, this::isZombies);
+    private final ModeProperty<Hitbox> hitbox = new ModeProperty<>("Hitbox", Hitbox.HITSCAN_HEAD, this::isZombies);
+    private final ModeProperty<PriorityMode> priorityMode = new ModeProperty<>("Priority", PriorityMode.CLOSEST, this::isZombies);
+
+    private final NumberProperty range = new NumberProperty("Range", 4.5f, 1, 6, 0.5, this::isHalloween);
+    private final NumberProperty rotationSpeed = new NumberProperty("Rotation Speed", 10, 0.5, 10, 0.5, this::isHalloween);
+
+    private boolean sneakingForRevive;
 
     private final Map<EntityLivingBase, EntityDelta> deltaHashMap = new HashMap<>();
     public static EntityLivingBase target;
@@ -131,8 +164,12 @@ public final class ZombieAimModule extends Module {
     private float pendingPitch;
     private boolean hasPendingRotation;
 
+    private final List<BlockPos> skullList = new CopyOnWriteArrayList<>();
+    private boolean looking;
+
     @EventHook
     public void onPreUpdate(PreUpdateEvent event) {
+        if (!isZombies()) return;
         if (mc.thePlayer == null || mc.theWorld == null) return;
 
         setSuffix(priorityMode.getValue().toString());
@@ -216,9 +253,59 @@ public final class ZombieAimModule extends Module {
 
     }
 
+    @EventHook
+    public void onMotion(MotionEvent event) {
+        if (!isHalloween()) return;
+        if (!event.isPre() || !checkHalloweenStatus() || mc.thePlayer == null || mc.theWorld == null) return;
+
+        EntityPlayer player = mc.thePlayer;
+        double rangeValue = range.getValue();
+        double threshold = rangeValue * 1.5;
+        double reachSq = rangeValue * rangeValue;
+
+        double eyeX = player.posX;
+        double eyeY = player.posY + player.getEyeHeight();
+        double eyeZ = player.posZ;
+
+        boolean sentPacket = false;
+        skullList.clear();
+
+        for (TileEntity tileEntity : mc.theWorld.loadedTileEntityList) {
+            if (!(tileEntity instanceof TileEntitySkull)) continue;
+
+            TileEntitySkull skull = (TileEntitySkull) tileEntity;
+            if (skull.getPlayerProfile() == null) continue;
+
+            BlockPos skullPos = skull.getPos();
+            double dx = eyeX - skullPos.getX();
+            double dy = eyeY - skullPos.getY();
+            double dz = eyeZ - skullPos.getZ();
+            double distanceSq = dx * dx + dy * dy + dz * dz;
+
+            if (!sentPacket && distanceSq < reachSq
+                    && Math.abs(dx) < threshold && Math.abs(dy) < threshold && Math.abs(dz) < threshold) {
+
+                float[] targetRotations = getRotations(skullPos, eyeX, eyeY, eyeZ);
+                RotationManager.setRotations(targetRotations, rotationSpeed.getValue(), RotationManager.MovementFix.NORMAL);
+
+                if (!looking) {
+                    mc.thePlayer.sendQueue.addToSendQueue(new C08PacketPlayerBlockPlacement(
+                            skullPos, 1, player.getHeldItem(), 0.5f, 0.5f, 0.5f));
+                    looking = true;
+                } else {
+                    looking = false;
+                }
+
+                sentPacket = true;
+            }
+
+            skullList.add(skullPos);
+        }
+    }
 
     @EventHook
     public void onRender2D(Render2DEvent event) {
+        if (!isZombies()) return;
         if (!silent.getValue()) {
             applyRots();
         }
@@ -227,11 +314,21 @@ public final class ZombieAimModule extends Module {
 
     @EventHook
     public void onShader2D(Shader2DEvent event) {
+        if (!isZombies()) return;
         renderHud();
     }
 
     @EventHook
     public void onRender3D(Render3DEvent event) {
+        if (isZombies()) {
+            renderZombiePrediction();
+        }
+        if (isHalloween()) {
+            renderSkulls();
+        }
+    }
+
+    private void renderZombiePrediction() {
         if (!showPrediction.getValue()) return;
         if (mc.theWorld == null) return;
 
@@ -255,6 +352,20 @@ public final class ZombieAimModule extends Module {
             RenderUtils.color(0xFF00FF00, 0.6f);
             RenderUtils.drawBoundingBox(bb);
             GLUtils.stop3D();
+        }
+    }
+
+    private void renderSkulls() {
+        if (!checkHalloweenStatus() || mc.thePlayer == null) return;
+
+        EntityPlayer player = mc.thePlayer;
+
+        double camX = player.lastTickPosX + (player.posX - player.lastTickPosX) * mc.timer.renderPartialTicks;
+        double camY = player.lastTickPosY + (player.posY - player.lastTickPosY) * mc.timer.renderPartialTicks;
+        double camZ = player.lastTickPosZ + (player.posZ - player.lastTickPosZ) * mc.timer.renderPartialTicks;
+
+        for (BlockPos skullPos : skullList) {
+            drawBox(skullPos, camX, camY, camZ, ColorManager.getColor());
         }
     }
 
@@ -294,6 +405,66 @@ public final class ZombieAimModule extends Module {
             } else if (isReloading())
                 smallFont.drawBorderedString("Reloading", scaledRes.getScaledWidth() / 2D - (double) (int) smallFont.getStringWidth("Reloading") / 2, scaledRes.getScaledHeight_double() / 2 + 15, new Color(91, 255, 51).getRGB(), new Color(0, 0,0, 200).getRGB());
         }
+    }
+
+    private boolean isZombies() {
+        return gameMode.getValue() == GameMode.ZOMBIE;
+    }
+
+    private boolean isHalloween() {
+        return gameMode.getValue() == GameMode.HALLOWEEN;
+    }
+
+    private void drawBox(BlockPos pos, double camX, double camY, double camZ, Color color) {
+        double x = pos.getX() - camX, y = pos.getY() - camY, z = pos.getZ() - camZ;
+
+        GlStateManager.pushMatrix();
+        GlStateManager.disableTexture2D();
+        GlStateManager.enableBlend();
+        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
+        GlStateManager.disableDepth();
+        GL11.glLineWidth(2f);
+
+        Tessellator tessellator = Tessellator.getInstance();
+        WorldRenderer worldRenderer = tessellator.getWorldRenderer();
+        worldRenderer.begin(GL11.GL_LINE_STRIP, DefaultVertexFormats.POSITION_COLOR);
+
+        int r = color.getRed(), g = color.getGreen(), b = color.getBlue();
+        double[][] corners = {
+                {x, y, z}, {x + 1, y, z}, {x + 1, y, z + 1}, {x, y, z + 1}, {x, y, z},
+                {x, y + 1, z}, {x + 1, y + 1, z}, {x + 1, y + 1, z + 1}, {x, y + 1, z + 1}, {x, y + 1, z}
+        };
+        for (double[] corner : corners) {
+            worldRenderer.pos(corner[0], corner[1], corner[2]).color(r, g, b, 255).endVertex();
+        }
+        tessellator.draw();
+
+        GlStateManager.enableDepth();
+        GlStateManager.disableBlend();
+        GlStateManager.enableTexture2D();
+        GlStateManager.color(1f, 1f, 1f, 1f);
+        GlStateManager.popMatrix();
+    }
+
+    private boolean checkHalloweenStatus() {
+        if (mc.theWorld == null) return false;
+        Scoreboard scoreboard = mc.theWorld.getScoreboard();
+        ScoreObjective objective = scoreboard.getObjectiveInDisplaySlot(1);
+        if (objective == null) return false;
+        String title = StringUtils.stripControlCodes(objective.getDisplayName());
+        return title != null && title.startsWith("HALLOWEEN SIMULATOR");
+    }
+
+    private float[] getRotations(BlockPos point, double eyeX, double eyeY, double eyeZ) {
+        double x = point.getX() + 0.5 - eyeX;
+        double y = point.getY() + 0.5 - eyeY;
+        double z = point.getZ() + 0.5 - eyeZ;
+        double dist = Math.sqrt(x * x + z * z);
+
+        float yaw = (float) Math.toDegrees(Math.atan2(z, x)) - 90f;
+        float pitch = (float) Math.toDegrees(-Math.atan2(y, dist));
+
+        return new float[]{yaw, pitch};
     }
 
     private boolean isValidEntity(EntityLivingBase entity) {
@@ -553,6 +724,19 @@ public final class ZombieAimModule extends Module {
         return new double[]{finalX * scale, finalY, finalZ * scale};
     }
 
+    @Override
+    public void onEnable() {
+        setSuffix(gameMode.getValue().toString());
+    }
+
+    @Override
+    public void onDisable() {
+        skullList.clear();
+        looking = false;
+        deltaHashMap.clear();
+        target = null;
+    }
+
     private class EntityDelta {
         private final ArrayBlockingQueue<double[]> deltas = new ArrayBlockingQueue<>(10);
         private int lastUpdatedTick;
@@ -590,4 +774,3 @@ public final class ZombieAimModule extends Module {
         }
     }
 }
-
