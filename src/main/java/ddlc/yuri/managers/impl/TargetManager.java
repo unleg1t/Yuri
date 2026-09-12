@@ -1,10 +1,13 @@
 package ddlc.yuri.managers.impl;
 
+import ddlc.yuri.Yuri;
 import ddlc.yuri.api.events.annotations.EventHook;
 import ddlc.yuri.api.events.impl.player.PlayerAttackEvent;
 import ddlc.yuri.api.events.impl.player.PreUpdateEvent;
 import ddlc.yuri.api.events.impl.world.WorldJoinEvent;
+import ddlc.yuri.modules.impl.misc.AntiBotModule;
 import ddlc.yuri.utils.client.TimerUtils;
+import ddlc.yuri.utils.player.FriendUtils;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
@@ -194,7 +197,9 @@ public class TargetManager {
             if (teammate) {
                 return targets.contains(Targets.TEAMMATES);
             }
-            return targets.contains(Targets.PLAYERS);
+            boolean isFriend = FriendUtils.isFriend(entity.getName());
+            boolean isBot = Yuri.INSTANCE.getModuleManager().getModule(AntiBotModule.class).isBot((EntityPlayer) entity);
+            if (!isFriend && !isBot) return targets.contains(Targets.PLAYERS);
         }
 
         if (targets.contains(Targets.HOSTILES) && entity instanceof EntityMob) return true;

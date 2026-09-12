@@ -85,8 +85,8 @@ public class ShaderESPModule extends Module {
             render = true;
         }
 
-        float radius = glow ? 2f : 1f;
-        float intensity = glow ? 2f : 1f;
+        float radius = glow ? 3f : 1.3f;
+        float intensity = glow ? 1.5f : 1f;
 
         shader.stopDraw(ColorManager.getColor(), radius, intensity);
     }
