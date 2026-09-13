@@ -18,6 +18,10 @@ public final class ScaffoldUtils {
 
     private static final Minecraft mc = Minecraft.getMinecraft();
     private static final int HOTBAR_SIZE = 9;
+    private static final int MAX_SEARCH_RADIUS = 270;
+
+    private static final float[] FALLBACK_RESULT = new float[2];
+    private static boolean fallbackFound;
 
     private ScaffoldUtils() {}
 
@@ -25,72 +29,64 @@ public final class ScaffoldUtils {
         return RotationManager.rotations != null ? RotationManager.rotations : new Vector2f(mc.thePlayer.rotationYaw, mc.thePlayer.rotationPitch);
     }
 
-    private static void computeJPSRotations(BlockPos blockFace, EnumFacingOffset enumFacing, float[] target, boolean strict) {
+    private static boolean checkCandidate(float serverYaw, float serverPitch, int dYaw, int dPitch, EnumFacing facing, BlockPos blockFace, float[] target) {
+        float testYaw = MathHelper.wrapAngleTo180_float(serverYaw + dYaw);
+        float testPitch = MathHelper.clamp_float(serverPitch + dPitch, -90, 90);
+        Vector2f testRot = new Vector2f(testYaw, testPitch);
+
+        if (RayCastUtils.overBlock(testRot, facing, blockFace, true)) {
+            target[0] = testYaw;
+            target[1] = testPitch;
+            return true;
+        }
+
+        if (!fallbackFound && RayCastUtils.overBlock(testRot, facing, blockFace, false)) {
+            FALLBACK_RESULT[0] = testYaw;
+            FALLBACK_RESULT[1] = testPitch;
+            fallbackFound = true;
+        }
+
+        return false;
+    }
+
+    private static boolean searchRotation(EnumFacing facing, BlockPos blockFace, float[] target) {
         Vector2f server = serverRotations();
         float serverYaw = server.x;
         float serverPitch = server.y;
 
-        double deltaX = blockFace.getX() + 0.5 - mc.thePlayer.posX;
-        double deltaY = blockFace.getY() + 0.5 - (mc.thePlayer.posY + mc.thePlayer.getEyeHeight());
-        double deltaZ = blockFace.getZ() + 0.5 - mc.thePlayer.posZ;
-        double horizontal = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
-
-        float baseYaw = (float) Math.toDegrees(Math.atan2(deltaZ, deltaX)) - 90.0f;
-        float basePitch = (float) -Math.toDegrees(Math.atan2(deltaY, horizontal));
-
-        float[] angularJumps = {0f, -5f, 5f, -12f, 12f, -25f, 25f, -45f, 45f};
-
-        float bestYaw = baseYaw;
-        float bestPitch = basePitch;
-        float closestRotationDelta = Float.MAX_VALUE;
-        boolean foundStrict = false;
-
-        for (float yawOffset : angularJumps) {
-            for (float pitchOffset : angularJumps) {
-                float testYaw = MathHelper.wrapAngleTo180_float(baseYaw + yawOffset);
-                float testPitch = MathHelper.clamp_float(basePitch + pitchOffset, -90, 90);
-                Vector2f testRot = new Vector2f(testYaw, testPitch);
-
-                float yawDiff = Math.abs(MathHelper.wrapAngleTo180_float(testYaw - serverYaw));
-                float pitchDiff = Math.abs(testPitch - serverPitch);
-                float totalDelta = yawDiff + pitchDiff;
-
-                if (totalDelta >= closestRotationDelta) continue;
-
-                if (RayCastUtils.overBlock(testRot, enumFacing.getEnumFacing(), blockFace, strict)) {
-                    closestRotationDelta = totalDelta;
-                    bestYaw = testYaw;
-                    bestPitch = testPitch;
-                    foundStrict = true;
-                } else if (!strict && !foundStrict && RayCastUtils.overBlock(testRot, enumFacing.getEnumFacing(), blockFace, false)) {
-                    closestRotationDelta = totalDelta;
-                    bestYaw = testYaw;
-                    bestPitch = testPitch;
+        for (int radius = 0; radius <= MAX_SEARCH_RADIUS; radius++) {
+            for (int dy = -radius; dy <= radius; dy++) {
+                int remaining = radius - Math.abs(dy);
+                if (remaining == 0) {
+                    if (checkCandidate(serverYaw, serverPitch, dy, 0, facing, blockFace, target)) return true;
+                } else {
+                    if (checkCandidate(serverYaw, serverPitch, dy, remaining, facing, blockFace, target)) return true;
+                    if (checkCandidate(serverYaw, serverPitch, dy, -remaining, facing, blockFace, target)) return true;
                 }
             }
-            if (foundStrict && closestRotationDelta < 15f) break;
+        }
+        return false;
+    }
+
+    private static void computeJPSRotations(BlockPos blockFace, EnumFacingOffset enumFacing, float[] target) {
+        EnumFacing primary = enumFacing.getEnumFacing();
+        fallbackFound = false;
+
+        if (searchRotation(primary, blockFace, target)) return;
+
+        for (EnumFacing face : EnumFacing.VALUES) {
+            if (face == primary) continue;
+            if (searchRotation(face, blockFace, target)) return;
         }
 
-        if (closestRotationDelta != Float.MAX_VALUE) {
-            target[0] = bestYaw;
-            target[1] = bestPitch;
+        if (fallbackFound) {
+            target[0] = FALLBACK_RESULT[0];
+            target[1] = FALLBACK_RESULT[1];
             return;
         }
 
-        for (EnumFacing face : EnumFacing.VALUES) {
-            if (face == enumFacing.getEnumFacing()) continue;
-            Vector2f fallback = RotationUtils.calculate(
-                    new Vector3d(blockFace.getX(), blockFace.getY(), blockFace.getZ()), face);
-            if (RayCastUtils.overBlock(fallback, face, blockFace, false)) {
-                target[0] = fallback.x;
-                target[1] = fallback.y;
-                return;
-            }
-        }
-
         final Vector2f fallback = RotationUtils.calculate(
-                new Vector3d(blockFace.getX(), blockFace.getY(), blockFace.getZ()),
-                enumFacing.getEnumFacing());
+                new Vector3d(blockFace.getX(), blockFace.getY(), blockFace.getZ()), primary);
         target[0] = fallback.x;
         target[1] = fallback.y;
     }
@@ -180,7 +176,7 @@ public final class ScaffoldUtils {
                 break;
             }
             case ULTRA_SAFE: {
-                computeJPSRotations(blockFace, enumFacing, target, true);
+                computeJPSRotations(blockFace, enumFacing, target);
                 break;
             }
         }
