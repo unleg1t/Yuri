@@ -22,8 +22,8 @@ public class CameraModule extends Module {
         SWING("Swing"),
         STELLA("Stella"),
         STYLES("Styles"),
-        ETHEREAL("Ethereal");
-
+        ETHEREAL("Ethereal"),
+        EXPENSIVE("Expensive");
         public final String name;
 
         AnimationMode(String name) {

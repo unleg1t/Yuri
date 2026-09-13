@@ -290,6 +290,7 @@ public class ItemRenderer {
             float f2 = abstractclientplayer.prevRotationPitch + (abstractclientplayer.rotationPitch - abstractclientplayer.prevRotationPitch) * partialTicks;
             float f3 = abstractclientplayer.prevRotationYaw + (abstractclientplayer.rotationYaw - abstractclientplayer.prevRotationYaw) * partialTicks;
             float var16 = MathHelper.sin(MathHelper.sqrt_float(f1) * 3.1415927F);
+            float expAnim = MathHelper.sin(f1 * (float) Math.PI);
             final float swingProgress = abstractclientplayer.swingProgress;
             final float convertedProgress = MathHelper.sin(MathHelper.sqrt_float(swingProgress) * (float) Math.PI * 2);
             this.rotateArroundXAndY(f2, f3);
@@ -354,6 +355,12 @@ public class ItemRenderer {
                                 f = 0.0f;
                             if (Yuri.INSTANCE.getModuleManager().getModule(CameraModule.class).isEnabled()) {
                                 switch (CameraModule.mode.getValue()) {
+                                    case EXPENSIVE:
+                                        this.transformFirstPersonItem(0.05F, 0.04F);
+                                        GlStateManager.translate(0.0F, 0.4F, 0.0F);
+                                        GlStateManager.rotate(-90.0F * expAnim, 1.0F, 0.0F, 0.0F);
+                                        GlStateManager.scale(CameraModule.scale.getValue(), CameraModule.scale.getValue(), CameraModule.scale.getValue());
+                                        break;
                                     case INERTIA:
                                         this.transformFirstPersonItem(0.05f, f1);
                                         GlStateManager.translate(-0.5F, 0.5F, 0.0F);
