@@ -7,6 +7,7 @@ import ddlc.yuri.api.events.impl.render.Render3DEvent;
 import ddlc.yuri.api.events.impl.world.LivingUpdateEvent;
 import ddlc.yuri.api.events.impl.world.WorldJoinEvent;
 import ddlc.yuri.api.properties.Property;
+import ddlc.yuri.api.properties.impl.ModeProperty;
 import ddlc.yuri.api.properties.impl.NumberProperty;
 import ddlc.yuri.managers.impl.ColorManager;
 import ddlc.yuri.modules.Module;
@@ -15,20 +16,21 @@ import ddlc.yuri.modules.ModuleInfo;
 import ddlc.yuri.utils.player.MoveUtils;
 import net.minecraft.block.BlockBed;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.Tessellator;
+import net.minecraft.client.renderer.WorldRenderer;
+import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.network.Packet;
 import net.minecraft.network.play.client.C07PacketPlayerDigging;
 import net.minecraft.util.BlockPos;
+import net.minecraft.util.ResourceLocation;
 import org.lwjgl.opengl.GL11;
 
+import java.awt.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
+import java.util.*;
 import java.util.List;
-import java.util.Random;
 
 @ModuleInfo(label = "Effects", category = ModuleCategory.RENDER, description = "Cute hearts, dots, bed break visuals and damage numbers")
 public class EffectsModule extends Module {
@@ -58,6 +60,29 @@ public class EffectsModule extends Module {
     public final Property<Boolean> bedSound = new Property<>("Bed Sound", true);
 
     public final Property<Boolean> damageNumbers = new Property<>("Damage Numbers", true);
+    public final Property<Boolean> damageParticles = new Property<>("Damage Particles", true);
+    public final ModeProperty<ParticleMode> damageParticleMode = new ModeProperty<>("Damage Particle Mode", ParticleMode.HEART, damageParticles::getValue);
+
+    public enum ParticleMode {
+        HEART("Heart"),
+        STAR("Star"),
+        CIRCLE("Circle");
+
+        public final String name;
+
+        ParticleMode(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String toString() {
+            return name;
+        }
+    }
+
+    private static final ResourceLocation HEART_TEX = new ResourceLocation("yuri/gui/heart.png");
+    private static final ResourceLocation STAR_TEX = new ResourceLocation("yuri/gui/star.png");
+    private static final ResourceLocation CIRCLE_TEX = new ResourceLocation("yuri/gui/glow_circle.png");
 
     private static final double[] HEART_X = new double[31];
     private static final double[] HEART_Y = new double[31];
@@ -108,10 +133,38 @@ public class EffectsModule extends Module {
         int type;
     }
 
+    private static class DamageParticle {
+        double x, y, z;
+        double targetX, targetY, targetZ;
+        long spawnTime;
+        float alpha;
+
+        public DamageParticle(double x, double y, double z) {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.targetX = x + (Math.random() - 0.5) * 2.0;
+            this.targetY = y + (Math.random() - 0.5) * 2.0;
+            this.targetZ = z + (Math.random() - 0.5) * 2.0;
+            this.spawnTime = System.currentTimeMillis();
+            this.alpha = 0.0f;
+        }
+
+        public void update() {
+            this.x += (targetX - x) * 0.1;
+            this.y += (targetY - y) * 0.1;
+            this.z += (targetZ - z) * 0.1;
+            if (this.alpha < 1.0f) {
+                this.alpha = Math.min(1.0f, this.alpha + 0.1f);
+            }
+        }
+    }
+
     private final List<Particle> heartList = new ArrayList<>();
     private final List<Particle> dotList = new ArrayList<>();
     private final List<Particle> burstList = new ArrayList<>();
     private final List<Particle> rainbowList = new ArrayList<>();
+    private final List<DamageParticle> damageParticleList = new ArrayList<>();
 
     private final Random random = new Random();
 
@@ -124,7 +177,7 @@ public class EffectsModule extends Module {
     private double bedX, bedY, bedZ;
 
     private final HashMap<EntityLivingBase, Float> healthMap = new HashMap<>();
-    private final ArrayDeque<DamageParticle> damageParticles = new ArrayDeque<>();
+    private final ArrayDeque<DamageText> damageTexts = new ArrayDeque<>();
 
     @EventHook
     public void onPreUpdate(PreUpdateEvent event) {
@@ -174,27 +227,49 @@ public class EffectsModule extends Module {
 
     @EventHook
     public void onLivingUpdate(LivingUpdateEvent e) {
-        if (!damageNumbers.getValue()) return;
+        if (!damageNumbers.getValue() && !damageParticles.getValue()) return;
         if (e.getEntity() == null || !(e.getEntity() instanceof EntityLivingBase)) {
             return;
         }
         EntityLivingBase entity = (EntityLivingBase) e.getEntity();
         if (entity == mc.thePlayer) return;
+
         if (!this.healthMap.containsKey(entity)) this.healthMap.put(entity, entity.getHealth());
         float floatValue = this.healthMap.get(entity);
         float health = entity.getHealth();
+
         if (floatValue != health) {
             double diff = floatValue - health;
             boolean isHeal = diff < 0.0;
-            double amount = isHeal ? -diff : diff;
-            String text = (isHeal ? "+" : "-") + roundToPlace(amount, 1);
-            DamageLocation location = new DamageLocation(entity);
-            location.setY(entity.getEntityBoundingBox().minY + (entity.getEntityBoundingBox().maxY - entity.getEntityBoundingBox().minY) / 2.0);
-            location.setX(location.getX() - 0.5 + new Random(System.currentTimeMillis()).nextInt(5) * 0.1);
-            location.setZ(location.getZ() - 0.5 + new Random(System.currentTimeMillis() + 1).nextInt(5) * 0.1);
-            this.damageParticles.add(new DamageParticle(location, text));
+
+            if (!isHeal && damageParticles.getValue()) {
+                spawnDamageParticles(entity);
+            }
+
+            if (damageNumbers.getValue()) {
+                double amount = isHeal ? -diff : diff;
+                String text = (isHeal ? "+" : "-") + roundToPlace(amount, 1);
+                DamageLocation location = new DamageLocation(entity);
+                location.setY(entity.getEntityBoundingBox().minY + (entity.getEntityBoundingBox().maxY - entity.getEntityBoundingBox().minY) / 2.0);
+                location.setX(location.getX() - 0.5 + new Random(System.currentTimeMillis()).nextInt(5) * 0.1);
+                location.setZ(location.getZ() - 0.5 + new Random(System.currentTimeMillis() + 1).nextInt(5) * 0.1);
+                this.damageTexts.add(new DamageText(location, text));
+            }
+
             this.healthMap.remove(entity);
             this.healthMap.put(entity, entity.getHealth());
+        }
+    }
+
+    private void spawnDamageParticles(EntityLivingBase entity) {
+        double x = entity.posX;
+        double y = entity.posY + entity.height / 2.0;
+        double z = entity.posZ;
+        for (int i = 0; i < 5; i++) {
+            damageParticleList.add(new DamageParticle(x, y, z));
+        }
+        while (damageParticleList.size() > 200) {
+            damageParticleList.remove(0);
         }
     }
 
@@ -325,7 +400,8 @@ public class EffectsModule extends Module {
     @EventHook
     public void onRender3D(Render3DEvent event) {
         if (mc.thePlayer == null) return;
-        if (heartList.isEmpty() && dotList.isEmpty() && burstList.isEmpty() && rainbowList.isEmpty() && damageParticles.isEmpty()) return;
+        if (heartList.isEmpty() && dotList.isEmpty() && burstList.isEmpty() && rainbowList.isEmpty() && damageTexts.isEmpty() && damageParticleList.isEmpty())
+            return;
 
         double camX = mc.getRenderManager().viewerPosX;
         double camY = mc.getRenderManager().viewerPosY;
@@ -357,7 +433,84 @@ public class EffectsModule extends Module {
         GlStateManager.popMatrix();
         GlStateManager.resetColor();
 
+        renderDamageParticles(camX, camY, camZ, now);
         renderDamageNumbers();
+    }
+
+    private void renderDamageParticles(double camX, double camY, double camZ, long now) {
+        if (damageParticleList.isEmpty() || !damageParticles.getValue()) return;
+
+        ResourceLocation texture;
+        switch (damageParticleMode.getValue()) {
+            case STAR:
+                texture = STAR_TEX;
+                break;
+            case CIRCLE:
+                texture = CIRCLE_TEX;
+                break;
+            case HEART:
+            default:
+                texture = HEART_TEX;
+                break;
+        }
+
+        mc.getTextureManager().bindTexture(texture);
+        GlStateManager.pushMatrix();
+        GlStateManager.enableBlend();
+        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
+        GlStateManager.enableTexture2D();
+        GlStateManager.disableDepth();
+        GlStateManager.depthMask(false);
+        GlStateManager.disableCull();
+
+        Iterator<DamageParticle> iterator = damageParticleList.iterator();
+        long maxLifetime = 1500;
+
+        Tessellator tessellator = Tessellator.getInstance();
+        WorldRenderer worldrenderer = tessellator.getWorldRenderer();
+
+        while (iterator.hasNext()) {
+            DamageParticle particle = iterator.next();
+            long age = now - particle.spawnTime;
+            if (age > maxLifetime) {
+                iterator.remove();
+                continue;
+            }
+
+            particle.update();
+
+            double progress = (double) age / maxLifetime;
+            float scale = (float) (0.35 * (1.0 - progress));
+            float alpha = (float) ((1.0 - progress) * particle.alpha);
+
+            Color color = ColorManager.getColor();
+            float red = color.getRed() / 255.0f;
+            float green = color.getGreen() / 255.0f;
+            float blue = color.getBlue() / 255.0f;
+
+            GlStateManager.pushMatrix();
+            GlStateManager.translate(particle.x - camX, particle.y - camY, particle.z - camZ);
+            GlStateManager.rotate(-mc.getRenderManager().playerViewY, 0.0f, 1.0f, 0.0f);
+            GlStateManager.rotate(mc.getRenderManager().playerViewX, (mc.gameSettings.thirdPersonView == 2 ? -1.0f : 1.0f), 0.0f, 0.0f);
+
+            GlStateManager.color(red, green, blue, alpha);
+
+            worldrenderer.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX);
+            worldrenderer.pos(-scale, -scale, 0.0).tex(0.0, 1.0).endVertex();
+            worldrenderer.pos(scale, -scale, 0.0).tex(1.0, 1.0).endVertex();
+            worldrenderer.pos(scale, scale, 0.0).tex(1.0, 0.0).endVertex();
+            worldrenderer.pos(-scale, scale, 0.0).tex(0.0, 0.0).endVertex();
+            tessellator.draw();
+
+            GlStateManager.popMatrix();
+        }
+
+        GlStateManager.enableCull();
+        GlStateManager.depthMask(true);
+        GlStateManager.enableDepth();
+        GlStateManager.disableBlend();
+        GlStateManager.popMatrix();
+        GlStateManager.resetColor();
     }
 
     private void renderHearts(double camX, double camY, double camZ, long now, double alphaScale) {
@@ -592,10 +745,10 @@ public class EffectsModule extends Module {
     }
 
     private void renderDamageNumbers() {
-        if (!damageNumbers.getValue() || damageParticles.isEmpty()) return;
+        if (!damageNumbers.getValue() || damageTexts.isEmpty()) return;
 
-        for (Iterator<DamageParticle> iterator = this.damageParticles.iterator(); iterator.hasNext(); ) {
-            DamageParticle update = iterator.next();
+        for (Iterator<DamageText> iterator = this.damageTexts.iterator(); iterator.hasNext(); ) {
+            DamageText update = iterator.next();
             ++update.ticks;
             if (update.ticks <= 10)
                 update.location.setY(update.location.getY() + update.ticks * 0.005);
@@ -603,7 +756,7 @@ public class EffectsModule extends Module {
                 iterator.remove();
         }
 
-        for (DamageParticle p : this.damageParticles) {
+        for (DamageText p : this.damageTexts) {
             double x = p.location.getX();
             double n = x - mc.getRenderManager().renderPosX;
             double y = p.location.getY();
@@ -698,20 +851,21 @@ public class EffectsModule extends Module {
         dotList.clear();
         burstList.clear();
         rainbowList.clear();
+        damageParticleList.clear();
         lastHeartSpawn = 0;
         lastDotSpawn = 0;
         hasLastPosition = false;
         diggingBed = false;
         healthMap.clear();
-        damageParticles.clear();
+        damageTexts.clear();
     }
 
-    private static class DamageParticle {
+    private static class DamageText {
         public int ticks;
         public DamageLocation location;
         public String text;
 
-        public DamageParticle(final DamageLocation location, final String text) {
+        public DamageText(final DamageLocation location, final String text) {
             this.location = location;
             this.text = text;
             this.ticks = 0;
@@ -759,4 +913,5 @@ public class EffectsModule extends Module {
             this.z = z;
         }
     }
+
 }

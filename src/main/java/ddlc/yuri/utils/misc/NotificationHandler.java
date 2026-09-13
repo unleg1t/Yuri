@@ -1,6 +1,5 @@
 package ddlc.yuri.utils.misc;
 
-import ddlc.yuri.utils.render.RenderUtils;
 import ddlc.yuri.utils.render.notifications.Notification;
 import lombok.NonNull;
 
@@ -12,13 +11,23 @@ public class NotificationHandler {
     private final int DEFAULT_DELAY = 2_000;
     private static final double ROW_SPACING = 4.0;
     private static final double ROW_HEIGHT = 28.0;
-    private static final double ANIMATION_SPEED = 12.0;
-    private static final double EXIT_ANIMATION_SPEED = 10.0;
+    private static final double ANIMATION_SPEED = 5.0;
+    private static final double EXIT_ANIMATION_SPEED = 3.0;
 
     private final List<Notification> NOTIFICATIONS = new CopyOnWriteArrayList<>();
+    private long lastTime = System.currentTimeMillis();
 
     public void update() {
-        double delta = Math.min(Math.max(RenderUtils.delta, 1), 50) / 1000.0;
+        long currentTime = System.currentTimeMillis();
+        double delta = (currentTime - lastTime) / 1000.0;
+        lastTime = currentTime;
+
+        if (delta <= 0) {
+            delta = 0.001;
+        } else if (delta > 0.05) {
+            delta = 0.05;
+        }
+
         double animation = 1.0 - Math.exp(-ANIMATION_SPEED * delta);
         double exitAnimation = 1.0 - Math.exp(-EXIT_ANIMATION_SPEED * delta);
 
@@ -64,16 +73,15 @@ public class NotificationHandler {
     }
 
     public void pop(@NonNull String message, int delay) {
-        Notification notification = new Notification(message, delay);
-
         for (Notification prevNotification : NOTIFICATIONS) {
-            if (notification.getMessage().equalsIgnoreCase(prevNotification.getMessage())) {
+            if (message.equalsIgnoreCase(prevNotification.getMessage())) {
                 prevNotification.getTimer().reset();
                 prevNotification.setExiting(false);
                 return;
             }
         }
 
+        Notification notification = new Notification(message, delay);
         notification.setExtending(true);
         notification.getTimer().reset();
 
@@ -81,8 +89,15 @@ public class NotificationHandler {
     }
 
     public void pop(@NonNull String callReason, @NonNull String message, int delay) {
-        Notification notification = new Notification(callReason, message, delay);
+        for (Notification prevNotification : NOTIFICATIONS) {
+            if (message.equalsIgnoreCase(prevNotification.getMessage())) {
+                prevNotification.getTimer().reset();
+                prevNotification.setExiting(false);
+                return;
+            }
+        }
 
+        Notification notification = new Notification(callReason, message, delay);
         notification.setExtending(true);
         notification.getTimer().reset();
 
@@ -105,7 +120,9 @@ public class NotificationHandler {
     }
 
     public void remove(@Nullable Notification notification) {
-        NOTIFICATIONS.remove(notification);
+        if (notification != null) {
+            NOTIFICATIONS.remove(notification);
+        }
     }
 
     public List<Notification> getNotifications() {
