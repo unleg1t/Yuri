@@ -57,7 +57,7 @@ public class PropertyRow {
         float innerX = module.getX() + PADDING_X;
         float rightX = module.getX() + module.getWidth() - PADDING_X;
         float currentX = innerX;
-        float currentY = 10f;
+        float currentY = 8f;
         CustomFontRenderer font = FontUtils.getFont("sf", 12);
 
         for (String opt : options) {
@@ -169,7 +169,7 @@ public class PropertyRow {
 
             String[] options = getOptions();
             float currentX = innerX;
-            float currentY = y + 10f;
+            float currentY = y + 8f;
 
             for (int i = 0; i < options.length; i++) {
                 String opt = options[i];

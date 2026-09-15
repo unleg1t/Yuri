@@ -67,9 +67,9 @@ public class ModuleRow {
     }
 
     public float getTargetHeight() {
-        if (!opened) return 15f;
+        if (!opened) return 13f;
         float h = 17f;
-        for (PropertyRow row : visibleRows()) h += row.getHeight() + 2f;
+        for (PropertyRow row : visibleRows()) h += row.getHeight() + 1;
         return h;
     }
 

@@ -68,9 +68,10 @@ public final class TargetHudModule extends Module {
     private static final int MAX_ROWS = 4;
     private static final int INFO_SPACING_X = 145;
     private static final int INFO_SPACING_Y = 53;
+    private static final float DELTA_NANOS_SCALE = 500_000_000f;
+    private static final long MIN_DELTA_NANOS = 250_000L;
 
-
-    private long lastRender2DTime = 0;
+    private long lastRender2DTimeNanos = 0L;
     private final Map<UUID, TargetState> targetStates = new LinkedHashMap<>();
     private final Random particleRandom = new Random();
     private final Set<UUID> activeTargetsThisFrame = new HashSet<>();
@@ -97,11 +98,14 @@ public final class TargetHudModule extends Module {
 
     @EventHook(EventPriority.VERY_HIGH)
     public void onRender2D(Render2DEvent event) {
-        long now = System.currentTimeMillis();
-        float delta = lastRender2DTime == 0 ? 0f : (now - lastRender2DTime) / 500f;
-        lastRender2DTime = now;
+        long nowNanos = System.nanoTime();
+        long deltaNanos = lastRender2DTimeNanos == 0L ? 0L : (nowNanos - lastRender2DTimeNanos);
+        lastRender2DTimeNanos = nowNanos;
 
-        if (delta < 0.0005f) return;
+        if (deltaNanos < MIN_DELTA_NANOS) return;
+
+        float delta = deltaNanos / DELTA_NANOS_SCALE;
+        long now = System.currentTimeMillis();
 
         activeTargetsThisFrame.clear();
         listToRender.clear();
