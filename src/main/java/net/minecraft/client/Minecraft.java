@@ -15,6 +15,7 @@ import ddlc.yuri.api.events.impl.player.MiddleClickEvent;
 import ddlc.yuri.api.events.impl.player.PlayerDeathEvent;
 import ddlc.yuri.api.events.impl.player.RightClickEvent;
 import ddlc.yuri.api.events.impl.world.WorldJoinEvent;
+import ddlc.yuri.api.gui.initalization.YuriInitializationScreen;
 import ddlc.yuri.api.gui.main.YuriMenu;
 import ddlc.yuri.modules.impl.render.MotionBlurModule;
 import lombok.Setter;
@@ -354,7 +355,7 @@ public class Minecraft implements IThreadListener, IPlayerUsage
         this.refreshResources();
         this.renderEngine = new TextureManager(this.mcResourceManager);
         this.mcResourceManager.registerReloadListener(this.renderEngine);
-        this.drawSplashScreen(this.renderEngine);
+        YuriInitializationScreen.drawInitScreen();
         this.initStream();
         this.skinManager = new SkinManager(this.renderEngine, new File(this.fileAssets, "skins"), this.sessionService);
         this.saveLoader = new AnvilSaveConverter(new File(this.mcDataDir, "saves"));
