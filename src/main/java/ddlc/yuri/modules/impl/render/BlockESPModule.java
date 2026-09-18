@@ -34,13 +34,10 @@ public final class BlockESPModule extends Module {
     private final Property<Boolean> enderChests = new Property<>("Ender Chests", true);
     private final Property<Boolean> beds = new Property<>("Beds", true);
     private final Property<Boolean> throughWalls = new Property<>("Through Walls", true);
-    private final Property<Boolean> filled = new Property<>("Filled", false);
-    private final Property<Boolean> outline = new Property<>("Outline", true);
-    private final NumberProperty lineWidth = new NumberProperty("Line Width", 2.0, 1.0, 5.0, 0.5, outline::getValue);
     private final NumberProperty alpha = new NumberProperty("Alpha", 0.3, 0.1, 1.0, 0.05);
 
-    private final NumberProperty range = new NumberProperty("Range", 15, 2, 30, 1, beds::getValue);
-    private final NumberProperty rate = new NumberProperty("Rate", 0.4D, 0.1D, 3D, 0.1D, beds::getValue);
+    private final NumberProperty range = new NumberProperty("Bed Range", 15, 2, 30, 1, beds::getValue);
+    private final NumberProperty rate = new NumberProperty("Bed Update Rate", 0.4D, 0.1D, 3D, 0.1D, beds::getValue);
 
     private final List<BlockPos[]> bedsList = new ArrayList<>();
     private long lastCheck = 0L;
@@ -130,18 +127,11 @@ public final class BlockESPModule extends Module {
         float b = c.getBlue() / 255f;
         float a = alpha.getValue().floatValue();
 
-        if (filled.getValue()) {
-            GL11.glDepthMask(false);
-            GlStateManager.color(r, g, b, a);
-            RenderUtils.drawBoundingBox(boundingBox);
-            GL11.glDepthMask(true);
-        }
+        GL11.glDepthMask(false);
+        GlStateManager.color(r, g, b, a);
+        RenderUtils.drawBoundingBox(boundingBox);
+        GL11.glDepthMask(true);
 
-        if (outline.getValue()) {
-            GL11.glLineWidth(lineWidth.getValue().floatValue());
-            GlStateManager.color(r, g, b, a);
-            RenderUtils.drawOutlinedBoundingBox(boundingBox);
-        }
     }
 
     private void renderBeds() {
