@@ -5,12 +5,15 @@ import ddlc.yuri.api.events.impl.render.Render2DEvent;
 import ddlc.yuri.api.events.impl.world.WorldJoinEvent;
 import ddlc.yuri.api.properties.Property;
 import ddlc.yuri.modules.Module;
+import ddlc.yuri.modules.ModuleCategory;
 import ddlc.yuri.modules.ModuleInfo;
 import net.minecraft.util.MathHelper;
 import org.lwjgl.input.Keyboard;
 
-@ModuleInfo(label = "Free Look", description = "Allows you to look around freely while moving.", category = ddlc.yuri.modules.ModuleCategory.RENDER)
+@ModuleInfo(label = "Free Look", description = "Allows you to look around freely while moving.", category = ModuleCategory.RENDER)
 public class FreeLookModule extends Module {
+
+    // for all you nerds looking in this code wondering how to make this work, you have to hold your set bind for freelook. duh.
 
     public Property<Boolean> invertPitch = new Property<>("Invert Pitch", false);
 
