@@ -7,7 +7,7 @@ import ddlc.yuri.modules.Module;
 import ddlc.yuri.modules.ModuleCategory;
 import ddlc.yuri.modules.ModuleInfo;
 
-@ModuleInfo(label = "Camera", category = ModuleCategory.RENDER, description = "Changes the rendered hand appearance properties")
+@ModuleInfo(label = "Animations", category = ModuleCategory.RENDER, description = "Changes the rendered hand appearance properties")
 public class AnimationsModule extends Module {
 
     public enum AnimationMode {
