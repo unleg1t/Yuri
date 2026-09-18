@@ -27,9 +27,9 @@ public final class VelocityModule extends Module {
     public final ModeProperty<Mode> mode = new ModeProperty<>("Mode", Mode.CANCEL);
     public final Property<Boolean> ignoreOnFire = new Property<>("Ignore On Fire", true);
 
-    public final NumberProperty xModify = new NumberProperty("Velocity X Modifier", 0.0, 0.0, 5.0, 1.0, () -> mode.getValue() == Mode.CUSTOM);
-    public final NumberProperty yModify = new NumberProperty("Velocity Y Modifier", 1.0, 0.0, 5.0, 1.0, () -> mode.getValue() == Mode.CUSTOM);
-    public final NumberProperty zModify = new NumberProperty("Velocity Z Modifier", 0.0, 0.0, 5.0, 1.0, () -> mode.getValue() == Mode.CUSTOM);
+    public final NumberProperty xModify = new NumberProperty("Velocity X Modifier", 0.0, -5.0, 5.0, 1.0, () -> mode.getValue() == Mode.CUSTOM);
+    public final NumberProperty yModify = new NumberProperty("Velocity Y Modifier", 1.0, -5.0, 5.0, 1.0, () -> mode.getValue() == Mode.CUSTOM);
+    public final NumberProperty zModify = new NumberProperty("Velocity Z Modifier", 0.0, -5.0, 5.0, 1.0, () -> mode.getValue() == Mode.CUSTOM);
 
     public final ModeProperty<IntaveMode> intaveMode = new ModeProperty<>("Intave Mode", IntaveMode.INTAVE_LATEST, () -> mode.getValue() == Mode.INTAVE);
 
