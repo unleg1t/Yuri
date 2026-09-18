@@ -35,6 +35,23 @@ import java.util.LinkedList;
 @ModuleInfo(label = "Aura", description = "Automatically attacks entities around you", category = ModuleCategory.COMBAT)
 public class AuraModule extends Module {
 
+     /*
+        for anyone curious, attack range is when the attack is processed, swing range is when you start pre-attacking which uses real left-clicking.
+        simulate mouse clicks is just fully legit REAL left-clicking, this helps in hvh so you can get start to attack before 3 blocks
+        (which is the limit for prediction based anti-cheats when using mc.playerController.attackEntity).
+
+        therefore, using 6.0 on all ranges with simulate mouse clicks is the most optimal settings for prediction anti-cheats.
+
+        now if on NCP or a less strict anti-cheat DON'T use simulate mouse clicks. instead use swing range 6.0, attack
+        range 4.2, and block range at 6.0
+
+        this is honestly the only client that uses these attack methods to date, and it's kinda sad.
+        this all results in beating every other Hypixel client (paid ones and clients with auto blocks included)
+        in a hvh with even using fake auto block on Yuri.
+
+        -unlegit
+    */
+
     private final MultiModeProperty<TargetManager.Targets> targets = new MultiModeProperty<>("Targets", TargetManager.Targets.PLAYERS, TargetManager.Targets.HOSTILES, TargetManager.Targets.TEAMMATES, TargetManager.Targets.INVISIBLES);
     private static final ModeProperty<TargetManager.Mode> mode = new ModeProperty<>("Mode", TargetManager.Mode.SINGLE);
     private static final NumberProperty switchDelay = new NumberProperty("Switch Delay", 1, 1, 40, 1, () -> mode.getValue() == TargetManager.Mode.SWITCH);
@@ -545,7 +562,7 @@ public class AuraModule extends Module {
         attackTimer.reset();
         if (rotations.getValue() == Rotations.ML) {
             if (!RotationLearnerManager.hasModelLoaded()) {
-                Yuri.INSTANCE.getNotificationHandler().pop(getLabel(),"Use .rot load <name> to load a rotation model!");
+                Yuri.INSTANCE.getNotificationHandler().pop(getLabel(), "Use .rot load <name> to load a rotation model!");
             }
         }
         super.onEnable();
