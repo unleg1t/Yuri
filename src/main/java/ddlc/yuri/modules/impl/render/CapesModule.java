@@ -9,8 +9,8 @@ import ddlc.yuri.modules.ModuleInfo;
 public class CapesModule extends Module {
     public static ModeProperty<Cape> cape = new ModeProperty<>("Cape", Cape.YURI);
 
-    public static enum Cape {
-        YURI("Yuri"), NATSUKI("Natsuki"), PULSIVE("Pulsive"), SAD("Sad"), ZERO_TWO("Zero Two"), SKY("Sky");
+    public enum Cape {
+        YURI("Yuri"), NATSUKI("Natsuki"), ASTOLFO("Astolfo"), PURPLE_GIRL("Purple Girl"), SATAN("Satan"), ROSE("Rose"), PULSIVE("Pulsive"), SAD("Sad"), ZERO_TWO("Zero Two"), SKY("Sky");
 
         public final String name;
 

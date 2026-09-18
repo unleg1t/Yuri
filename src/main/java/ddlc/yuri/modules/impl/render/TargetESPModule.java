@@ -63,10 +63,11 @@ public final class TargetESPModule extends Module {
     }
 
     public enum ImageMode {
+        SOB("Sob"),
         RECTANGLE("Rectangle"),
-        QUADSTAPPLE("QuadStapple"),
-        TRIANGLESTAPPLE("TriangleStapple"),
-        TRIANGLESTIPPLE("TriangleStipple");
+        QUAD_STAPPLE("Quad Stapple"),
+        TRIANGLE_STAPPLE("Triangle Stapple"),
+        TRIANGLE_STIPPLE("Triangle Stipple");
 
         private final String name;
 
@@ -90,6 +91,7 @@ public final class TargetESPModule extends Module {
     private final TimerUtils timerUtils = new TimerUtils();
     private final long lastTime = System.currentTimeMillis();
     private final Animation alphaAnim = new DecelerateAnimation(400, 1);
+    private final ResourceLocation sob = new ResourceLocation("yuri/gui/sob.png");
     private final ResourceLocation glowCircle = new ResourceLocation("yuri/gui/glow_circle.png");
     private final ResourceLocation rectangle = new ResourceLocation("yuri/gui/rectangle.png");
     private final ResourceLocation quadstapple = new ResourceLocation("yuri/gui/quadstapple.png");
@@ -351,16 +353,19 @@ public final class TargetESPModule extends Module {
         ResourceLocation icon = null;
 
         switch (imageMode.getValue()) {
+            case SOB:
+                icon = sob;
+                break;
             case RECTANGLE:
                 icon = rectangle;
                 break;
-            case QUADSTAPPLE:
+            case QUAD_STAPPLE:
                 icon = quadstapple;
                 break;
-            case TRIANGLESTAPPLE:
+            case TRIANGLE_STAPPLE:
                 icon = trianglestapple;
                 break;
-            case TRIANGLESTIPPLE:
+            case TRIANGLE_STIPPLE:
                 icon = trianglestipple;
                 break;
         }
@@ -368,12 +373,13 @@ public final class TargetESPModule extends Module {
         if (icon == null) return;
 
         float alpha = alphaAnim.getOutput().floatValue();
-        int color = RenderUtils.applyOpacity(ColorManager.getColor(), alpha).getRGB();
+        int color = imageMode.getValue() != ImageMode.SOB ? RenderUtils.applyOpacity(ColorManager.getColor(), alpha).getRGB() : RenderUtils.applyOpacity(Color.WHITE, alpha).getRGB();
 
         GL11.glPushMatrix();
         // Translate directly to the projected center point on screen
         GL11.glTranslatef(screenX, screenY, 0F);
-        GL11.glRotatef(rotation, 0F, 0F, 1F);
+        if (imageMode.getValue() != ImageMode.SOB)
+            GL11.glRotatef(rotation, 0F, 0F, 1F);
 
         // Render centered around (0,0)
         RenderUtils.drawImage(icon, -iconSize, -iconSize, iconSize, iconSize, color);
