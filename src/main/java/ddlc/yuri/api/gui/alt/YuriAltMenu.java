@@ -42,25 +42,33 @@ import java.util.Scanner;
 public class YuriAltMenu extends GuiScreen {
 
     private static final Color BACKGROUND = new Color(14, 14, 17, 255);
-    private static final Color BODY_COLOR = new Color(0, 0, 0, 130);
-    private static final Color DANGER = new Color(232, 90, 90);
+    static final Color BODY_COLOR = new Color(0, 0, 0, 130);
+    static final Color DANGER = new Color(232, 90, 90);
     private static final ResourceLocation PLACEHOLDER_HEAD = new ResourceLocation("yuri/gui/steve.png");
     private static final String NUMBERS = "0123456789";
     private static final String LETTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
     private static final SecureRandom RANDOM_SOURCE = new SecureRandom();
 
-    private static final float RADIUS = 6f;
+    static final float RADIUS = 6f;
     private static final int HEADER_HEIGHT = 44;
-    private static final int PADDING = 12;
-    private static final int FIELD_HEIGHT = 24;
-    private static final int BUTTON_HEIGHT = 27;
-    private static final int BUTTON_SPACING = 8;
+    private static final int TAB_HEIGHT = 30;
+    private static final int TAB_BUTTON_HEIGHT = 22;
+    static final int PADDING = 12;
+    static final int FIELD_HEIGHT = 24;
+    static final int BUTTON_HEIGHT = 27;
+    static final int BUTTON_SPACING = 8;
     private static final int SHADOW_OFFSET = 3;
-    private static final int SCROLLBAR_WIDTH = 4;
+    static final int SCROLLBAR_WIDTH = 4;
     private static final int COLUMNS = 3;
     private static final int ENTRY_PADDING = 7;
     private static final int ENTRY_HEIGHT = 50;
-    private static final float ADD_PANEL_RATIO = 0.34f;
+    static final float ADD_PANEL_RATIO = 0.34f;
+
+    private static final String[] TAB_TITLES = {"Accounts", "Localts", "Skins"};
+    private final AltTab[] tabs = {null, new LocaltsTab(this), new SkinTab(this)};
+    private final int[] tabX = new int[TAB_TITLES.length];
+    private final int[] tabWidth = new int[TAB_TITLES.length];
+    private int activeTab = 0;
 
     private final ArrayList<Integer> selectedAlts = new ArrayList<>();
     private final ArrayList<String> alts = new ArrayList<>();
@@ -110,7 +118,7 @@ public class YuriAltMenu extends GuiScreen {
         super.initGui();
     }
 
-    private File getYuriDir() {
+    File getYuriDir() {
         File dir = new File(Minecraft.getMinecraft().mcDataDir, "Yuri");
         if (!dir.exists()) dir.mkdirs();
         return dir;
@@ -166,15 +174,35 @@ public class YuriAltMenu extends GuiScreen {
         computeLayout();
 
         drawHeader(mouseX, mouseY);
-        drawAddAccountPanel(mouseX, mouseY);
-        drawAccountsPanel(mouseX, mouseY);
+        drawTabBar(mouseX, mouseY);
+
+        AltTab tab = tabs[activeTab];
+        if (tab == null) {
+            drawAddAccountPanel(mouseX, mouseY);
+            drawAccountsPanel(mouseX, mouseY);
+        } else {
+            tab.layout(PADDING, contentY, width - PADDING * 2, contentHeight);
+            tab.draw(mouseX, mouseY);
+        }
 
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
 
     private void computeLayout() {
-        contentY = HEADER_HEIGHT + PADDING;
+        contentY = HEADER_HEIGHT + TAB_HEIGHT + PADDING;
         contentHeight = height - contentY - PADDING;
+
+        CustomFontRenderer tabFont = FontUtils.getFont("sf", 18);
+        int totalTabsWidth = 0;
+        for (int i = 0; i < TAB_TITLES.length; i++) {
+            tabWidth[i] = tabFont.getStringWidth(TAB_TITLES[i]) + 28;
+            totalTabsWidth += tabWidth[i] + (i > 0 ? BUTTON_SPACING : 0);
+        }
+        int cursor = width / 2 - totalTabsWidth / 2;
+        for (int i = 0; i < TAB_TITLES.length; i++) {
+            tabX[i] = cursor;
+            cursor += tabWidth[i] + BUTTON_SPACING;
+        }
 
         addWidth = (int) (width * ADD_PANEL_RATIO);
         addX = PADDING;
@@ -236,12 +264,12 @@ public class YuriAltMenu extends GuiScreen {
         scrollbarHeight = gridListHeight;
     }
 
-    private void drawPanelShadow(int x, int y, int w, int h) {
+    void drawPanelShadow(int x, int y, int w, int h) {
         RoundedUtils.drawRoundOutline(x + SHADOW_OFFSET, y + SHADOW_OFFSET, w, h, RADIUS, -0.5f,
                 RenderUtils.withAlphaColor(Color.BLACK, 90), RenderUtils.withAlphaColor(Color.BLACK, 0));
     }
 
-    private void drawSectionHeader(int x, int y, String bold, String rest) {
+    void drawSectionHeader(int x, int y, String bold, String rest) {
         Color accent = ColorManager.getColor();
 
         CustomFontRenderer boldFont = FontUtils.getFont("sf-bold", 18);
@@ -321,22 +349,55 @@ public class YuriAltMenu extends GuiScreen {
     }
 
     private void drawStatusPill() {
-        if (statusString == null || statusString.isEmpty()) return;
+        drawStatusPill(addX, addWidth, statusY, statusString, statusIsError);
+    }
+
+    void drawStatusPill(int panelX, int panelWidth, int centerY, String message, boolean isError) {
+        if (message == null || message.isEmpty()) return;
 
         CustomFontRenderer regular = FontUtils.getFont("sf", 18);
-        Color tint = statusIsError ? DANGER : ColorManager.getColor();
-        int textWidth = regular.getStringWidth(statusString);
-        int pillWidth = textWidth + 20;
+        Color tint = isError ? DANGER : ColorManager.getColor();
+        int maxWidth = panelWidth - PADDING * 2 - 20;
+        String text = message;
+        while (regular.getStringWidth(text) > maxWidth && text.length() > 4) text = text.substring(0, text.length() - 4) + "...";
+        int pillWidth = regular.getStringWidth(text) + 20;
         int pillHeight = 22;
-        int pillX = addX + (addWidth - pillWidth) / 2;
-        int pillY = statusY - pillHeight / 2;
+        int pillX = panelX + (panelWidth - pillWidth) / 2;
+        int pillY = centerY - pillHeight / 2;
 
         RoundedUtils.drawRoundOutline(pillX, pillY, pillWidth, pillHeight, RADIUS, -0.5f,
                 RenderUtils.withAlphaColor(tint, 25), RenderUtils.withAlphaColor(tint, 130));
-        regular.drawCenteredStringWithShadow(statusString, addX + addWidth / 2f, pillY + (pillHeight - regular.getHeight()) / 2f, tint.getRGB());
+        regular.drawCenteredStringWithShadow(text, panelX + panelWidth / 2f, pillY + (pillHeight - regular.getHeight()) / 2f, tint.getRGB());
     }
 
-    private void drawButton(int x, int y, int w, String label, int mouseX, int mouseY, boolean primary) {
+    private int tabBarY() {
+        return HEADER_HEIGHT + (TAB_HEIGHT - TAB_BUTTON_HEIGHT) / 2 + 2;
+    }
+
+    private void drawTabBar(int mouseX, int mouseY) {
+        Color accent = ColorManager.getColor();
+        CustomFontRenderer font = FontUtils.getFont("sf", 18);
+        int tabY = tabBarY();
+        for (int i = 0; i < TAB_TITLES.length; i++) {
+            boolean active = i == activeTab;
+            boolean hovered = isMouseOverButton(mouseX, mouseY, tabX[i], tabY, tabWidth[i], TAB_BUTTON_HEIGHT);
+            Color fill = active ? RenderUtils.withAlphaColor(accent, 60) : RenderUtils.withAlphaColor(accent, hovered ? 30 : 10);
+            Color outline = active || hovered ? accent : RenderUtils.withAlphaColor(accent, 90);
+            RoundedUtils.drawRoundOutline(tabX[i], tabY, tabWidth[i], TAB_BUTTON_HEIGHT, RADIUS, active ? 0.5f : -0.5f, fill, outline);
+            font.drawStringWithShadow(TAB_TITLES[i], tabX[i] + (tabWidth[i] - font.getStringWidth(TAB_TITLES[i])) / 2f,
+                    tabY + (TAB_BUTTON_HEIGHT - font.getHeight()) / 2f, active ? accent.getRGB() : Color.WHITE.getRGB());
+        }
+    }
+
+    private void switchTab(int index) {
+        if (index == activeTab) return;
+        activeTab = index;
+        username.setFocused(false);
+        tokenField.setFocused(false);
+        if (tabs[index] != null) tabs[index].onShow();
+    }
+
+    void drawButton(int x, int y, int w, String label, int mouseX, int mouseY, boolean primary) {
         boolean hovered = isMouseOverButton(mouseX, mouseY, x, y, w, BUTTON_HEIGHT);
         Color accent = ColorManager.getColor();
 
@@ -503,18 +564,18 @@ public class YuriAltMenu extends GuiScreen {
         RoundedUtils.drawRoundedImage(head, x + ENTRY_PADDING, y + ENTRY_PADDING, size, size, RADIUS);
     }
 
-    private void enableScissor(int x, int y, int w, int h) {
+    void enableScissor(int x, int y, int w, int h) {
         ScaledResolution sr = new ScaledResolution(mc);
         int scale = sr.getScaleFactor();
         GL11.glEnable(GL11.GL_SCISSOR_TEST);
         GL11.glScissor(x * scale, (sr.getScaledHeight() - y - h) * scale, w * scale, h * scale);
     }
 
-    private void disableScissor() {
+    void disableScissor() {
         GL11.glDisable(GL11.GL_SCISSOR_TEST);
     }
 
-    private boolean isMouseOverButton(int mouseX, int mouseY, int x, int y, int w, int h) {
+    boolean isMouseOverButton(int mouseX, int mouseY, int x, int y, int w, int h) {
         return mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + h;
     }
 
@@ -525,14 +586,29 @@ public class YuriAltMenu extends GuiScreen {
 
     @Override
     public void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
-        username.mouseClicked(mouseX, mouseY, mouseButton);
-        tokenField.mouseClicked(mouseX, mouseY, mouseButton);
         super.mouseClicked(mouseX, mouseY, mouseButton);
 
         if (isMouseOverButton(mouseX, mouseY, PADDING - 6, 6, backButtonWidth + 12, HEADER_HEIGHT - 12)) {
             mc.displayGuiScreen(new YuriMenu());
             return;
         }
+
+        int tabY = tabBarY();
+        for (int i = 0; i < TAB_TITLES.length; i++) {
+            if (isMouseOverButton(mouseX, mouseY, tabX[i], tabY, tabWidth[i], TAB_BUTTON_HEIGHT)) {
+                switchTab(i);
+                return;
+            }
+        }
+
+        AltTab tab = tabs[activeTab];
+        if (tab != null) {
+            tab.mouseClicked(mouseX, mouseY, mouseButton);
+            return;
+        }
+
+        username.mouseClicked(mouseX, mouseY, mouseButton);
+        tokenField.mouseClicked(mouseX, mouseY, mouseButton);
 
         if (!isLoggingIn && isMouseOverButton(mouseX, mouseY, primaryButtonX, primaryButtonY, primaryButtonWidth, BUTTON_HEIGHT)) {
             handleCrackedLogin(username.getText());
@@ -585,13 +661,36 @@ public class YuriAltMenu extends GuiScreen {
         } else if (alt.startsWith("microsoftOAuth|")) {
             String user = parts[1];
             String refreshToken = loadRefreshToken(user);
-            if (refreshToken != null) {
-                MicrosoftOAuthTranslation.LoginData login = MicrosoftOAuthTranslation.login(refreshToken);
-                mc.setSession(new Session(login.username, login.uuid, login.mcToken, "microsoft"));
-                setStatus("Logged In With " + login.username + "!", false);
-            } else {
+            if (refreshToken == null) {
                 setStatus("No Stored Token For " + user + "!", true);
+                return;
             }
+            if (isLoggingIn) return;
+            isLoggingIn = true;
+            setStatus("Logging In As " + user + "...", false);
+
+            new Thread(() -> {
+                MicrosoftOAuthTranslation.LoginData login;
+                try {
+                    login = MicrosoftOAuthTranslation.login(refreshToken);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    login = new MicrosoftOAuthTranslation.LoginData();
+                }
+                MicrosoftOAuthTranslation.LoginData result = login;
+                mc.addScheduledTask(() -> {
+                    if (result.isGood()) {
+                        mc.setSession(new Session(result.username, result.uuid, result.mcToken, "microsoft"));
+                        if (result.newRefreshToken != null && !result.newRefreshToken.equals(refreshToken)) {
+                            storeRefreshToken(user, result.newRefreshToken);
+                        }
+                        setStatus("Logged In With " + result.username + "!", false);
+                    } else {
+                        setStatus("Login Failed For " + user + " - Token Expired Or Account Has No Minecraft!", true);
+                    }
+                    isLoggingIn = false;
+                });
+            }, "Alt Login Worker").start();
         } else if (alt.startsWith("token|")) {
             if (parts.length >= 4) {
                 mc.setSession(new Session(parts[1], parts[2], parts[3], "mojang"));
@@ -694,38 +793,68 @@ public class YuriAltMenu extends GuiScreen {
         alts.add(entry);
     }
 
-    private void saveOAuthAltToFile(String username, String refreshToken) {
+    void saveOAuthAltToFile(String username, String refreshToken) {
         String entry = "microsoftOAuth|" + username;
-        appendLine("alts.txt", entry);
-        alts.add(entry);
-        appendLine("tokens.txt", username + "|" + TokenEncryption.encrypt(refreshToken));
+        if (!alts.contains(entry)) {
+            appendLine("alts.txt", entry);
+            alts.add(entry);
+        }
+        storeRefreshToken(username, refreshToken);
     }
 
     private String loadRefreshToken(String username) {
         File file = new File(getYuriDir(), "tokens.txt");
         if (!file.exists()) return null;
 
+        String found = null;
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {
             String line;
             while ((line = br.readLine()) != null) {
                 String[] parts = line.split("\\|");
-                if (parts.length == 2 && parts[0].equals(username)) return TokenEncryption.decrypt(parts[1]);
+                if (parts.length == 2 && parts[0].equals(username)) found = TokenEncryption.decrypt(parts[1]);
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return null;
+        return found;
+    }
+
+    private void storeRefreshToken(String username, String refreshToken) {
+        File file = new File(getYuriDir(), "tokens.txt");
+        ArrayList<String> lines = new ArrayList<>();
+        if (file.exists()) {
+            try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+                String line;
+                while ((line = br.readLine()) != null) {
+                    String[] parts = line.split("\\|");
+                    if (!(parts.length == 2 && parts[0].equals(username))) lines.add(line);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        lines.add(username + "|" + TokenEncryption.encrypt(refreshToken));
+        try (PrintWriter out = new PrintWriter(file)) {
+            for (String line : lines) out.println(line);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     protected void mouseReleased(int mouseX, int mouseY, int state) {
         super.mouseReleased(mouseX, mouseY, state);
         draggingScrollbar = false;
+        if (tabs[activeTab] != null) tabs[activeTab].mouseReleased(mouseX, mouseY, state);
     }
 
     @Override
     protected void mouseClickMove(int mouseX, int mouseY, int clickedMouseButton, long timeSinceLastClick) {
         super.mouseClickMove(mouseX, mouseY, clickedMouseButton, timeSinceLastClick);
+        if (tabs[activeTab] != null) {
+            tabs[activeTab].mouseClickMove(mouseX, mouseY);
+            return;
+        }
         if (!draggingScrollbar) return;
 
         int totalRows = (int) Math.ceil(alts.size() / (float) COLUMNS);
@@ -744,6 +873,10 @@ public class YuriAltMenu extends GuiScreen {
         super.handleMouseInput();
         int wheel = Mouse.getEventDWheel();
         if (wheel == 0) return;
+        if (tabs[activeTab] != null) {
+            tabs[activeTab].mouseScrolled(wheel);
+            return;
+        }
 
         int totalRows = (int) Math.ceil(alts.size() / (float) COLUMNS);
         int maxScrollLocal = Math.max(0, totalRows - gridVisibleRows);
@@ -814,6 +947,12 @@ public class YuriAltMenu extends GuiScreen {
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) throws IOException {
+        if (tabs[activeTab] != null) {
+            tabs[activeTab].keyTyped(typedChar, keyCode);
+            if (keyCode == Keyboard.KEY_ESCAPE) super.keyTyped(typedChar, keyCode);
+            return;
+        }
+
         username.keyTyped(typedChar, keyCode);
         tokenField.keyTyped(typedChar, keyCode);
 
