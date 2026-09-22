@@ -16,6 +16,7 @@ import ddlc.yuri.modules.impl.combat.velocity.VelocityMode;
 import ddlc.yuri.modules.impl.combat.velocity.impl.CancelVelocity;
 import ddlc.yuri.modules.impl.combat.velocity.impl.CustomVelocity;
 import ddlc.yuri.modules.impl.combat.velocity.impl.IntaveVelocity;
+import ddlc.yuri.modules.impl.combat.velocity.impl.JumpVelocity;
 import ddlc.yuri.modules.impl.combat.velocity.impl.LegitVelocity;
 
 import java.util.EnumMap;
@@ -31,6 +32,11 @@ public final class VelocityModule extends Module {
     public final NumberProperty yModify = new NumberProperty("Velocity Y Modifier", 1.0, -5.0, 5.0, 1.0, () -> mode.getValue() == Mode.CUSTOM);
     public final NumberProperty zModify = new NumberProperty("Velocity Z Modifier", 0.0, -5.0, 5.0, 1.0, () -> mode.getValue() == Mode.CUSTOM);
 
+    public final NumberProperty jumpChance = new NumberProperty("Jump Chance", 100, 0, 100, 5, () -> mode.getValue() == Mode.JUMP);
+    public final Property<Boolean> jumpOnlySprint = new Property<>("Jump Only Sprinting", true, () -> mode.getValue() == Mode.JUMP);
+    public final Property<Boolean> hardReset = new Property<>("Hard Reset", false, () -> mode.getValue() == Mode.JUMP);
+    public final NumberProperty resetStrength = new NumberProperty("Reset Strength", 100, 0, 100, 5, () -> mode.getValue() == Mode.JUMP && hardReset.getValue());
+
     public final ModeProperty<IntaveMode> intaveMode = new ModeProperty<>("Intave Mode", IntaveMode.INTAVE_LATEST, () -> mode.getValue() == Mode.INTAVE);
 
     public final Property<Boolean> universalReduce = new Property<>("Reduce", true, () -> mode.getValue() == Mode.LEGIT);
@@ -42,7 +48,8 @@ public final class VelocityModule extends Module {
         LEGIT("Legit"),
         INTAVE("Intave"),
         CANCEL("Cancel"),
-        CUSTOM("Custom");
+        CUSTOM("Custom"),
+        JUMP("Jump");
 
         public final String name;
 
@@ -79,6 +86,7 @@ public final class VelocityModule extends Module {
         velocityMode.put(Mode.INTAVE, new IntaveVelocity(this));
         velocityMode.put(Mode.CANCEL, new CancelVelocity(this));
         velocityMode.put(Mode.CUSTOM, new CustomVelocity(this));
+        velocityMode.put(Mode.JUMP, new JumpVelocity(this));
     }
 
     @EventHook
