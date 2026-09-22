@@ -5,6 +5,10 @@ plugins {
 }
 group = 'unlegit.yuri'
 version = '1.8.9'
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
 application {
     mainClass = 'net.minecraft.client.main.Main'
 }
@@ -68,6 +72,10 @@ dependencies {
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     options.annotationProcessorPath = configurations.annotationProcessor
+    // Compile against the Java 8 API, not just to Java 8 bytecode. Without this a JDK 11 javac
+    // links calls like ByteBuffer.limit(int) to the covariant Java 9+ overloads, which do not
+    // exist in the JRE 8 the client runs on (NoSuchMethodError at startup).
+    options.release = 8
 }
 shadowJar {
     archiveBaseName.set('Yuri')

@@ -64,6 +64,8 @@ public class AuraModule extends Module {
     private static final NumberProperty max = new NumberProperty("Max CPS", 13.0, 1, 20.0, 0.1);
     public static ModeProperty<AutoBlock> ab = new ModeProperty<>("Auto Block", AutoBlock.FAKE);
     public static Property<Boolean> onlyBlockIfHurt = new Property<>("Only Block If Hurt", false);
+    private static final NumberProperty blockhitDelay = new NumberProperty("Blockhit Delay", 0, 0, 3, 1, () -> ab.getValue() == AutoBlock.BLOCKHIT);
+    private static final NumberProperty blockhitRefresh = new NumberProperty("Blockhit Refresh", 0, 0, 20, 1, () -> ab.getValue() == AutoBlock.BLOCKHIT);
     private static final NumberProperty predictLeadTicks = new NumberProperty("Predict Lead", 3, 0, 10, 1, () -> ab.getValue() == AutoBlock.PREDICTIVE);
     private static final NumberProperty predictHoldTicks = new NumberProperty("Predict Hold", 3, 0, 10, 1, () -> ab.getValue() == AutoBlock.PREDICTIVE);
     private static final NumberProperty predictHistorySize = new NumberProperty("Predict History", 5, 2, 10, 1, () -> ab.getValue() == AutoBlock.PREDICTIVE);
@@ -136,6 +138,7 @@ public class AuraModule extends Module {
         FAKE("Fake"),
         VANILLA("Vanilla"),
         NCP("NCP"),
+        BLOCKHIT("Blockhit"),
         LEGIT("Legit"),
         PREDICTIVE("Predictive"),
         NONE("None");
@@ -158,6 +161,9 @@ public class AuraModule extends Module {
     public static boolean rotationOverride = false;
     private static final TimerUtils attackTimer = new TimerUtils();
     private int blockTicks = 0;
+    /** Ticks left until the block goes back up after an attack, -1 while nothing is pending. */
+    private int blockhitWait = -1;
+    private int blockhitAge = 0;
     private static long delay = 0;
     public int hitTicks;
     private EntityLivingBase lastTarget;
@@ -452,6 +458,9 @@ public class AuraModule extends Module {
                 PacketUtils.sendPacket(new C08PacketPlayerBlockPlacement(mc.thePlayer.getHeldItem()));
                 autoBlocking = true;
                 break;
+            case BLOCKHIT:
+                tickBlockhit();
+                break;
             case NCP:
                 canAttack = true;
                 if (autoBlocking) {
@@ -459,6 +468,56 @@ public class AuraModule extends Module {
                     autoBlocking = false;
                 }
                 break;
+        }
+    }
+
+    /**
+     * Holds the block server side around the clock and drops it only for the single tick an attack
+     * needs: RELEASE_USE_ITEM -> swing + attack -> block placement. The server therefore never sees
+     * a hit thrown while blocking, and the block is back up before their next hit can land.
+     */
+    private void tickBlockhit() {
+        canAttack = true;
+
+        if (blockhitWait > 0) {
+            blockhitWait--;
+            return;
+        }
+
+        if (blockhitWait == 0) {
+            blockhitWait = -1;
+            startBlock();
+            return;
+        }
+
+        if (!autoBlocking) {
+            startBlock();
+            return;
+        }
+
+        int refresh = blockhitRefresh.getValue().intValue();
+        if (refresh > 0 && ++blockhitAge >= refresh) {
+            startBlock();
+        }
+    }
+
+    private void startBlock() {
+        PacketUtils.sendPacket(new C08PacketPlayerBlockPlacement(mc.thePlayer.getHeldItem()));
+        autoBlocking = true;
+        blockhitAge = 0;
+    }
+
+    private void releaseBlock() {
+        PacketUtils.sendPacket(new C07PacketPlayerDigging(C07PacketPlayerDigging.Action.RELEASE_USE_ITEM, BlockPos.ORIGIN, EnumFacing.DOWN));
+        autoBlocking = false;
+    }
+
+    private void scheduleReblock() {
+        int delay = blockhitDelay.getValue().intValue();
+        if (delay <= 0) {
+            startBlock();
+        } else {
+            blockhitWait = delay;
         }
     }
 
@@ -470,6 +529,8 @@ public class AuraModule extends Module {
 
         blockTimer.reset();
         blockTicks = -1;
+        blockhitWait = -1;
+        blockhitAge = 0;
 
         if (ab.getValue() == AutoBlock.FAKE) {
             autoBlocking = false;
@@ -504,13 +565,23 @@ public class AuraModule extends Module {
                     && RayCastUtils.rayCast(RotationManager.rotations, blockRange.getValue().floatValue()).entityHit != null
                     && RayCastUtils.rayCast(RotationManager.rotations, blockRange.getValue().floatValue()).entityHit == target))
                 return;
+            boolean blockhit = isBlockhitting();
+            if (blockhit) releaseBlock();
             mc.thePlayer.swingItem();
             mc.playerController.attackEntity(mc.thePlayer, target);
+            if (blockhit) scheduleReblock();
             this.hitTicks = 0;
         } else if (dist <= swingRange.getValue()) {
+            boolean blockhit = isBlockhitting();
+            if (blockhit) releaseBlock();
             mc.clickMouse();
+            if (blockhit) scheduleReblock();
             this.hitTicks = 0;
         }
+    }
+
+    private boolean isBlockhitting() {
+        return ab.getValue() == AutoBlock.BLOCKHIT && autoBlocking && InvUtils.isHoldingSword();
     }
 
     private static boolean hitTimerDone() {
@@ -539,6 +610,8 @@ public class AuraModule extends Module {
         delay = 0;
         blockTimer.reset();
         blockTicks = -1;
+        blockhitWait = -1;
+        blockhitAge = 0;
         attackTimer.reset();
         lastSwingProgress = 0f;
         lastTargetSwingTick = -1;
@@ -558,6 +631,8 @@ public class AuraModule extends Module {
         canAttack = true;
         autoBlocking = false;
         blockTicks = -1;
+        blockhitWait = -1;
+        blockhitAge = 0;
         TargetManager.configure(Arrays.asList(targets.getValues()));
         attackTimer.reset();
         if (rotations.getValue() == Rotations.ML) {

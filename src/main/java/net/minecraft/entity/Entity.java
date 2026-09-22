@@ -1,5 +1,6 @@
 package net.minecraft.entity;
 
+import ddlc.yuri.modules.impl.render.FreeLookModule;
 import ddlc.yuri.Yuri;
 import ddlc.yuri.api.events.impl.player.StrafeEvent;
 import ddlc.yuri.api.events.impl.world.LivingUpdateEvent;
@@ -244,6 +245,12 @@ public abstract class Entity implements ICommandSender
 
     public void setAngles(float yaw, float pitch)
     {
+        // Free Look turns a camera of its own instead of the body.
+        if (this == Minecraft.getMinecraft().thePlayer && FreeLookModule.handleMouse(yaw, pitch))
+        {
+            return;
+        }
+
         float f = this.rotationPitch;
         float f1 = this.rotationYaw;
         this.rotationYaw = (float)((double)this.rotationYaw + (double)yaw * 0.15D);

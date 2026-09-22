@@ -107,6 +107,16 @@ public class SessionStatsManager {
             "WINNER", "WINS", "WON", "VENCEDOR", "VENCEU", "GANHOU"
     };
 
+    /**
+     * The end-of-game half of {@link #LOSS_PHRASES}. A round is over when one of these shows up,
+     * while the rest of that table ("YOU DIED", "CAMA DESTRUIDA") is ordinary mid-game wording that
+     * would otherwise count a round per respawn.
+     */
+    private static final String[] GAME_OVER_PHRASES = {
+            "DEFEAT", "GAME OVER", "BETTER LUCK", "TRY AGAIN",
+            "DERROTA", "VOCE PERDEU"
+    };
+
     /** Checked first: these mean the opposite, whatever else is in the line. */
     private static final String[] LOSS_PHRASES = {
             "DEFEAT", "YOU LOST", "YOU DIED", "GAME OVER", "ELIMINATED",
@@ -241,7 +251,12 @@ public class SessionStatsManager {
     private static int deaths;
     private static int wins;
 
+    /** Games that ended in front of you this session, won or lost. */
+    private static int rounds;
+
     private static long lastWinAt;
+
+    private static long lastRoundAt;
 
     private static long lastDeathAt;
 
@@ -296,6 +311,10 @@ public class SessionStatsManager {
         return wins;
     }
 
+    public static int getRounds() {
+        return rounds;
+    }
+
     public static long getSessionStart() {
         return sessionStart;
     }
@@ -310,7 +329,9 @@ public class SessionStatsManager {
         kills = 0;
         deaths = 0;
         wins = 0;
+        rounds = 0;
         lastWinAt = 0L;
+        lastRoundAt = 0L;
         lastDeathAt = 0L;
         lastDeathText = "";
         deathEpisode = false;
@@ -471,6 +492,24 @@ public class SessionStatsManager {
         lastWinAt = now;
         wins++;
         note("WIN from " + source + " | " + text + " | wins now " + wins);
+        countRound(source, text, true);
+    }
+
+    /**
+     * Counted off the same screens as a win, on its own cooldown, because a server that resends the
+     * win title for a couple of seconds sends the defeat one the same way.
+     */
+    private static synchronized void countRound(String source, String text, boolean won) {
+        long now = System.currentTimeMillis();
+        if (now - lastRoundAt < WIN_COOLDOWN_MS) {
+            noteOnce("round-cooldown|" + source + "|" + text,
+                    "ROUND ignored, within cooldown | " + source + " | " + text);
+            return;
+        }
+        lastRoundAt = now;
+        rounds++;
+        note("ROUND " + (won ? "won" : "lost") + " from " + source + " | " + text
+                + " | rounds now " + rounds);
     }
 
     // ----------------------------------------------------------------- sources
@@ -740,6 +779,9 @@ public class SessionStatsManager {
         // A loss screen can easily contain a win word ("VICTORY" on the winner's
         // name, "GAME OVER - WINNER: someone"), so these veto the whole line.
         if (containsAny(text, LOSS_PHRASES)) {
+            if (containsAny(text, GAME_OVER_PHRASES)) {
+                countRound(source, text, false);
+            }
             return;
         }
         if (containsAny(text, SELF_WIN_PHRASES)) {

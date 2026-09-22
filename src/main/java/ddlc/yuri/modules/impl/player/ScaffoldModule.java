@@ -40,6 +40,9 @@ import org.lwjgl.util.vector.Vector2f;
 @ModuleInfo(label = "Scaffold", description = "Automatically builds bridges for you", category = ModuleCategory.PLAYER)
 public final class ScaffoldModule extends Module {
 
+    /** How long the brake holds you in place before the module gives up, in ticks. */
+    private static final int OUT_OF_BLOCKS_HOLD_TICKS = 20;
+
     public static final ModeProperty<Mode> mode = new ModeProperty<>("Mode", Mode.NORMAL);
     public final Property<Boolean> hypixelTelly = new Property<>("Hypixel Telly", false, () -> mode.getValue() == Mode.TELLY);
     private final NumberProperty tellyStraightTicks = new NumberProperty("Telly Straight Ticks", 6, 0, 8, 1, () -> mode.getValue() == Mode.TELLY && !hypixelTelly.getValue());
@@ -66,6 +69,20 @@ public final class ScaffoldModule extends Module {
     private final NumberProperty expand = new NumberProperty("Expand", 0, 0, 4, 1);
     private final ModeProperty<BlockCounter> blockCounter = new ModeProperty<>("Block Counter", BlockCounter.NONE);
     private final Property<Boolean> autoDisable = new Property<>("Auto Disable", false);
+    private final ModeProperty<OutOfBlocks> outOfBlocks = new ModeProperty<>("Out Of Blocks", OutOfBlocks.BRAKE);
+
+    public enum OutOfBlocks {
+        BRAKE("Brake"), DISABLE("Disable");
+        public final String name;
+
+        OutOfBlocks(String name) {
+            this.name = name;
+        }
+
+        public String toString() {
+            return name;
+        }
+    }
 
     public enum Mode {
         NORMAL("Normal"),
@@ -198,6 +215,7 @@ public final class ScaffoldModule extends Module {
     private int initialBlockCount;
     private ProgressBarEntry barEntry;
     private boolean tellyNoPlace;
+    private int outOfBlocksTicks;
 
     @EventHook
     public void onPreUpdate(PreUpdateEvent event) {
@@ -276,10 +294,12 @@ public final class ScaffoldModule extends Module {
 
             final int blockSlot = ScaffoldUtils.findPreferredBlockSlot();
             if (blockSlot == -1) {
-                Yuri.INSTANCE.getNotificationHandler().pop(getLabel(), "Disabled, no blocks found.");
-                this.toggle();
+                handleOutOfBlocks();
                 return;
             }
+
+            stop = false;
+            outOfBlocksTicks = 0;
 
             final ItemStack blockStack = mc.thePlayer.inventory.getStackInSlot(blockSlot);
             if (blockStack == null || !(blockStack.getItem() instanceof ItemBlock)) {
@@ -419,6 +439,39 @@ public final class ScaffoldModule extends Module {
         float delta = mc.thePlayer.rotationYaw % 90;
         if (delta < 0) delta += 90;
         return delta > 20 && delta < 70;
+    }
+
+    /**
+     * Running dry used to toggle the module off on the spot, which left you sprinting straight off
+     * the block you were standing on. The brake kills the input and the momentum first and only
+     * gives up once you are back on solid ground, so an empty stack costs you a stop, not a fall.
+     */
+    private void handleOutOfBlocks() {
+        if (outOfBlocks.getValue() == OutOfBlocks.DISABLE) {
+            Yuri.INSTANCE.getNotificationHandler().pop(getLabel(), "Disabled, no blocks found.");
+            this.toggle();
+            return;
+        }
+
+        if (outOfBlocksTicks == 0) {
+            Yuri.INSTANCE.getNotificationHandler().pop(getLabel(), "Out of blocks, holding position.");
+        }
+        outOfBlocksTicks++;
+
+        // The swap has to go back first: staying on a spoofed slot that no longer holds blocks is
+        // what turns an empty stack into a stream of placements with the wrong item.
+        SlotManager.swapBack();
+
+        stop = true;
+        resetBinds();
+        mc.thePlayer.setSprinting(false);
+        mc.thePlayer.motionX = 0;
+        mc.thePlayer.motionZ = 0;
+
+        if (mc.thePlayer.onGround && outOfBlocksTicks >= OUT_OF_BLOCKS_HOLD_TICKS) {
+            Yuri.INSTANCE.getNotificationHandler().pop(getLabel(), "Disabled, no blocks found.");
+            this.toggle();
+        }
     }
 
     public void resetBinds() {
@@ -741,6 +794,8 @@ public final class ScaffoldModule extends Module {
             startY = Math.floor(mc.thePlayer.posY);
             targetBlock = null;
             tellyNoPlace = false;
+            outOfBlocksTicks = 0;
+            stop = false;
             this.initialBlockCount = ScaffoldUtils.countBlocks();
         }
         tellySafeTimer.reset();
@@ -762,6 +817,7 @@ public final class ScaffoldModule extends Module {
             blockCount = 0;
             initialBlockCount = 0;
             tellyNoPlace = false;
+            outOfBlocksTicks = 0;
         }
         resetBinds();
         ProgressBarManager.remove(barEntry);
