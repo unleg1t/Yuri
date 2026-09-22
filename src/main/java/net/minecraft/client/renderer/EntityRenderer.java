@@ -1,5 +1,6 @@
 package net.minecraft.client.renderer;
 
+import ddlc.yuri.modules.impl.render.FreeLookModule;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.gson.JsonSyntaxException;
@@ -854,7 +855,9 @@ public class EntityRenderer implements IResourceManagerReloadListener
             GlStateManager.rotate(-((float)this.rendererUpdateCount + partialTicks) * (float)i, 0.0F, 1.0F, 1.0F);
         }
 
+        FreeLookModule.beginCamera();
         this.orientCamera(partialTicks);
+        FreeLookModule.endCamera();
 
         if (this.debugView)
         {
