@@ -11,6 +11,7 @@ import net.minecraft.util.*;
 import org.lwjgl.util.vector.Vector2f;
 
 public class RotationUtils implements IMinecraft {
+
     public enum HitVecMode {
         RANDOMIZED("Randomized"),
         HEAD("Head"),
@@ -408,5 +409,29 @@ public class RotationUtils implements IMinecraft {
         float yaw = rotation.x + (float) (yawNoise * amplitude);
         float pitch = MathHelper.clamp_float(rotation.y + (float) (pitchNoise * amplitude * 0.5), -90f, 90f);
         return new Vector2f(yaw, pitch);
+    }
+
+    public static float getMovementYaw() {
+        if (mc.thePlayer == null) {
+            return 0.0f;
+        }
+        float yaw = mc.thePlayer.rotationYaw;
+        boolean forward = mc.gameSettings.keyBindForward.isKeyDown();
+        boolean back = mc.gameSettings.keyBindBack.isKeyDown();
+        boolean left = mc.gameSettings.keyBindLeft.isKeyDown();
+        boolean right = mc.gameSettings.keyBindRight.isKeyDown();
+        float result = 0.0f;
+        if (forward) {
+            result = left && !right ? -45.0f : (right && !left ? 45.0f : 0.0f);
+        } else if (back) {
+            result = left && !right ? -135.0f : (right && !left ? 135.0f : 180.0f);
+        } else if (left && !right) {
+            result = -90.0f;
+        } else if (right && !left) {
+            result = 90.0f;
+        }
+        float direction = yaw + result;
+        direction = (direction % 360.0f + 360.0f) % 360.0f;
+        return direction;
     }
 }

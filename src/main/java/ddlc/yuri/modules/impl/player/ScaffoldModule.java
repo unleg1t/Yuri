@@ -526,13 +526,13 @@ public final class ScaffoldModule extends Module {
                 }
 
                 mc.entityRenderer.getMouseOver(1);
-                if (mc.thePlayer.onGround && MoveUtils.isMoving()) {
+                if (mc.thePlayer.onGround && MoveUtils.isMoving() && (mc.gameSettings.keyBindJump.isKeyDown() || !mc.thePlayer.isSprinting())) {
                     if (hypixelTelly.getValue()) {
                         rotSpeed = 10.0f;
                     } else {
                         rotSpeed = 20.0f;
                     }
-                    target[0] = mc.thePlayer.rotationYaw;
+                    target[0] = RotationUtils.getMovementYaw();
                 } else {
                     if (hypixelTelly.getValue()) {
                         rotSpeed = isDiagonal() || mc.gameSettings.keyBindJump.isKeyDown() ? 4.8f : 3.0f;
