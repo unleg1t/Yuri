@@ -1151,7 +1151,8 @@ public class EntityRenderer implements IResourceManagerReloadListener
                     int k = (int)(f8 * 255.0F);
                     int l = (int)(f9 * 255.0F);
                     int i1 = (int)(f10 * 255.0F);
-                    this.lightmapColors[i] = j << 24 | k << 16 | l << 8 | i1;
+                    this.lightmapColors[i] = Yuri.INSTANCE.getModuleManager().getModule(AmbienceModule.class).isEnabled() && AmbienceModule.clientColorLightMap.getValue() ?
+                            ColorManager.getColors().getFirst().darker().darker().getRGB() : j << 24 | k << 16 | l << 8 | i1;
                 }
 
                 this.lightmapTexture.updateDynamicTexture();

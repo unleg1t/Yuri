@@ -23,7 +23,7 @@ public class AmbienceModule extends Module {
     public final Property<Boolean> realTime = new Property<Boolean>("Real World Time", false);
     public final NumberProperty time = new NumberProperty("Time", 6000.0f, 0.0f, 24000.0f, 100.0f, () -> !realTime.getValue());
     public static final Property<Boolean> clientColorFog = new Property<Boolean>("Client Color Fog", false);
-
+    public static final Property<Boolean> clientColorLightMap = new Property<Boolean>("Client Color Light Map", false);
     public final Property<Boolean> shaderSky = new Property<Boolean>("Shader Sky", false);
     public final ModeProperty<SkyMode> mode = new ModeProperty<>("Mode", SkyMode.YURI, shaderSky::getValue);
 
