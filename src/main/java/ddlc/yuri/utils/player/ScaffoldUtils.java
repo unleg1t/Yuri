@@ -182,6 +182,47 @@ public final class ScaffoldUtils {
         }
     }
 
+    public static void computeWatchdog3Rotations(BlockPos blockFace, EnumFacingOffset enumFacing, float[] target, boolean strict) {
+        float yawBase = RotationUtils.getMovementYaw() + 90.0f;
+        float pitchBase = 90.0f;
+
+        float[] yawOffsets = {
+                0.0F, -1.0F, 1.0F, -2.0F, 2.0F, -3.0F, 3.0F, -4.0F, 4.0F, -5.0F, 5.0F,
+                -6.0F, 6.0F, -7.0F, 7.0F, -8.0F, 8.0F, -9.0F, 9.0F, -10.0F, 10.0F,
+                -11.0F, 11.0F, -12.0F, 12.0F, -13.0F, 13.0F, -14.0F, 14.0F, -15.0F, 15.0F,
+                -16.0F, 16.0F, -17.0F, 17.0F, -18.0F, 18.0F, -19.0F, 19.0F, -20.0F, 20.0F,
+                -22.0F, 22.0F, -24.0F, 24.0F, -26.0F, 26.0F, -28.0F, 28.0F, -30.0F, 30.0F,
+                -32.0F, 32.0F, -34.0F, 34.0F, -36.0F, 36.0F, -38.0F, 38.0F, -40.0F, 40.0F,
+                -42.0F, 42.0F, -44.0F, 44.0F, -46.0F, 46.0F, -48.0F, 48.0F, -50.0F, 50.0F,
+                -52.0F, 52.0F, -54.0F, 54.0F, -56.0F, 56.0F, -58.0F, 58.0F, -60.0F, 60.0F,
+                -62.0F, 62.0F, -64.0F, 64.0F, -66.0F, 66.0F, -68.0F, 68.0F, -70.0F, 70.0F,
+                -72.0F, 72.0F, -74.0F, 74.0F, -76.0F, 76.0F, -78.0F, 78.0F, -80.0F, 80.0F,
+                -82.0F, 82.0F, -84.0F, 84.0F, -86.0F, 86.0F, -88.0F, 88.0F, -90.0F, 90.0F
+        };
+
+        float[] pitchOffsets = {
+                0.0F, -1.0F, 1.0F, -2.0F, 2.0F, -3.0F, 3.0F, -4.0F, 4.0F, -5.0F, 5.0F,
+                -6.0F, 6.0F, -7.0F, 7.0F, -8.0F, 8.0F, -9.0F, 9.0F, -10.0F, 10.0F,
+                -11.0F, 11.0F, -12.0F, 12.0F, -13.0F, 13.0F, -14.0F, 14.0F, -15.0F, 15.0F,
+                -16.0F, 16.0F, -17.0F, 17.0F, -18.0F, 18.0F, -19.0F, 19.0F, -20.0F, 20.0F
+        };
+
+        for (float yawOff : yawOffsets) {
+            for (float pitchOff : pitchOffsets) {
+                float testYaw = MathHelper.wrapAngleTo180_float(yawBase + yawOff);
+                float testPitch = MathHelper.clamp_float(pitchBase + pitchOff, -90.0F, 90.0F);
+                Vector2f testRot = new Vector2f(testYaw, testPitch);
+                if (RayCastUtils.overBlock(testRot, enumFacing.getEnumFacing(), blockFace, true)) {
+                    target[0] = testYaw;
+                    target[1] = testPitch;
+                    return;
+                }
+            }
+        }
+
+        computeNormalRotations(blockFace, enumFacing, target, ScaffoldModule.SearchAlgorithm.NORMAL, strict);
+    }
+
     public static void computeOldRotations(BlockPos blockFace, EnumFacingOffset enumFacing, float[] target) {
         double x = blockFace.getX() + 0.5;
         double y = blockFace.getY() + 0.5;

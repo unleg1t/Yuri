@@ -70,6 +70,7 @@ public final class ScaffoldModule extends Module {
     public enum Mode {
         NORMAL("Normal"),
         TELLY("Telly"),
+        HYPIXEL("Hypixel"),
         BREEZILY("Breezily"),
         GOD_BRIDGE("God Bridge");
         public final String name;
@@ -84,7 +85,7 @@ public final class ScaffoldModule extends Module {
     }
 
     public enum Rotations {
-        NORMAL("Normal"), // POLAR("Polar"),
+        NORMAL("Normal"),
         RANDOMIZED("Randomized"), OLD("Old");
         public final String name;
 
@@ -198,11 +199,16 @@ public final class ScaffoldModule extends Module {
     private int initialBlockCount;
     private ProgressBarEntry barEntry;
     private boolean tellyNoPlace;
+    private int placeTimer;
 
     @EventHook
     public void onPreUpdate(PreUpdateEvent event) {
         if (!isEnabled()) return;
         resetBinds(false, false, true, true, false, false);
+
+        if (placeTimer > 0) {
+            placeTimer--;
+        }
 
         if (autoDisable.getValue()) {
             for (Entity entity : mc.theWorld.loadedEntityList) {
@@ -242,6 +248,18 @@ public final class ScaffoldModule extends Module {
 
         if (mode.getValue() == Mode.TELLY) {
             tellyLogic();
+        }
+
+        if (mode.getValue() == Mode.HYPIXEL) {
+            float moveYaw = RotationUtils.getMovementYaw();
+            float offsetYaw = moveYaw + 45.0f;
+            float yawDelta = Math.abs(MathHelper.wrapAngleTo180_float(offsetYaw - targetYaw));
+            if (this.placeTimer == (yawDelta > 60.0f ? 8 : 9) && !mc.gameSettings.keyBindJump.isKeyDown() && mc.thePlayer.onGround) {
+                targetYaw = moveYaw + 45.0f;
+            }
+            if (mc.thePlayer.onGround) {
+                startY = Math.floor(mc.thePlayer.posY);
+            }
         }
 
         if (mc.gameSettings.keyBindJump.isKeyDown()
@@ -539,6 +557,12 @@ public final class ScaffoldModule extends Module {
                     }
                 }
                 break;
+            case HYPIXEL:
+                rotSpeed = isDiagonal() || mc.gameSettings.keyBindJump.isKeyDown() ? 5.2f : 4.8f;
+                if (canPlace && !mc.gameSettings.keyBindPickBlock.isKeyDown()) {
+                    ScaffoldUtils.computeWatchdog3Rotations(blockFace, enumFacing, target, rayCast.getValue() == RayCast.STRICT);
+                }
+                break;
         }
 
         if (sprintMode.getValue() == SprintMode.UNIVERSAL && blocksPlaced >= 3) {
@@ -578,6 +602,7 @@ public final class ScaffoldModule extends Module {
             }
         }
         blocksPlaced++;
+        placeTimer = 10;
         delayTimer.reset();
     }
 
@@ -607,6 +632,9 @@ public final class ScaffoldModule extends Module {
     }
 
     private void sprint() {
+        if (mode.getValue() == Mode.HYPIXEL) {
+            if (sprintMode.getValue() != SprintMode.LEGIT) sprintMode.setValue(SprintMode.LEGIT);
+        }
         switch (sprintMode.getValue()) {
             case VANILLA:
                 mc.thePlayer.setSprinting(MoveUtils.isMoving());
@@ -747,6 +775,7 @@ public final class ScaffoldModule extends Module {
         lastRenderTime = -1L;
         recursions = 0;
         barEntry = null;
+        placeTimer = 0;
         super.onEnable();
     }
 
@@ -762,6 +791,7 @@ public final class ScaffoldModule extends Module {
             blockCount = 0;
             initialBlockCount = 0;
             tellyNoPlace = false;
+            placeTimer = 0;
         }
         resetBinds();
         ProgressBarManager.remove(barEntry);
