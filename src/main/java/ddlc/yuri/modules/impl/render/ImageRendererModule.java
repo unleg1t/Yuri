@@ -13,6 +13,7 @@ import ddlc.yuri.utils.render.DragUtils;
 import ddlc.yuri.utils.render.RenderUtils.GifTexture;
 import ddlc.yuri.utils.render.RoundedUtils;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.util.ResourceLocation;
 
@@ -62,6 +63,9 @@ public final class ImageRendererModule extends Module {
     public final Property<String> customUrl = new Property<>("URL", "https://i.imgur.com/example.gif", () -> image.getValue() == Images.CUSTOM);
     public static NumberProperty size = new NumberProperty("Size", 100, 100, 1000, 50);
 
+    public final Property<Boolean> dvdBounce = new Property<>("DVD Bounce", false);
+    public final NumberProperty dvdSpeed = new NumberProperty("Bounce Speed", 2, 1, 10, 1, () -> dvdBounce.getValue());
+
     public static final ImageRendererModule INSTANCE = new ImageRendererModule();
 
     private final DragUtils.DraggableComponent draggable = new DragUtils.DraggableComponent(100, 100);
@@ -74,6 +78,12 @@ public final class ImageRendererModule extends Module {
 
     private Images lastPresetImage = null;
     private GifTexture presetGifTexture = null;
+
+    private double dvdX;
+    private double dvdY;
+    private double dvdVelX = 1;
+    private double dvdVelY = 1;
+    private boolean dvdInitialized = false;
 
     public ImageRendererModule() {
         DragUtils.registerComponent("ImageRenderer", draggable);
@@ -95,8 +105,18 @@ public final class ImageRendererModule extends Module {
         draggable.setWidth(currentSize);
         draggable.setHeight(currentSize);
 
-        int renderX = (int) draggable.getX();
-        int renderY = (int) draggable.getY();
+        int renderX;
+        int renderY;
+
+        if (dvdBounce.getValue()) {
+            updateDvdBounce(currentSize);
+            renderX = (int) dvdX;
+            renderY = (int) dvdY;
+        } else {
+            dvdInitialized = false;
+            renderX = (int) draggable.getX();
+            renderY = (int) draggable.getY();
+        }
 
         Images selectedMode = image.getValue();
 
@@ -118,6 +138,38 @@ public final class ImageRendererModule extends Module {
             String imageName = selectedMode.toString().toLowerCase().replace(" ", "_");
             ResourceLocation imageLocation = new ResourceLocation("yuri/images/" + imageName + ".png");
             RoundedUtils.drawRoundedImage(imageLocation, renderX, renderY, currentSize, currentSize, 6f);
+        }
+    }
+
+    private void updateDvdBounce(int currentSize) {
+        ScaledResolution resolution = new ScaledResolution(Minecraft.getMinecraft());
+        int screenWidth = resolution.getScaledWidth();
+        int screenHeight = resolution.getScaledHeight();
+
+        if (!dvdInitialized) {
+            dvdX = draggable.getX();
+            dvdY = draggable.getY();
+            dvdInitialized = true;
+        }
+
+        double speed = dvdSpeed.getValue().doubleValue() / 3;
+        dvdX += dvdVelX * speed;
+        dvdY += dvdVelY * speed;
+
+        if (dvdX <= 0) {
+            dvdX = 0;
+            dvdVelX = Math.abs(dvdVelX);
+        } else if (dvdX + currentSize >= screenWidth) {
+            dvdX = screenWidth - currentSize;
+            dvdVelX = -Math.abs(dvdVelX);
+        }
+
+        if (dvdY <= 0) {
+            dvdY = 0;
+            dvdVelY = Math.abs(dvdVelY);
+        } else if (dvdY + currentSize >= screenHeight) {
+            dvdY = screenHeight - currentSize;
+            dvdVelY = -Math.abs(dvdVelY);
         }
     }
 
