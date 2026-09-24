@@ -436,7 +436,7 @@ public final class ScaffoldModule extends Module {
     private boolean isDiagonal() {
         float delta = mc.thePlayer.rotationYaw % 90;
         if (delta < 0) delta += 90;
-        return delta > 20 && delta < 70;
+        return delta > 20 && delta < 70 || (mc.gameSettings.keyBindLeft.isKeyDown() || mc.gameSettings.keyBindRight.isKeyDown());
     }
 
     public void resetBinds() {
@@ -553,7 +553,7 @@ public final class ScaffoldModule extends Module {
                     target[0] = RotationUtils.getMovementYaw();
                 } else {
                     if (hypixelTelly.getValue()) {
-                        rotSpeed = isDiagonal() || mc.gameSettings.keyBindJump.isKeyDown() ? 4.8f : 3.0f;
+                        rotSpeed = isDiagonal() || mc.gameSettings.keyBindJump.isKeyDown() ? 3.25f : 1.9f;
                     }
                 }
                 break;
