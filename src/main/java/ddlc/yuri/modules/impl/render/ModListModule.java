@@ -222,12 +222,12 @@ public class ModListModule extends Module implements IMinecraft {
                     Gui.drawRect(bgLeft, (float) translateY - pad, bgRight, (float) translateY + TEXT_HEIGHT + pad, getColorForBG().getRGB());
                 }
 
-                float textX = line.getValue() && !outline.getValue() ? (float) (translateX - 1.0f - lw) : (float) ((float) offset.getValue().floatValue() == 0 ? translateX - 0.5f : (float) translateX);
+                float textX = line.getValue() && !outline.getValue() ? (float) (translateX - lw) : (float) ((float) offset.getValue().floatValue() == 0 ? translateX - 0.5f : (float) translateX);
                 if (pad > 0) {
                     textX -= pad / getTextWidth(fr, name);
                 }
 
-                drawText(fr, name, useCustomFont.getValue() ? offset.getValue().intValue() > 0 ? textX - 1.0f : textX : textX + 0.8f, (float) translateY, aColor);
+                drawText(fr, name, useCustomFont.getValue() ? offset.getValue().intValue() > 0 ? textX - 1.0f : textX : textX, (float) translateY, aColor);
 
                 if (outline.getValue()) {
                     Gui.drawRect((float) translateX - pad - lw, (float) translateY - pad, (float) translateX - pad, (float) translateY + TEXT_HEIGHT + pad, aColor);
