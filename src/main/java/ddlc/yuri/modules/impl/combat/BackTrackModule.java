@@ -62,7 +62,7 @@ public class BackTrackModule extends Module {
         float distance = calculateDistance(target.posX, target.posY, target.posZ);
         spoofing = distance > minRange.getValue() && distance < maxRange.getValue() && !timer.hasTimeElapsed(maxDelay.getValue());
 
-        setSuffix(spoofing ? (int) (maxDelay.getValue() - timer.getTime()) + "ms" : maxDelay.getValue().intValue() + "ms");
+        setSuffix(maxDelay.getValue().intValue() + "ms");
 
         if (!spoofing) {
             releaseBuffer();
