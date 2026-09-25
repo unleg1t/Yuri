@@ -149,7 +149,7 @@ public class MediaInfoModule extends Module implements IMinecraft {
     private void renderYuri(boolean shaderPass) {
         MediaTrack track = tracker.getTrack();
 
-        CustomFontRenderer titleFont = FontUtils.getFont("sf-bold", 15);
+        CustomFontRenderer titleFont = FontUtils.getFont("sf-bold", 18);
         CustomFontRenderer trackFont = FontUtils.getFont("sf-bold", 16);
         CustomFontRenderer body = FontUtils.getFont("sf", 13);
         if (titleFont == null || trackFont == null || body == null) return;
