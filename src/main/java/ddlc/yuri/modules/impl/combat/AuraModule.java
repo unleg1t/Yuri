@@ -135,6 +135,7 @@ public class AuraModule extends Module {
     public enum AutoBlock {
         FAKE("Fake"),
         VANILLA("Vanilla"),
+        HYPIXEL("Hypixel"),
         NCP("NCP"),
         LEGIT("Legit"),
         PREDICTIVE("Predictive"),
@@ -429,7 +430,7 @@ public class AuraModule extends Module {
                 autoBlocking = true;
                 break;
             case LEGIT:
-                mc.gameSettings.keyBindUseItem.setPressed(!readyToAttack);
+                mc.gameSettings.keyBindUseItem.setPressed(mc.thePlayer.hurtTime <= 10 && mc.thePlayer.hurtTime >= 6 && mc.thePlayer.getDistanceToEntity(target) <= 3.0f);
                 autoBlocking = true;
                 blockTicks++;
                 if (mc.gameSettings.keyBindUseItem.isPressed() || mc.thePlayer.isUsingItem()) {
@@ -518,7 +519,7 @@ public class AuraModule extends Module {
         if (attackTimer.hasTimeElapsed(delay, false)) {
             returnVal = true;
             attackTimer.reset();
-            delay = (long) (1000.0 / getCPS());
+             delay = ab.getValue() == AutoBlock.LEGIT ? (long) (1000.0 / 5.0) : (long) (1000.0 / getCPS());
         }
         return returnVal;
     }
