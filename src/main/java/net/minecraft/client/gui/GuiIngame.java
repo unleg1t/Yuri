@@ -1121,7 +1121,7 @@ public class GuiIngame extends Gui {
 
         arraylistOffsetAnim = arraylistOffsetAnim + (targetOffset - arraylistOffsetAnim) * 0.15f;
 
-        int boardTopY = (int) ((resolution.getScaledHeight() / 2f) - (totalBoardHeight / 2f) + arraylistOffsetAnim);
+        int boardTopY = (int) ((resolution.getScaledHeight() / 2f) - (totalBoardHeight / 2f) + arraylistOffsetAnim) + ScoreboardModule.yOffset.getValue().intValue();
 
         int backgroundColor = 0x50000000;
         int textColor = 0xFFFFFFFF;

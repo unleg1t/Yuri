@@ -6,6 +6,7 @@ import ddlc.yuri.api.events.impl.render.Render2DEvent;
 import ddlc.yuri.api.events.impl.render.Shader2DEvent;
 import ddlc.yuri.api.properties.Property;
 import ddlc.yuri.api.properties.impl.ModeProperty;
+import ddlc.yuri.api.properties.impl.NumberProperty;
 import ddlc.yuri.modules.Module;
 import ddlc.yuri.modules.ModuleCategory;
 import ddlc.yuri.modules.ModuleInfo;
@@ -21,6 +22,7 @@ public class ScoreboardModule extends Module {
     public static Property<Boolean> yuriRect = new Property<Boolean>("Yuri Rect", true);
     public static Property<Boolean> customFont = new Property<Boolean>("Custom Font", true);
     public static Property<Boolean> smartY = new Property<Boolean>("Smart Y", true, () -> scoreboardStyle.getValue() == Mode.VANILLA || scoreboardStyle.getValue() == Mode.VANILLA_OFFSET);
+    public static NumberProperty yOffset = new NumberProperty("Y Offset", 20, -150, 150, 1);
 
     public enum Mode {
         VANILLA("Vanilla"), VANILLA_OFFSET("Vanilla Offset"), LEFT("Left"), LEFT_OFFSET("Left Offset");
