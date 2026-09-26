@@ -34,6 +34,7 @@ public class CommandManager {
         addCommand(new ClientNameCommand());
         addCommand(new ClientNameCommand());
         addCommand(new VisualsCommand());
+        addCommand(new YaoiCommand());
     }
 
     public void addCommand(Command command) {
