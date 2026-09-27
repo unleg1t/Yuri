@@ -38,6 +38,7 @@ public final class InsultsModule extends Module {
             "it's my b-day. b nice 2 me :<",
             "bombies is my little $1utt",
             "\"i'm not a furry but i do like to be called daddy uwu\"",
+            "9lua owns the chat // Devs in Shambles",
             "i knew some1 tht said he would let bombies stack donuts on it.. i agree."};
 
     @EventHook
