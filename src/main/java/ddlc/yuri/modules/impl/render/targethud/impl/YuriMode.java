@@ -105,7 +105,7 @@ public final class YuriMode extends TargetHudMode {
         float width = WIDTH;
         float height = HEIGHT;
 
-        RoundedUtils.drawRoundOutline((float) x, (float) y, width, height, RADIUS, -0.5f, bgColor, accentColor);
+        RoundedUtils.drawRoundOutline((float) x, (float) y, width, height, RADIUS, -0.4f, bgColor, accentColor);
 
         GlStateManager.pushMatrix();
         GlStateManager.translate(x, y, 0);

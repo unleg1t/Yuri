@@ -43,7 +43,7 @@ public class CustomTextBox extends Gui {
     public void drawTextBox() {
         String text = masked ? mask(this.text) : this.text;
 
-        RoundedUtils.drawRoundOutline(xPosition, yPosition, width, height, 6, -0.5f, FIELD_BACKGROUND, ColorManager.getColor());
+        RoundedUtils.drawRoundOutline(xPosition, yPosition, width, height, 6, -0.4f, FIELD_BACKGROUND, ColorManager.getColor());
 
         boolean empty = text.isEmpty();
         String renderText = empty ? placeholder : text;

@@ -9,6 +9,7 @@ import ddlc.yuri.api.events.impl.render.Render3DEvent;
 import ddlc.yuri.managers.impl.ColorManager;
 import ddlc.yuri.modules.impl.render.AmbienceModule;
 import ddlc.yuri.modules.impl.render.CameraModule;
+import ddlc.yuri.modules.impl.render.FreeLookModule;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockBed;
 import net.minecraft.block.material.Material;
@@ -687,8 +688,14 @@ public class EntityRenderer implements IResourceManagerReloadListener
             }
             else
             {
-                float f1 = entity.rotationYaw;
-                float f2 = entity.rotationPitch;
+                FreeLookModule freeLook = Yuri.INSTANCE != null && Yuri.INSTANCE.getModuleManager() != null ? Yuri.INSTANCE.getModuleManager().getModule(FreeLookModule.class) : null;
+                boolean isFreeLook = freeLook != null && freeLook.isEnabled();
+
+                float camYaw = isFreeLook ? freeLook.getYaw(partialTicks) : entity.rotationYaw;
+                float camPitch = isFreeLook ? freeLook.getPitch(partialTicks) : entity.rotationPitch;
+
+                float f1 = camYaw;
+                float f2 = camPitch;
 
                 if (this.mc.gameSettings.thirdPersonView == 2)
                 {
@@ -725,11 +732,11 @@ public class EntityRenderer implements IResourceManagerReloadListener
                     GlStateManager.rotate(180.0F, 0.0F, 1.0F, 0.0F);
                 }
 
-                GlStateManager.rotate(entity.rotationPitch - f2, 1.0F, 0.0F, 0.0F);
-                GlStateManager.rotate(entity.rotationYaw - f1, 0.0F, 1.0F, 0.0F);
+                GlStateManager.rotate(camPitch - f2, 1.0F, 0.0F, 0.0F);
+                GlStateManager.rotate(camYaw - f1, 0.0F, 1.0F, 0.0F);
                 GlStateManager.translate(0.0F, 0.0F, (float)(-d3));
-                GlStateManager.rotate(f1 - entity.rotationYaw, 0.0F, 1.0F, 0.0F);
-                GlStateManager.rotate(f2 - entity.rotationPitch, 1.0F, 0.0F, 0.0F);
+                GlStateManager.rotate(f1 - camYaw, 0.0F, 1.0F, 0.0F);
+                GlStateManager.rotate(f2 - camPitch, 1.0F, 0.0F, 0.0F);
             }
         }
         else
@@ -764,7 +771,13 @@ public class EntityRenderer implements IResourceManagerReloadListener
         }
         else if (!this.mc.gameSettings.debugCamEnable)
         {
-            GlStateManager.rotate(entity.prevRotationPitch + (entity.rotationPitch - entity.prevRotationPitch) * partialTicks, 1.0F, 0.0F, 0.0F);
+            FreeLookModule freeLook = Yuri.INSTANCE != null && Yuri.INSTANCE.getModuleManager() != null ? Yuri.INSTANCE.getModuleManager().getModule(FreeLookModule.class) : null;
+            boolean isFreeLook = freeLook != null && freeLook.isEnabled();
+
+            float renderPitch = isFreeLook ? freeLook.getPitch(partialTicks) : (entity.prevRotationPitch + (entity.rotationPitch - entity.prevRotationPitch) * partialTicks);
+            float renderYaw = isFreeLook ? freeLook.getYaw(partialTicks) : (entity.prevRotationYaw + (entity.rotationYaw - entity.prevRotationYaw) * partialTicks);
+
+            GlStateManager.rotate(renderPitch, 1.0F, 0.0F, 0.0F);
 
             if (entity instanceof EntityAnimal)
             {
@@ -773,7 +786,7 @@ public class EntityRenderer implements IResourceManagerReloadListener
             }
             else
             {
-                GlStateManager.rotate(entity.prevRotationYaw + (entity.rotationYaw - entity.prevRotationYaw) * partialTicks + 180.0F, 0.0F, 1.0F, 0.0F);
+                GlStateManager.rotate(renderYaw + 180.0F, 0.0F, 1.0F, 0.0F);
             }
         }
 
@@ -1209,7 +1222,12 @@ public class EntityRenderer implements IResourceManagerReloadListener
                 i = -1;
             }
 
-            if (this.mc.gameSettings.smoothCamera)
+            FreeLookModule freeLook = Yuri.INSTANCE != null && Yuri.INSTANCE.getModuleManager() != null ? Yuri.INSTANCE.getModuleManager().getModule(FreeLookModule.class) : null;
+            if (freeLook != null && freeLook.isEnabled())
+            {
+                freeLook.handleMouseChange(f2, f3 * (float)i);
+            }
+            else if (this.mc.gameSettings.smoothCamera)
             {
                 this.smoothCamYaw += f2;
                 this.smoothCamPitch += f3;

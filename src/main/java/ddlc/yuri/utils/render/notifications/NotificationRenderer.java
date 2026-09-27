@@ -53,7 +53,7 @@ public final class NotificationRenderer implements IMinecraft {
 
         Color accentColor = ColorManager.getColor();
 
-        RoundedUtils.drawRoundOutline(x, y, width, height, RADIUS, -0.5f, BG_COLOR, accentColor);
+        RoundedUtils.drawRoundOutline(x, y, width, height, RADIUS, -0.4f, BG_COLOR, accentColor);
 
         float titleX = x + (width - titleWidth) / 2f;
         float messageX = x + (width - messageWidth) / 2f;

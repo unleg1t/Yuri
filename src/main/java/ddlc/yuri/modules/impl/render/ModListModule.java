@@ -373,7 +373,7 @@ public class ModListModule extends Module implements IMinecraft {
             return Color.getHSBColor(hue, 0.25f, 0.9f).getRGB();
         }
 
-        return RenderUtils.interpolateColorsBackAndForth(ClickGUIModule.colorSpeed.getValue().intValue(), index * 10, ColorManager.colors.getFirst(), ColorManager.colors.getSecond(), false).getRGB();
+        return RenderUtils.interpolateColorsBackAndForth(ClickGUIModule.colorSpeed.getValue().intValue(), index * 10, ColorManager.getColors().getFirst(), ColorManager.getColors().getSecond(), false).getRGB();
     }
 
     private String getDisplayLabel(Module m) {

@@ -84,7 +84,7 @@ public class HotbarModule extends Module {
         GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
 
         if (mode.getValue() == Mode.YURI) {
-            RoundedUtils.drawRoundOutline(posX, posY + 18, scaleX, scaleY - 18, 5, -0.5f, BG_COLOR,
+            RoundedUtils.drawRoundOutline(posX, posY + 18, scaleX, scaleY - 18, 5, -0.4f, BG_COLOR,
                     ColorManager.getColor());
         } else if (mode.getValue() == Mode.DDLC) {
             RenderUtils.drawImage(new ResourceLocation("yuri/gui/textbox.png"), posX + 1, posY + 18, scaleX, scaleY - 18);
@@ -120,7 +120,7 @@ public class HotbarModule extends Module {
 
         RoundedUtils.drawCustomRoundedRect(x, y, SLOT_SIZE, SLOT_SIZE, SLOT_RADIUS,
                 true, true, true, true, HIGHLIGHT_FILL_COLOR);
-        RoundedUtils.drawRoundOutline(x, y, SLOT_SIZE, SLOT_SIZE, SLOT_RADIUS, -0.5f,
+        RoundedUtils.drawRoundOutline(x, y, SLOT_SIZE, SLOT_SIZE, SLOT_RADIUS, -0.4f,
                 TRANSPARENT, ColorManager.getColor());
     }
 

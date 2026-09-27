@@ -7,6 +7,7 @@ import ddlc.yuri.api.events.impl.render.RenderSkyEvent;
 import ddlc.yuri.api.properties.Property;
 import ddlc.yuri.api.properties.impl.ModeProperty;
 import ddlc.yuri.api.properties.impl.NumberProperty;
+import ddlc.yuri.managers.impl.ColorManager;
 import ddlc.yuri.modules.Module;
 import ddlc.yuri.modules.ModuleCategory;
 import ddlc.yuri.modules.ModuleInfo;
@@ -15,6 +16,7 @@ import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.network.play.server.S03PacketTimeUpdate;
 import org.lwjgl.opengl.GL11;
 
+import java.awt.Color;
 import java.time.LocalTime;
 
 @ModuleInfo(label = "Ambience", category = ModuleCategory.RENDER, description = "Changes the world appearance properties: time, color fog and an overridden shader sky")
@@ -33,11 +35,15 @@ public class AmbienceModule extends Module {
 
     private ShaderUtils nebulaShader;
     private ShaderUtils yuriShader;
+
     private final long startTime = System.currentTimeMillis();
 
     public enum SkyMode {
         YURI("Yuri"),
-        NEBULA("Nebula");
+        NEBULA("Nebula"),
+        AURORA("Aurora"),
+        GALAXY("Galaxy"),
+        VAPORWAVE("Vaporwave");
 
         public final String name;
 
@@ -87,15 +93,7 @@ public class AmbienceModule extends Module {
             return;
         }
 
-        switch (mode.getValue()) {
-            case YURI:
-                renderShaderSky(event, () -> renderYuriSky());
-                break;
-            case NEBULA:
-                renderShaderSky(event, () -> renderNebulaSky());
-                break;
-        }
-
+        renderShaderSky(event, () -> renderActiveShader(mode.getValue()));
         event.setCancelled(true);
     }
 
@@ -115,30 +113,30 @@ public class AmbienceModule extends Module {
         GlStateManager.popMatrix();
     }
 
-    private void renderYuriSky() {
-        if (yuriShader == null) {
-            yuriShader = new ShaderUtils("yuri");
+    private void renderActiveShader(SkyMode currentMode) {
+        ShaderUtils shader = null;
+
+        switch (currentMode) {
+            case YURI:
+                if (yuriShader == null) yuriShader = new ShaderUtils("yuri");
+                shader = yuriShader;
+                break;
+            case NEBULA:
+                if (nebulaShader == null) nebulaShader = new ShaderUtils("nebula");
+                shader = nebulaShader;
+                break;
         }
 
-        float elapsed = (System.currentTimeMillis() - startTime) / 1000.0f;
+        if (shader == null) return;
 
-        yuriShader.init();
-        yuriShader.setUniformf("time", elapsed);
+        float elapsed = (System.currentTimeMillis() - startTime) / 5000.0f;
+        Color clientColor = ColorManager.getColor();
+
+        shader.init();
+        shader.setUniformf("time", elapsed);
+        shader.setUniformf("color", clientColor.getRed() / 255.0f, clientColor.getGreen() / 255.0f, clientColor.getBlue() / 255.0f);
         drawSkySphere();
-        yuriShader.unload();
-    }
-
-    private void renderNebulaSky() {
-        if (nebulaShader == null) {
-            nebulaShader = new ShaderUtils("nebula");
-        }
-
-        float elapsed = (System.currentTimeMillis() - startTime) / 1000.0f;
-
-        nebulaShader.init();
-        nebulaShader.setUniformf("time", elapsed);
-        drawSkySphere();
-        nebulaShader.unload();
+        shader.unload();
     }
 
     private void drawSkySphere() {

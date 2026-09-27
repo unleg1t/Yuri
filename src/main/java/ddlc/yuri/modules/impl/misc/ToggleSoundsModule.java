@@ -1,6 +1,7 @@
 package ddlc.yuri.modules.impl.misc;
 
 import ddlc.yuri.api.properties.impl.ModeProperty;
+import ddlc.yuri.api.properties.impl.NumberProperty;
 import ddlc.yuri.modules.Module;
 import ddlc.yuri.modules.ModuleCategory;
 import ddlc.yuri.modules.ModuleInfo;
@@ -11,6 +12,7 @@ public class ToggleSoundsModule extends Module {
     // known issues with PulseAudio on Linux. for some reason it doesn't play the sound, but it works fine on Pipewire and Windows.
 
     public ModeProperty<ToggleSounds> moduleToggleSounds = new ModeProperty<>("Toggle Sounds", ToggleSounds.NURSULTAN);
+    public NumberProperty volume = new NumberProperty("Volume", 1.0f, 0.1f, 1.0f, 0.05f);
 
     public enum ToggleSounds {
         EVISCERATE("Eviscerate"),

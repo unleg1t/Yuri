@@ -10,7 +10,6 @@ import ddlc.yuri.modules.Module;
 import ddlc.yuri.modules.ModuleCategory;
 import ddlc.yuri.modules.ModuleInfo;
 import ddlc.yuri.utils.render.RenderUtils;
-import net.minecraft.block.Block;
 import net.minecraft.block.BlockBed;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.renderer.GlStateManager;
@@ -30,14 +29,18 @@ import java.util.List;
 @ModuleInfo(label = "Block ESP", description = "Highlights storage blocks like chests, ender chests and beds", category = ModuleCategory.RENDER)
 public final class BlockESPModule extends Module {
 
-    private final Property<Boolean> chests = new Property<>("Chests", true);
-    private final Property<Boolean> enderChests = new Property<>("Ender Chests", true);
-    private final Property<Boolean> beds = new Property<>("Beds", true);
-    private final Property<Boolean> throughWalls = new Property<>("Through Walls", true);
-    private final NumberProperty alpha = new NumberProperty("Alpha", 0.3, 0.1, 1.0, 0.05);
+    public final Property<Boolean> chests = new Property<>("Chests", true);
+    public final Property<Boolean> enderChests = new Property<>("Ender Chests", true);
+    public final Property<Boolean> beds = new Property<>("Beds", true);
+    public final Property<Boolean> throughWalls = new Property<>("Through Walls", true);
+    public final Property<Boolean> filled = new Property<>("Filled", true);
+    public final Property<Boolean> outline = new Property<>("Outline", true);
+    public final NumberProperty lineWidth = new NumberProperty("Line Width", 1.5, 0.5, 5.0, 0.5, outline::getValue);
+    public final NumberProperty alpha = new NumberProperty("Alpha", 0.3, 0.05, 1.0, 0.05, filled::getValue);
+    public final Property<Boolean> clientColor = new Property<>("Client Color", false);
 
-    private final NumberProperty range = new NumberProperty("Bed Range", 15, 2, 30, 1, beds::getValue);
-    private final NumberProperty rate = new NumberProperty("Bed Update Rate", 0.4D, 0.1D, 3D, 0.1D, beds::getValue);
+    public final NumberProperty range = new NumberProperty("Bed Range", 16, 4, 32, 2, beds::getValue);
+    public final NumberProperty rate = new NumberProperty("Bed Update Rate", 1.0D, 0.2D, 5.0D, 0.2D, beds::getValue);
 
     private final List<BlockPos[]> bedsList = new ArrayList<>();
     private long lastCheck = 0L;
@@ -49,19 +52,27 @@ public final class BlockESPModule extends Module {
         if (System.currentTimeMillis() - lastCheck >= rate.getValue() * 1000.0) {
             lastCheck = System.currentTimeMillis();
 
+            bedsList.removeIf(pair -> pair == null || mc.theWorld.getBlockState(pair[0]).getBlock() != Blocks.bed);
+
             int rangeValue = range.getValue().intValue();
-            for (int i = -rangeValue; i <= rangeValue; ++i) {
-                for (int j = -rangeValue; j <= rangeValue; ++j) {
-                    for (int k = -rangeValue; k <= rangeValue; ++k) {
-                        BlockPos blockPos = new BlockPos(mc.thePlayer.posX + j, mc.thePlayer.posY + i, mc.thePlayer.posZ + k);
+            BlockPos playerPos = new BlockPos(mc.thePlayer.posX, mc.thePlayer.posY, mc.thePlayer.posZ);
+
+            for (int x = -rangeValue; x <= rangeValue; ++x) {
+                for (int y = -rangeValue; y <= rangeValue; ++y) {
+                    for (int z = -rangeValue; z <= rangeValue; ++z) {
+                        BlockPos blockPos = playerPos.add(x, y, z);
                         IBlockState getBlockState = mc.theWorld.getBlockState(blockPos);
                         if (getBlockState.getBlock() == Blocks.bed && getBlockState.getValue(BlockBed.PART) == BlockBed.EnumPartType.FOOT) {
+                            boolean alreadyAdded = false;
                             for (BlockPos[] bedPair : bedsList) {
                                 if (BlockPos.isSamePos(blockPos, bedPair[0])) {
-                                    continue;
+                                    alreadyAdded = true;
+                                    break;
                                 }
                             }
-                            bedsList.add(new BlockPos[]{blockPos, blockPos.offset(getBlockState.getValue(BlockBed.FACING))});
+                            if (!alreadyAdded) {
+                                bedsList.add(new BlockPos[]{blockPos, blockPos.offset(getBlockState.getValue(BlockBed.FACING))});
+                            }
                         }
                     }
                 }
@@ -74,12 +85,16 @@ public final class BlockESPModule extends Module {
         if (mc.theWorld == null || mc.thePlayer == null) return;
 
         GL11.glPushMatrix();
-        GL11.glDisable(GL11.GL_TEXTURE_2D);
         GL11.glEnable(GL11.GL_BLEND);
         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GL11.glDisable(GL11.GL_TEXTURE_2D);
+        GL11.glDisable(GL11.GL_LIGHTING);
         GlStateManager.disableCull();
 
-        if (throughWalls.getValue()) GL11.glDisable(GL11.GL_DEPTH_TEST);
+        if (throughWalls.getValue()) {
+            GL11.glDisable(GL11.GL_DEPTH_TEST);
+            GL11.glDepthMask(false);
+        }
 
         for (TileEntity te : mc.theWorld.loadedTileEntityList) {
             renderStorageBlock(te);
@@ -87,7 +102,10 @@ public final class BlockESPModule extends Module {
 
         renderBeds();
 
-        if (throughWalls.getValue()) GL11.glEnable(GL11.GL_DEPTH_TEST);
+        if (throughWalls.getValue()) {
+            GL11.glEnable(GL11.GL_DEPTH_TEST);
+            GL11.glDepthMask(true);
+        }
 
         GlStateManager.enableCull();
         GL11.glEnable(GL11.GL_TEXTURE_2D);
@@ -96,11 +114,36 @@ public final class BlockESPModule extends Module {
         GL11.glPopMatrix();
     }
 
+    private void drawESPBox(AxisAlignedBB bb, Color color) {
+        float r = color.getRed() / 255.0f;
+        float g = color.getGreen() / 255.0f;
+        float b = color.getBlue() / 255.0f;
+        float a = alpha.getValue().floatValue();
+
+        if (filled.getValue()) {
+            GlStateManager.color(r, g, b, a);
+            RenderUtils.drawBoundingBox(bb);
+        }
+        if (outline.getValue()) {
+            GL11.glLineWidth(lineWidth.getValue().floatValue());
+            GlStateManager.color(r, g, b, 1.0f);
+            RenderUtils.drawOutlinedBoundingBox(bb);
+        }
+    }
+
     private void renderStorageBlock(TileEntity tileEntity) {
+        if (tileEntity == null) return;
+        Color color;
         if (tileEntity instanceof TileEntityChest) {
             if (!chests.getValue()) return;
+            TileEntityChest chest = (TileEntityChest) tileEntity;
+            if (chest.adjacentChestXNeg != null || chest.adjacentChestZNeg != null) {
+                return;
+            }
+            color = clientColor.getValue() ? ColorManager.getColor() : new Color(255, 170, 0);
         } else if (tileEntity instanceof TileEntityEnderChest) {
             if (!enderChests.getValue()) return;
+            color = clientColor.getValue() ? ColorManager.getColor() : new Color(180, 50, 255);
         } else {
             return;
         }
@@ -108,43 +151,68 @@ public final class BlockESPModule extends Module {
         BlockPos pos = tileEntity.getPos();
         if (pos == null) return;
 
-        Block block = mc.theWorld.getBlockState(pos).getBlock();
-        if (block == null) return;
+        double rx = mc.getRenderManager().viewerPosX;
+        double ry = mc.getRenderManager().viewerPosY;
+        double rz = mc.getRenderManager().viewerPosZ;
 
-        AxisAlignedBB boundingBox = block.getSelectedBoundingBox(mc.theWorld, pos);
-        if (boundingBox == null) return;
+        AxisAlignedBB bb;
+        if (tileEntity instanceof TileEntityChest) {
+            TileEntityChest chest = (TileEntityChest) tileEntity;
+            double minX = pos.getX() + 0.0625;
+            double minY = pos.getY();
+            double minZ = pos.getZ() + 0.0625;
+            double maxX = pos.getX() + 0.9375;
+            double maxY = pos.getY() + 0.875;
+            double maxZ = pos.getZ() + 0.9375;
 
-        double rx = mc.getRenderManager().renderPosX;
-        double ry = mc.getRenderManager().renderPosY;
-        double rz = mc.getRenderManager().renderPosZ;
-        boundingBox = new AxisAlignedBB(
-                boundingBox.minX - rx + 0.002, boundingBox.minY - ry + 0.002, boundingBox.minZ - rz + 0.002,
-                boundingBox.maxX - rx - 0.002, boundingBox.maxY - ry - 0.002, boundingBox.maxZ - rz - 0.002);
+            if (chest.adjacentChestXPos != null) {
+                maxX = pos.getX() + 1.9375;
+            } else if (chest.adjacentChestZPos != null) {
+                maxZ = pos.getZ() + 1.9375;
+            }
+            bb = new AxisAlignedBB(minX - rx, minY - ry, minZ - rz, maxX - rx, maxY - ry, maxZ - rz);
+        } else {
+            bb = new AxisAlignedBB(
+                    pos.getX() + 0.0625 - rx, pos.getY() - ry, pos.getZ() + 0.0625 - rz,
+                    pos.getX() + 0.9375 - rx, pos.getY() + 0.875 - ry, pos.getZ() + 0.9375 - rz
+            );
+        }
 
-        Color c = ColorManager.getColor();
-        float r = c.getRed() / 255f;
-        float g = c.getGreen() / 255f;
-        float b = c.getBlue() / 255f;
-        float a = alpha.getValue().floatValue();
-
-        GL11.glDepthMask(false);
-        GlStateManager.color(r, g, b, a);
-        RenderUtils.drawBoundingBox(boundingBox);
-        GL11.glDepthMask(true);
-
+        drawESPBox(bb, color);
     }
 
     private void renderBeds() {
-        if (!beds.getValue() || BlockPos.nullCheck() || bedsList.isEmpty()) return;
+        if (!beds.getValue() || bedsList.isEmpty()) return;
+
+        Color color = clientColor.getValue() ? ColorManager.getColor() : new Color(255, 50, 80);
+        double rx = mc.getRenderManager().viewerPosX;
+        double ry = mc.getRenderManager().viewerPosY;
+        double rz = mc.getRenderManager().viewerPosZ;
 
         Iterator<BlockPos[]> iterator = bedsList.iterator();
         while (iterator.hasNext()) {
-            BlockPos[] blockPos = iterator.next();
-            if (mc.theWorld.getBlockState(blockPos[0]).getBlock() instanceof BlockBed) {
-                RenderUtils.renderBed(blockPos);
-            } else {
+            BlockPos[] pair = iterator.next();
+            if (pair == null || mc.theWorld.getBlockState(pair[0]).getBlock() != Blocks.bed) {
                 iterator.remove();
+                continue;
             }
+
+            BlockPos foot = pair[0];
+            BlockPos head = pair[1];
+
+            double minX = Math.min(foot.getX(), head.getX());
+            double maxX = Math.max(foot.getX(), head.getX()) + 1.0;
+            double minY = foot.getY();
+            double maxY = foot.getY() + 0.5625;
+            double minZ = Math.min(foot.getZ(), head.getZ());
+            double maxZ = Math.max(foot.getZ(), head.getZ()) + 1.0;
+
+            AxisAlignedBB bb = new AxisAlignedBB(
+                    minX - rx, minY - ry, minZ - rz,
+                    maxX - rx, maxY - ry, maxZ - rz
+            );
+
+            drawESPBox(bb, color);
         }
     }
 

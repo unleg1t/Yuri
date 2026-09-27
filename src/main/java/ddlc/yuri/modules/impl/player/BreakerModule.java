@@ -21,6 +21,12 @@ import ddlc.yuri.utils.render.progress.ProgressBarEntry;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockAir;
 import net.minecraft.block.BlockBed;
+import net.minecraft.block.material.Material;
+import net.minecraft.enchantment.Enchantment;
+import net.minecraft.enchantment.EnchantmentHelper;
+import net.minecraft.item.ItemAxe;
+import net.minecraft.item.ItemPickaxe;
+import net.minecraft.item.ItemShears;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.Packet;
 import net.minecraft.network.play.client.C07PacketPlayerDigging;
@@ -36,6 +42,7 @@ public final class BreakerModule extends Module {
 
     private final ModeProperty<Mode> breakType = new ModeProperty<>("Break Mode", Mode.LEGIT);
     private final NumberProperty breakrange = new NumberProperty("Breaker Range", 3f, 3f, 6f, 0.5f);
+    public final Property<Boolean> autoTool = new Property<Boolean>("Auto Tool", true);
     public final Property<Boolean> swing = new Property<Boolean>("Visual Swing", true);
     public final Property<Boolean> moveFix = new Property<Boolean>("Move Fix", true);
     public final Property<Boolean> whitelist = new Property<Boolean>("Whitelist", true);
@@ -63,6 +70,8 @@ public final class BreakerModule extends Module {
     public int spoofTick = 0;
     public ItemStack st = null;
     private ProgressBarEntry barEntry;
+    private int oldSlot = -1;
+    private boolean isBreaking = false;
 
     @Override
     public void onEnable() {
@@ -72,6 +81,8 @@ public final class BreakerModule extends Module {
         bedPos = null;
         barEntry = null;
         breakPos = null;
+        oldSlot = -1;
+        isBreaking = false;
     }
 
     @Override
@@ -86,6 +97,20 @@ public final class BreakerModule extends Module {
         blockDamageCD = 0;
         bedPos = null;
         breakPos = null;
+        resetSlot();
+    }
+
+    public void resetSlot() {
+        if (isBreaking) {
+            if (autoTool.getValue() && oldSlot != -1 && oldSlot >= 0 && oldSlot < 9 && mc.thePlayer != null) {
+                mc.thePlayer.inventory.currentItem = oldSlot;
+                if (mc.playerController != null) {
+                    mc.playerController.syncCurrentPlayItem();
+                }
+            }
+            oldSlot = -1;
+            isBreaking = false;
+        }
     }
 
     public void sendBlockBreak(BlockPos pos, EnumFacing face) {
@@ -93,14 +118,16 @@ public final class BreakerModule extends Module {
         if (pos == null) {
             if (blockDamageCD > 0) {
                 blockDamageCD--;
-                return;
             }
+            resetSlot();
+            return;
         }
 
         Block block = mc.theWorld.getBlockState(pos).getBlock();
         if (block instanceof BlockAir) {
             this.blockDamage = 0;
             this.blockDamageCD = 6;
+            resetSlot();
             return;
         }
         if (blockDamageCD > 0) {
@@ -108,26 +135,28 @@ public final class BreakerModule extends Module {
             return;
         }
         spoofTick = getSlotFromBlock(block);
-        ItemStack stack = mc.thePlayer.getHeldItem();
         if (spoofTick == -1) {
             spoofTick = mc.thePlayer.inventory.currentItem;
-        } else {
-            stack = mc.thePlayer.inventory.getStackInSlot(spoofTick);
         }
-        st = stack;
-
+        st = mc.thePlayer.inventory.getStackInSlot(spoofTick);
 
         AuraModule killAura = Yuri.INSTANCE.getModuleManager().getModule(AuraModule.class);
         if (blockDamage == 0f) {
             if (killAura.isEnabled() && AuraModule.target != null && breakPos != null) {
+                resetSlot();
                 return;
             } else {
                 startBreak();
             }
+        } else {
+            if (autoTool.getValue() && spoofTick != -1 && mc.thePlayer.inventory.currentItem != spoofTick) {
+                mc.thePlayer.inventory.currentItem = spoofTick;
+                if (mc.playerController != null) {
+                    mc.playerController.syncCurrentPlayItem();
+                }
+            }
+            addDamage(breakPos);
         }
-
-        addDamage(breakPos);
-
 
         if (blockDamage >= 1f) {
             if (!killAura.isEnabled() || AuraModule.target == null) {
@@ -135,7 +164,6 @@ public final class BreakerModule extends Module {
             }
         }
     }
-
 
     public void sendAnimReqPcket(Packet packet) {
         PacketUtils.sendPacket(packet);
@@ -146,22 +174,27 @@ public final class BreakerModule extends Module {
         }
     }
 
-
     public void startBreak() {
-        int oldSlot = mc.thePlayer.inventory.currentItem;
-        mc.thePlayer.inventory.currentItem = spoofTick;
+        if (!isBreaking) {
+            oldSlot = mc.thePlayer.inventory.currentItem;
+            isBreaking = true;
+        }
+        if (autoTool.getValue() && spoofTick != -1) {
+            mc.thePlayer.inventory.currentItem = spoofTick;
+            if (mc.playerController != null) {
+                mc.playerController.syncCurrentPlayItem();
+            }
+        }
 
-        mc.playerController.syncCurrentPlayItem();
         sendAnimReqPcket(new C07PacketPlayerDigging(C07PacketPlayerDigging.Action.START_DESTROY_BLOCK, breakPos, EnumFacing.UP));
         addDamage(breakPos);
-
-        mc.thePlayer.inventory.currentItem = oldSlot;
-
     }
 
     public void addDamage(BlockPos pos) {
         Block block = mc.theWorld.getBlockState(pos).getBlock();
-        float addyDMG = mc.thePlayer.getToolDigEfficiency(block, st) / block.getBlockHardness(mc.theWorld, pos) / 30.0F;
+        ItemStack held = mc.thePlayer.inventory.getStackInSlot(mc.thePlayer.inventory.currentItem);
+        ItemStack tool = held != null ? held : st;
+        float addyDMG = mc.thePlayer.getToolDigEfficiency(block, tool) / block.getBlockHardness(mc.theWorld, pos) / 30.0F;
         if (!mc.thePlayer.onGround) {
             addyDMG /= 5;
         }
@@ -169,16 +202,12 @@ public final class BreakerModule extends Module {
         mc.theWorld.sendBlockBreakProgress(mc.thePlayer.getEntityId(), pos, (int) (this.blockDamage * 10.0F) - 1);
     }
 
-
     public void stopBreak() {
-        int oldSl = mc.thePlayer.inventory.currentItem;
-        mc.thePlayer.inventory.currentItem = spoofTick;
-        mc.playerController.syncCurrentPlayItem();
         sendAnimReqPcket(new C07PacketPlayerDigging(C07PacketPlayerDigging.Action.STOP_DESTROY_BLOCK, breakPos, EnumFacing.UP));
         this.blockDamage = 0;
         this.blockDamageCD = 5;
         mc.theWorld.setBlockToAir(breakPos);
-        mc.thePlayer.inventory.currentItem = oldSl;
+        resetSlot();
     }
 
     @EventHook(value = EventPriority.VERY_HIGH)
@@ -187,6 +216,7 @@ public final class BreakerModule extends Module {
 
         if (closestBedPos != null) {
             if (!checkPosValidity(closestBedPos)) {
+                resetSlot();
                 return;
             }
             if (blockDamageCD != 0) {
@@ -210,6 +240,7 @@ public final class BreakerModule extends Module {
             blockDamageCD = 1;
             bedPos = null;
             breakPos = null;
+            resetSlot();
         }
 
         if (breakPos != null && !(mc.theWorld.getBlockState(breakPos).getBlock() instanceof BlockAir) && AuraModule.target == null) {
@@ -319,15 +350,44 @@ public final class BreakerModule extends Module {
     }
 
     public int getSlotFromBlock(Block block) {
-        int slot = -1;
-        float breakspeed = 0;
+        if (mc.thePlayer == null || mc.thePlayer.inventory == null) return -1;
+        int bestSlot = -1;
+        float bestSpeed = 1.0F;
 
         for (int i = 0; i < 9; i++) {
-            if (mc.thePlayer.inventory.getStackInSlot(i) != null && mc.thePlayer.inventory.getStackInSlot(i).getStrVsBlock(block) > breakspeed) {
-                breakspeed = mc.thePlayer.inventory.getStackInSlot(i).getStrVsBlock(block);
-                slot = i;
+            ItemStack stack = mc.thePlayer.inventory.getStackInSlot(i);
+            if (stack == null) continue;
+
+            float speed = stack.getStrVsBlock(block);
+            if (speed > 1.0F) {
+                int eff = EnchantmentHelper.getEnchantmentLevel(Enchantment.efficiency.effectId, stack);
+                if (eff > 0) {
+                    speed += (float) (eff * eff + 1);
+                }
+            }
+
+            if (stack.getItem() instanceof ItemShears) {
+                if (block instanceof BlockBed || block.getMaterial() == Material.cloth) {
+                    speed = Math.max(speed, 5.0F);
+                }
+            }
+
+            if (speed > bestSpeed) {
+                bestSpeed = speed;
+                bestSlot = i;
             }
         }
-        return slot;
+
+        if (bestSlot == -1 && block instanceof BlockBed) {
+            for (int i = 0; i < 9; i++) {
+                ItemStack stack = mc.thePlayer.inventory.getStackInSlot(i);
+                if (stack != null && (stack.getItem() instanceof ItemShears || stack.getItem() instanceof ItemAxe || stack.getItem() instanceof ItemPickaxe)) {
+                    bestSlot = i;
+                    break;
+                }
+            }
+        }
+
+        return bestSlot;
     }
 }

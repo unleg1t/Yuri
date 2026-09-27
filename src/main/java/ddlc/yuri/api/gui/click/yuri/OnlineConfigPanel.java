@@ -85,7 +85,7 @@ public class OnlineConfigPanel {
         Color handleBg = RenderUtils.withAlphaColor(handleHovered ? Theme.accent().darker() : Theme.WINDOW_BG, scaledAlpha(Theme.WINDOW_BG, safeAlpha));
         Color handleOutline = RenderUtils.withAlphaColor(Theme.accent(), argb);
 
-        RoundedUtils.drawRoundOutline(handleX, handleY, HANDLE_WIDTH, HANDLE_HEIGHT, 4f, -0.5f, handleBg, handleOutline);
+        RoundedUtils.drawRoundOutline(handleX, handleY, HANDLE_WIDTH, HANDLE_HEIGHT, 4f, -0.4f, handleBg, handleOutline);
 
         CustomFontRenderer iconFont = FontUtils.getFont("sf-bold", 12);
         String arrow = open ? ">" : "<";
@@ -97,7 +97,7 @@ public class OnlineConfigPanel {
         int animAlpha = (int) (argb * slideAnimation);
         Color bg = RenderUtils.withAlphaColor(Theme.WINDOW_BG, scaledAlpha(Theme.WINDOW_BG, safeAlpha * slideAnimation));
 
-        RoundedUtils.drawRoundOutline(panelX, panelY, WIDTH, HEIGHT, RADIUS, -0.5f, bg, RenderUtils.withAlphaColor(Theme.accent(), animAlpha));
+        RoundedUtils.drawRoundOutline(panelX, panelY, WIDTH, HEIGHT, RADIUS, -0.4f, bg, RenderUtils.withAlphaColor(Theme.accent(), animAlpha));
 
         CustomFontRenderer titleFont = FontUtils.getFont("sf-bold", 14);
         float headerY = panelY + 8f;

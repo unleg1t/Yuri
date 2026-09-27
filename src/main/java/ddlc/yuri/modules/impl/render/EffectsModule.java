@@ -2,7 +2,9 @@ package ddlc.yuri.modules.impl.render;
 
 import ddlc.yuri.api.events.annotations.EventHook;
 import ddlc.yuri.api.events.impl.client.PacketSendEvent;
+import ddlc.yuri.api.events.impl.player.KillEvent;
 import ddlc.yuri.api.events.impl.player.PreUpdateEvent;
+import ddlc.yuri.api.events.impl.render.Render2DEvent;
 import ddlc.yuri.api.events.impl.render.Render3DEvent;
 import ddlc.yuri.api.events.impl.world.LivingUpdateEvent;
 import ddlc.yuri.api.events.impl.world.WorldJoinEvent;
@@ -13,8 +15,10 @@ import ddlc.yuri.managers.impl.ColorManager;
 import ddlc.yuri.modules.Module;
 import ddlc.yuri.modules.ModuleCategory;
 import ddlc.yuri.modules.ModuleInfo;
+import ddlc.yuri.utils.misc.Pair;
 import ddlc.yuri.utils.player.MoveUtils;
 import net.minecraft.block.BlockBed;
+import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.WorldRenderer;
@@ -23,14 +27,15 @@ import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.network.Packet;
 import net.minecraft.network.play.client.C07PacketPlayerDigging;
 import net.minecraft.util.BlockPos;
-import net.minecraft.util.ResourceLocation;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL12;
+import org.lwjgl.opengl.GL20;
 
-import java.awt.*;
+import java.awt.Color;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.List;
 
 @ModuleInfo(label = "Effects", category = ModuleCategory.RENDER, description = "Cute hearts, dots, bed break visuals and damage numbers")
 public class EffectsModule extends Module {
@@ -63,6 +68,11 @@ public class EffectsModule extends Module {
     public final Property<Boolean> damageParticles = new Property<>("Damage Particles", true);
     public final ModeProperty<ParticleMode> damageParticleMode = new ModeProperty<>("Damage Particle Mode", ParticleMode.HEART, damageParticles::getValue);
 
+    public final Property<Boolean> killImpact = new Property<>("Kill Impact", true);
+    public final NumberProperty killImpactDuration = new NumberProperty("Kill Impact Duration", 650.0, 200.0, 1500.0, 50.0, killImpact::getValue);
+    public final NumberProperty killImpactStrength = new NumberProperty("Kill Impact Strength", 55.0, 10.0, 100.0, 5.0, killImpact::getValue);
+    public final NumberProperty killImpactAberration = new NumberProperty("Kill Impact Aberration", 40.0, 0.0, 100.0, 5.0, killImpact::getValue);
+
     public enum ParticleMode {
         HEART("Heart"),
         STAR("Star"),
@@ -80,10 +90,6 @@ public class EffectsModule extends Module {
         }
     }
 
-    private static final ResourceLocation HEART_TEX = new ResourceLocation("yuri/gui/heart.png");
-    private static final ResourceLocation STAR_TEX = new ResourceLocation("yuri/gui/star.png");
-    private static final ResourceLocation CIRCLE_TEX = new ResourceLocation("yuri/gui/glow_circle.png");
-
     private static final double[] HEART_X = new double[31];
     private static final double[] HEART_Y = new double[31];
     private static final double[] CIRCLE_X = new double[9];
@@ -97,9 +103,31 @@ public class EffectsModule extends Module {
     private static final double[] RAINBOW_GREEN = {0.50, 0.50, 0.75, 1.00, 0.90, 0.60, 0.40};
     private static final double[] RAINBOW_BLUE = {1.00, 1.00, 1.00, 0.65, 0.50, 0.40, 0.50};
 
-    private static final double[] BURST_RED = {1.00, 1.00, 1.00, 0.50, 0.50, 0.60, 0.85};
-    private static final double[] BURST_GREEN = {0.40, 0.60, 0.90, 1.00, 0.75, 0.50, 0.50};
-    private static final double[] BURST_BLUE = {0.50, 0.40, 0.50, 0.65, 1.00, 1.00, 1.00};
+    private static final String IMPACT_VERTEX_SRC =
+            "varying vec2 texCoord;\n" +
+                    "void main() {\n" +
+                    "    texCoord = gl_MultiTexCoord0.xy;\n" +
+                    "    gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;\n" +
+                    "}\n";
+
+    private static final String IMPACT_FRAGMENT_SRC =
+            "uniform sampler2D screen;\n" +
+                    "uniform float strength;\n" +
+                    "uniform float aberration;\n" +
+                    "varying vec2 texCoord;\n" +
+                    "void main() {\n" +
+                    "    vec2 center = vec2(0.5, 0.5);\n" +
+                    "    vec2 offset = texCoord - center;\n" +
+                    "    float dist = length(offset);\n" +
+                    "    float factor = 1.0 + strength * dist * dist * 3.0;\n" +
+                    "    vec2 uv = center + offset / factor;\n" +
+                    "    float shift = aberration * dist * 0.02 * strength;\n" +
+                    "    float r = texture2D(screen, uv + offset * shift).r;\n" +
+                    "    float g = texture2D(screen, uv).g;\n" +
+                    "    float b = texture2D(screen, uv - offset * shift).b;\n" +
+                    "    float vignette = 1.0 - strength * dist * 0.55;\n" +
+                    "    gl_FragColor = vec4(vec3(r, g, b) * vignette, 1.0);\n" +
+                    "}\n";
 
     static {
         for (int i = 0; i <= 30; i++) {
@@ -178,6 +206,14 @@ public class EffectsModule extends Module {
 
     private final HashMap<EntityLivingBase, Float> healthMap = new HashMap<>();
     private final ArrayDeque<DamageText> damageTexts = new ArrayDeque<>();
+
+    private long impactStart = -1;
+    private int impactShaderProgram;
+    private int impactVertexShader;
+    private int impactFragmentShader;
+    private int impactTexture;
+    private int impactTexWidth;
+    private int impactTexHeight;
 
     @EventHook
     public void onPreUpdate(PreUpdateEvent event) {
@@ -259,6 +295,12 @@ public class EffectsModule extends Module {
             this.healthMap.remove(entity);
             this.healthMap.put(entity, entity.getHealth());
         }
+    }
+
+    @EventHook
+    public void onKill(KillEvent event) {
+        if (!killImpact.getValue()) return;
+        impactStart = System.currentTimeMillis();
     }
 
     private void spawnDamageParticles(EntityLivingBase entity) {
@@ -422,6 +464,7 @@ public class EffectsModule extends Module {
         renderDots(camX, camY, camZ, now, alphaScale);
         renderRainbows(camX, camY, camZ, now);
         renderBurst(camX, camY, camZ, now);
+        renderDamageParticles(camX, camY, camZ, now);
 
         GL11.glDisable(GL11.GL_LINE_SMOOTH);
         GL11.glLineWidth(1.0f);
@@ -433,41 +476,132 @@ public class EffectsModule extends Module {
         GlStateManager.popMatrix();
         GlStateManager.resetColor();
 
-        renderDamageParticles(camX, camY, camZ, now);
         renderDamageNumbers();
+    }
+
+    @EventHook
+    public void onRender2D(Render2DEvent event) {
+        if (!killImpact.getValue() || impactStart < 0) return;
+
+        long elapsed = System.currentTimeMillis() - impactStart;
+        long duration = killImpactDuration.getValue().longValue();
+
+        if (elapsed >= duration) {
+            impactStart = -1;
+            return;
+        }
+
+        double progress = (double) elapsed / duration;
+        double strength = (killImpactStrength.getValue() / 100.0) * impactCurve(progress);
+
+        renderImpactDistortion(strength, killImpactAberration.getValue() / 100.0);
+    }
+
+    private double impactCurve(double progress) {
+        double attack = 0.15;
+        if (progress <= attack) {
+            return easeOutCubic(progress / attack);
+        }
+        double release = (progress - attack) / (1.0 - attack);
+        return 1.0 - easeInOutCubic(release);
+    }
+
+    private double easeOutCubic(double t) {
+        double f = 1.0 - t;
+        return 1.0 - f * f * f;
+    }
+
+    private double easeInOutCubic(double t) {
+        if (t < 0.5) return 4 * t * t * t;
+        double f = -2 * t + 2;
+        return 1.0 - (f * f * f) / 2;
+    }
+
+    private void ensureImpactShader() {
+        if (impactShaderProgram != 0) return;
+
+        impactVertexShader = compileShader(GL20.GL_VERTEX_SHADER, IMPACT_VERTEX_SRC);
+        impactFragmentShader = compileShader(GL20.GL_FRAGMENT_SHADER, IMPACT_FRAGMENT_SRC);
+
+        impactShaderProgram = GL20.glCreateProgram();
+        GL20.glAttachShader(impactShaderProgram, impactVertexShader);
+        GL20.glAttachShader(impactShaderProgram, impactFragmentShader);
+        GL20.glLinkProgram(impactShaderProgram);
+    }
+
+    private int compileShader(int type, String source) {
+        int shader = GL20.glCreateShader(type);
+        GL20.glShaderSource(shader, source);
+        GL20.glCompileShader(shader);
+        return shader;
+    }
+
+    private void ensureImpactTexture() {
+        int width = mc.displayWidth;
+        int height = mc.displayHeight;
+
+        if (impactTexture != 0 && impactTexWidth == width && impactTexHeight == height) return;
+
+        if (impactTexture != 0) GL11.glDeleteTextures(impactTexture);
+
+        impactTexture = GL11.glGenTextures();
+        impactTexWidth = width;
+        impactTexHeight = height;
+
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, impactTexture);
+        GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA8, width, height, 0, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, (ByteBuffer) null);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
+    }
+
+    private void renderImpactDistortion(double strength, double aberration) {
+        ensureImpactShader();
+        ensureImpactTexture();
+
+        GlStateManager.enableTexture2D();
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, impactTexture);
+        GL11.glCopyTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, 0, 0, impactTexWidth, impactTexHeight);
+
+        GlStateManager.pushMatrix();
+        GlStateManager.disableLighting();
+        GlStateManager.disableAlpha();
+        GlStateManager.disableBlend();
+        GlStateManager.disableDepth();
+        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+
+        GL20.glUseProgram(impactShaderProgram);
+        GL20.glUniform1f(GL20.glGetUniformLocation(impactShaderProgram, "strength"), (float) strength);
+        GL20.glUniform1f(GL20.glGetUniformLocation(impactShaderProgram, "aberration"), (float) aberration);
+        GL20.glUniform1i(GL20.glGetUniformLocation(impactShaderProgram, "screen"), 0);
+
+        ScaledResolution scaled = new ScaledResolution(mc);
+        int w = scaled.getScaledWidth();
+        int h = scaled.getScaledHeight();
+
+        Tessellator tessellator = Tessellator.getInstance();
+        WorldRenderer worldRenderer = tessellator.getWorldRenderer();
+        worldRenderer.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX);
+        worldRenderer.pos(0, h, 0).tex(0, 0).endVertex();
+        worldRenderer.pos(w, h, 0).tex(1, 0).endVertex();
+        worldRenderer.pos(w, 0, 0).tex(1, 1).endVertex();
+        worldRenderer.pos(0, 0, 0).tex(0, 1).endVertex();
+        tessellator.draw();
+
+        GL20.glUseProgram(0);
+
+        GlStateManager.enableDepth();
+        GlStateManager.enableBlend();
+        GlStateManager.enableAlpha();
+        GlStateManager.popMatrix();
     }
 
     private void renderDamageParticles(double camX, double camY, double camZ, long now) {
         if (damageParticleList.isEmpty() || !damageParticles.getValue()) return;
 
-        ResourceLocation texture;
-        switch (damageParticleMode.getValue()) {
-            case STAR:
-                texture = STAR_TEX;
-                break;
-            case CIRCLE:
-                texture = CIRCLE_TEX;
-                break;
-            case HEART:
-            default:
-                texture = HEART_TEX;
-                break;
-        }
-
-        mc.getTextureManager().bindTexture(texture);
-        GlStateManager.pushMatrix();
-        GlStateManager.enableBlend();
-        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
-        GlStateManager.enableTexture2D();
-        GlStateManager.disableDepth();
-        GlStateManager.depthMask(false);
-        GlStateManager.disableCull();
-
         Iterator<DamageParticle> iterator = damageParticleList.iterator();
         long maxLifetime = 1500;
-
-        Tessellator tessellator = Tessellator.getInstance();
-        WorldRenderer worldrenderer = tessellator.getWorldRenderer();
 
         while (iterator.hasNext()) {
             DamageParticle particle = iterator.next();
@@ -480,37 +614,34 @@ public class EffectsModule extends Module {
             particle.update();
 
             double progress = (double) age / maxLifetime;
-            float scale = (float) (0.35 * (1.0 - progress));
-            float alpha = (float) ((1.0 - progress) * particle.alpha);
+            double scale = 0.35 * (1.0 - progress);
+            double alpha = (1.0 - progress) * particle.alpha;
 
             Color color = ColorManager.getColor();
-            float red = color.getRed() / 255.0f;
-            float green = color.getGreen() / 255.0f;
-            float blue = color.getBlue() / 255.0f;
+            double red = color.getRed() / 255.0;
+            double green = color.getGreen() / 255.0;
+            double blue = color.getBlue() / 255.0;
 
             GlStateManager.pushMatrix();
             GlStateManager.translate(particle.x - camX, particle.y - camY, particle.z - camZ);
             GlStateManager.rotate(-mc.getRenderManager().playerViewY, 0.0f, 1.0f, 0.0f);
             GlStateManager.rotate(mc.getRenderManager().playerViewX, (mc.gameSettings.thirdPersonView == 2 ? -1.0f : 1.0f), 0.0f, 0.0f);
 
-            GlStateManager.color(red, green, blue, alpha);
-
-            worldrenderer.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX);
-            worldrenderer.pos(-scale, -scale, 0.0).tex(0.0, 1.0).endVertex();
-            worldrenderer.pos(scale, -scale, 0.0).tex(1.0, 1.0).endVertex();
-            worldrenderer.pos(scale, scale, 0.0).tex(1.0, 0.0).endVertex();
-            worldrenderer.pos(-scale, scale, 0.0).tex(0.0, 0.0).endVertex();
-            tessellator.draw();
+            switch (damageParticleMode.getValue()) {
+                case STAR:
+                    drawShape(STAR_X, STAR_Y, 8, scale / 16.0, alpha, red, green, blue);
+                    break;
+                case CIRCLE:
+                    drawShape(CIRCLE_X, CIRCLE_Y, 8, scale / 2.0, alpha, red, green, blue);
+                    break;
+                case HEART:
+                default:
+                    drawHeart(scale, alpha, red, green, blue);
+                    break;
+            }
 
             GlStateManager.popMatrix();
         }
-
-        GlStateManager.enableCull();
-        GlStateManager.depthMask(true);
-        GlStateManager.enableDepth();
-        GlStateManager.disableBlend();
-        GlStateManager.popMatrix();
-        GlStateManager.resetColor();
     }
 
     private void renderHearts(double camX, double camY, double camZ, long now, double alphaScale) {
@@ -519,6 +650,11 @@ public class EffectsModule extends Module {
         long lifetime = heartLifetime.getValue().longValue();
         Iterator<Particle> iterator = heartList.iterator();
         int index = 0;
+
+        Color themeColor = ColorManager.getColor();
+        double baseRed = themeColor.getRed() / 255.0;
+        double baseGreen = themeColor.getGreen() / 255.0;
+        double baseBlue = themeColor.getBlue() / 255.0;
 
         while (iterator.hasNext()) {
             Particle heart = iterator.next();
@@ -537,9 +673,10 @@ public class EffectsModule extends Module {
             double y = heart.y + progress * 1.5 - camY;
             double z = heart.z + Math.cos(age * 0.0015 + index * 2.3) * 0.1 - camZ;
 
-            double red = heart.type == 0 ? 1.0 : heart.type == 1 ? 1.0 : 0.9;
-            double green = heart.type == 0 ? 0.5 : heart.type == 1 ? 0.3 : 0.4;
-            double blue = heart.type == 0 ? 0.8 : heart.type == 1 ? 0.6 : 0.9;
+            double mod = 0.85 + (heart.type * 0.075);
+            double red = Math.min(1.0, baseRed * mod);
+            double green = Math.min(1.0, baseGreen * mod);
+            double blue = Math.min(1.0, baseBlue * mod);
 
             GlStateManager.pushMatrix();
             GlStateManager.translate(x, y, z);
@@ -562,6 +699,11 @@ public class EffectsModule extends Module {
 
         Iterator<Particle> iterator = dotList.iterator();
         int index = 0;
+
+        Color themeColor = ColorManager.getColor();
+        float baseRed = themeColor.getRed() / 255.0f;
+        float baseGreen = themeColor.getGreen() / 255.0f;
+        float baseBlue = themeColor.getBlue() / 255.0f;
 
         while (iterator.hasNext()) {
             Particle dot = iterator.next();
@@ -589,13 +731,10 @@ public class EffectsModule extends Module {
             double y = dot.y + dot.vy * seconds - camY;
             double z = dot.z + dot.vz * seconds + Math.cos(seconds * 1.2 + index * 2.1) * 0.15 - camZ;
 
-            double green = dot.type == 0 ? 0.45 : dot.type == 1 ? 0.6 : dot.type == 2 ? 0.3 : 0.75;
-            double blue = dot.type == 0 ? 0.7 : dot.type == 1 ? 0.85 : dot.type == 2 ? 0.55 : 0.95;
-
             GlStateManager.pushMatrix();
             GlStateManager.translate(x, y, z);
             GlStateManager.rotate((float) Math.toDegrees(Math.atan2(-x, -z)), 0, 1, 0);
-            GlStateManager.color(1.0f, (float) green, (float) blue, (float) alpha);
+            GlStateManager.color(baseRed, baseGreen, baseBlue, (float) alpha);
 
             GL11.glBegin(GL11.GL_TRIANGLE_FAN);
             GL11.glVertex3d(0, 0, 0);
@@ -699,6 +838,10 @@ public class EffectsModule extends Module {
         long lifetime = burstLifetime.getValue().longValue();
         GL11.glLineWidth(rainbowWidth.getValue().floatValue());
 
+        Pair<Color, Color> colors = ColorManager.getColors();
+        Color c1 = colors.getFirst();
+        Color c2 = colors.getSecond();
+
         Iterator<Particle> iterator = burstList.iterator();
         int index = 0;
 
@@ -720,7 +863,10 @@ public class EffectsModule extends Module {
             double y = particle.y + particle.vy * seconds - 1.5 * seconds * seconds - camY;
             double z = particle.z + particle.vz * seconds + Math.cos(age * 0.0015 + index * 2.3) * 0.05 - camZ;
 
-            int color = index % 7;
+            double ratio = (index % 7) / 6.0;
+            double red = (c1.getRed() + (c2.getRed() - c1.getRed()) * ratio) / 255.0;
+            double green = (c1.getGreen() + (c2.getGreen() - c1.getGreen()) * ratio) / 255.0;
+            double blue = (c1.getBlue() + (c2.getBlue() - c1.getBlue()) * ratio) / 255.0;
 
             GlStateManager.pushMatrix();
             GlStateManager.translate(x, y, z);
@@ -730,13 +876,13 @@ public class EffectsModule extends Module {
             double size = particle.scale * grow;
 
             if (particle.type == 0) {
-                drawHeart(size, alpha, BURST_RED[color], BURST_GREEN[color], BURST_BLUE[color]);
+                drawHeart(size, alpha, red, green, blue);
             } else if (particle.type == 1) {
-                drawShape(STAR_X, STAR_Y, 8, size / 16.0, alpha, BURST_RED[color], BURST_GREEN[color], BURST_BLUE[color]);
+                drawShape(STAR_X, STAR_Y, 8, size / 16.0, alpha, red, green, blue);
             } else if (particle.type == 2) {
-                drawShape(CIRCLE_X, CIRCLE_Y, 8, size / 2.0, alpha, BURST_RED[color], BURST_GREEN[color], BURST_BLUE[color]);
+                drawShape(CIRCLE_X, CIRCLE_Y, 8, size / 2.0, alpha, red, green, blue);
             } else {
-                drawDiamond(size / 16.0, alpha, BURST_RED[color], BURST_GREEN[color], BURST_BLUE[color]);
+                drawDiamond(size / 16.0, alpha, red, green, blue);
             }
 
             GlStateManager.popMatrix();
@@ -858,6 +1004,7 @@ public class EffectsModule extends Module {
         diggingBed = false;
         healthMap.clear();
         damageTexts.clear();
+        impactStart = -1;
     }
 
     private static class DamageText {

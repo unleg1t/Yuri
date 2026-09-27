@@ -28,52 +28,53 @@ public class NotificationManager {
     public void onModule(ModuleEvent e) {
         boolean enabled = e.getModule().isEnabled();
 
-        if (Minecraft.getMinecraft().thePlayer != null &&
-                Yuri.INSTANCE.getModuleManager().getModule(ToggleSoundsModule.class).isEnabled()) {
-            switch (Yuri.INSTANCE.getModuleManager().getModule(ToggleSoundsModule.class).moduleToggleSounds.getValue()) {
+        ToggleSoundsModule toggleSounds = Yuri.INSTANCE.getModuleManager() != null ? Yuri.INSTANCE.getModuleManager().getModule(ToggleSoundsModule.class) : null;
+        if (toggleSounds != null && (toggleSounds.isEnabled() || e.getModule() instanceof ToggleSoundsModule)) {
+            float volume = toggleSounds.volume != null ? toggleSounds.volume.getValue().floatValue() : 1.0f;
+            switch (toggleSounds.moduleToggleSounds.getValue()) {
                 case EVISCERATE:
                     if (enabled) {
-                        SoundUtils.playSound("eviscerate-enable.wav");
+                        SoundUtils.playSound("eviscerate-enable.wav", volume);
                     } else {
-                        SoundUtils.playSound("eviscerate-disable.wav");
+                        SoundUtils.playSound("eviscerate-disable.wav", volume);
                     }
                     break;
                 case NURSULTAN:
                     if (enabled) {
-                        SoundUtils.playSound("nursultan-enable.wav");
+                        SoundUtils.playSound("nursultan-enable.wav", volume);
                     } else {
-                        SoundUtils.playSound("nursultan-disable.wav");
+                        SoundUtils.playSound("nursultan-disable.wav", volume);
                     }
                     break;
                 case AUGUSTUS:
                     if (enabled) {
-                        SoundUtils.playSound("augustus-enable.wav");
+                        SoundUtils.playSound("augustus-enable.wav", volume);
                     } else {
-                        SoundUtils.playSound("augustus-disable.wav");
+                        SoundUtils.playSound("augustus-disable.wav", volume);
                     }
                     break;
                 case MINECRAFT:
-                    SoundUtils.playSound("minecraft-toggle.wav");
+                    SoundUtils.playSound("minecraft-toggle.wav", volume);
                     break;
                 case SMOOTH:
                     if (enabled) {
-                        SoundUtils.playSound("smooth-enable.wav");
+                        SoundUtils.playSound("smooth-enable.wav", volume);
                     } else {
-                        SoundUtils.playSound("smooth-disable.wav");
+                        SoundUtils.playSound("smooth-disable.wav", volume);
                     }
                     break;
                 case HANABI:
                     if (enabled) {
-                        SoundUtils.playSound("hanabi-enable.wav");
+                        SoundUtils.playSound("hanabi-enable.wav", volume);
                     } else {
-                        SoundUtils.playSound("hanabi-disable.wav");
+                        SoundUtils.playSound("hanabi-disable.wav", volume);
                     }
                     break;
                 case SIGMA:
                     if (enabled) {
-                        SoundUtils.playSound("sigma-enable.wav");
+                        SoundUtils.playSound("sigma-enable.wav", volume);
                     } else {
-                        SoundUtils.playSound("sigma-disable.wav");
+                        SoundUtils.playSound("sigma-disable.wav", volume);
                     }
                     break;
             }

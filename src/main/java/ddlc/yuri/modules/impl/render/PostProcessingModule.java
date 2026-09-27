@@ -17,7 +17,6 @@ import net.minecraft.client.shader.Framebuffer;
 public class PostProcessingModule extends Module {
     private static final Property<Boolean> blur = new Property<>("Blur", true);
     public static final NumberProperty blurRadius = new NumberProperty("Blur Radius", 10.0, 1.0, 128.0, 1.0, blur::getValue);
-    public static final NumberProperty blurCompression = new NumberProperty("Blur Compression", 2.0, 0.1, 16.0, 0.1, blur::getValue);
     public final Property<Boolean> bloom = new Property<>("Bloom", true);
     public final NumberProperty bloomRadius = new NumberProperty("Bloom Radius", 2, 1, 8, 1, bloom::getValue);
     public final NumberProperty bloomOffset = new NumberProperty("Bloom Offset",  1, 1, 10, 1, bloom::getValue);
@@ -34,7 +33,7 @@ public class PostProcessingModule extends Module {
         if (blur.getValue()) {
             Blur.startBlur();
             Yuri.INSTANCE.getEventBus().post(new Shader2DEvent(Shader2DEvent.ShaderType.BLUR));
-            Blur.endBlur(blurRadius.getValue().floatValue(), blurCompression.getValue().floatValue(), 1.0f);
+            Blur.endBlur(blurRadius.getValue().floatValue(), 1.0f, 1.0f);
             RenderUtils.resetColor();
         }
 

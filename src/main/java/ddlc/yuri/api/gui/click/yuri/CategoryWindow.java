@@ -100,7 +100,7 @@ public class CategoryWindow {
 
         Color panelBg = RenderUtils.withAlphaColor(Theme.WINDOW_BG, scaledAlpha(Theme.WINDOW_BG, safeAlpha));
 
-        RoundedUtils.drawRoundOutline(x, y, WIDTH, totalHeight, RADIUS, -0.5f,
+        RoundedUtils.drawRoundOutline(x, y, WIDTH, totalHeight, RADIUS, -0.4f,
                 panelBg, RenderUtils.withAlphaColor(Theme.accent(), argb));
 
         CustomFontRenderer headerFont = FontUtils.getFont("sf-bold", 16);

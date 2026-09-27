@@ -10,6 +10,7 @@ import net.minecraft.block.BlockLiquid;
 import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.client.multiplayer.WorldClient;
 import net.minecraft.client.settings.KeyBinding;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.network.play.client.C0APacketAnimation;
 import net.minecraft.util.*;
@@ -22,26 +23,11 @@ import java.util.concurrent.ThreadLocalRandom;
 
 public class PlayerUtils implements IMinecraft {
 
-    public static Vec3 eyesPos() {
-        return new Vec3(mc.thePlayer.posX, mc.thePlayer.posY + mc.thePlayer.getEyeHeight(), mc.thePlayer.posZ);
-    }
-
-    public static void sendClick(final int button, final boolean state) {
-        final int keyBind = button == 0 ? mc.gameSettings.keyBindAttack.getKeyCode() : mc.gameSettings.keyBindUseItem.getKeyCode();
-
-        KeyBinding.setKeyBindState(keyBind, state);
-
-        if (state) {
-            KeyBinding.onTick(keyBind);
-        }
-    }
-
-    public static void swing(boolean silent, MovingObjectPosition objectMouseOver) {
-        if (silent) {
-            PacketUtils.sendSilentPacket(new C0APacketAnimation());
-        } else {
-            if (objectMouseOver != null && objectMouseOver.typeOfHit != MovingObjectPosition.MovingObjectType.ENTITY) mc.thePlayer.swingItem();
-        }
+    public static boolean canSeeEntity(Entity entity) {
+        Vec3 eyes = mc.thePlayer.getPositionEyes(1.0f);
+        Vec3 targetPos = new Vec3(entity.posX, entity.posY + entity.getEyeHeight(), entity.posZ);
+        MovingObjectPosition result = mc.theWorld.rayTraceBlocks(eyes, targetPos, false, true, false);
+        return result == null;
     }
 
     public static double direction() {

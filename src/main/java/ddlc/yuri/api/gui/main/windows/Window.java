@@ -58,13 +58,13 @@ public class Window {
             y = mouseY - lastY;
         }
 
-        RoundedUtils.drawRoundOutline(x, y, width, height, 6, -0.5f, BG, ColorManager.getColor());
+        RoundedUtils.drawRoundOutline(x, y, width, height, 6, -0.4f, BG, ColorManager.getColor());
 
         PostProcessingModule.stencilFramebuffer = RenderUtils.createFrameBuffer(PostProcessingModule.stencilFramebuffer, true);
         PostProcessingModule.stencilFramebuffer.framebufferClear();
         PostProcessingModule.stencilFramebuffer.bindFramebuffer(true);
         RenderUtils.resetColor();
-        RoundedUtils.drawRoundOutline(x, y, width, height, 6, -0.5f, BG, ColorManager.getColor());
+        RoundedUtils.drawRoundOutline(x, y, width, height, 6, -0.4f, BG, ColorManager.getColor());
         PostProcessingModule.stencilFramebuffer.unbindFramebuffer();
         RenderUtils.resetColor();
 

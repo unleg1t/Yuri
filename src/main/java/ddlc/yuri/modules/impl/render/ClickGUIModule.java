@@ -44,21 +44,21 @@ public class ClickGUIModule extends Module implements IMinecraft {
         ASTOLFO("Astolfo"),
         TENACITY("Tenacity"),
         SUNSET("Sunset"),
-        AMETHYST("Amethyst"),
-        ROYAL("Royal"),
-        LAVENDER("Lavender"),
-        AZURE("Azure"),
-        INDIGO("Indigo"),
-        OCEAN("Ocean"),
-        CRYSTAL("Crystal"),
-        PETAL("Petal"),
-        CITRUS("Citrus"),
-        EVERGREEN("Evergreen"),
-        LEMON("Lemon"),
-        EMBER("Ember"),
-        CRIMSON("Crimson"),
-        ICE("Ice"),
-        GRAPHITE("Graphite");
+        PURPLE("Purple"),
+        ROYAL_BLUE("Royal Blue"),
+        PASTEL_PURPLE("Pastel Purple"),
+        PASTEL_BLUE("Pastel Blue"),
+        MIDNIGHT("Midnight"),
+        OCEAN_BLUE("Ocean Blue"),
+        TURQUOISE("Turquoise"),
+        PINK("Pink"),
+        LIME("Lime"),
+        FOREST_GREEN("Forest Green"),
+        GOLD("Gold"),
+        ORANGE("Orange"),
+        RED("Red"),
+        ICE_BLUE("Ice Blue"),
+        MONOCHROME("Monochrome");
 
         public final String name;
 
@@ -66,6 +66,7 @@ public class ClickGUIModule extends Module implements IMinecraft {
             this.name = name;
         }
 
+        @Override
         public String toString() {
             return name;
         }

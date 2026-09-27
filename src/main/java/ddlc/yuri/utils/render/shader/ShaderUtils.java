@@ -69,6 +69,15 @@ public class ShaderUtils {
                 case "yuri":
                     fragmentStream = new ByteArrayInputStream(yuri.getBytes());
                     break;
+                case "aurora":
+                    fragmentStream = new ByteArrayInputStream(aurora.getBytes());
+                    break;
+                case "galaxy":
+                    fragmentStream = new ByteArrayInputStream(galaxy.getBytes());
+                    break;
+                case "vaporwave":
+                    fragmentStream = new ByteArrayInputStream(vaporwave.getBytes());
+                    break;
                 default:
                     fragmentStream = mc.getResourceManager().getResource(new ResourceLocation(fragmentShaderLoc)).getInputStream();
                     break;
@@ -605,39 +614,15 @@ public class ShaderUtils {
 
     private final String nebula =
             "#extension GL_OES_standard_derivatives : enable\n" +
-                    "\n" +
                     "#ifdef GL_ES\n" +
                     "precision highp float;\n" +
                     "#endif\n" +
-                    "\n" +
                     "#define NUM_OCTAVES 6\n" +
-                    "\n" +
                     "uniform float time;\n" +
-                    "\n" +
-                    "mat3 rotX(float a) {\n" +
-                    "    float c = cos(a);\n" +
-                    "    float s = sin(a);\n" +
-                    "    return mat3(\n" +
-                    "        1, 0, 0,\n" +
-                    "        0, c, -s,\n" +
-                    "        0, s, c\n" +
-                    "    );\n" +
-                    "}\n" +
-                    "\n" +
-                    "mat3 rotY(float a) {\n" +
-                    "    float c = cos(a);\n" +
-                    "    float s = sin(a);\n" +
-                    "    return mat3(\n" +
-                    "        c, 0, -s,\n" +
-                    "        0, 1, 0,\n" +
-                    "        s, 0, c\n" +
-                    "    );\n" +
-                    "}\n" +
-                    "\n" +
+                    "uniform vec3 color;\n" +
                     "float random(vec2 pos) {\n" +
                     "    return fract(sin(dot(pos.xy, vec2(13.9898, 78.233))) * 43758.5453123);\n" +
                     "}\n" +
-                    "\n" +
                     "float noise(vec2 pos) {\n" +
                     "    vec2 i = floor(pos);\n" +
                     "    vec2 f = fract(pos);\n" +
@@ -648,7 +633,6 @@ public class ShaderUtils {
                     "    vec2 u = f * f * (3.0 - 2.0 * f);\n" +
                     "    return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;\n" +
                     "}\n" +
-                    "\n" +
                     "float fbm(vec2 pos) {\n" +
                     "    float v = 0.0;\n" +
                     "    float a = 0.5;\n" +
@@ -662,52 +646,28 @@ public class ShaderUtils {
                     "    }\n" +
                     "    return v;\n" +
                     "}\n" +
-                    "\n" +
                     "void main(void) {\n" +
                     "    vec3 dir = normalize(gl_TexCoord[0].xyz);\n" +
                     "    vec2 p = dir.xy / (1.0 + abs(dir.z));\n" +
                     "    p -= vec2(12.0, 0.0);\n" +
-                    "\n" +
-                    "    float t = 0.0, d;\n" +
-                    "\n" +
-                    "    float time2 = 1.0;\n" +
-                    "\n" +
                     "    vec2 q = vec2(0.0);\n" +
-                    "    q.x = fbm(p + 0.00 * time2);\n" +
+                    "    q.x = fbm(p);\n" +
                     "    q.y = fbm(p + vec2(1.0));\n" +
                     "    vec2 r = vec2(0.0);\n" +
-                    "    r.x = fbm(p + 1.0 * q + vec2(1.7, 1.2) + 0.15 * time2);\n" +
-                    "    r.y = fbm(p + 1.0 * q + vec2(8.3, 2.8) + 0.126 * time2);\n" +
+                    "    r.x = fbm(p + 1.0 * q + vec2(1.7, 1.2) + 0.15 * time);\n" +
+                    "    r.y = fbm(p + 1.0 * q + vec2(8.3, 2.8) + 0.126 * time);\n" +
                     "    float f = fbm(p + r);\n" +
-                    "\n" +
-                    "    vec3 color = mix(\n" +
-                    "        vec3(1.0, 1.0, 2.0),\n" +
-                    "        vec3(1.0, 1.0, 1.0),\n" +
-                    "        clamp((f * f) * 5.5, 1.2, 15.5)\n" +
-                    "    );\n" +
-                    "\n" +
-                    "    color = mix(\n" +
-                    "        color,\n" +
-                    "        vec3(1.0, 1.0, 1.0),\n" +
-                    "        clamp(length(q), 2.0, 2.0)\n" +
-                    "    );\n" +
-                    "\n" +
-                    "    color = mix(\n" +
-                    "        color,\n" +
-                    "        vec3(0.3, 0.2, 1.0),\n" +
-                    "        clamp(length(r.x), 0.0, 5.0)\n" +
-                    "    );\n" +
-                    "\n" +
-                    "    color = (f * f * f * 1.0 + 0.5 * 1.7 * 0.0 + 0.9 * f) * color;\n" +
-                    "\n" +
-                    "    gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0);\n" +
+                    "    vec3 col = mix(color, vec3(1.0, 1.0, 1.0), clamp((f * f) * 3.5, 0.0, 1.0));\n" +
+                    "    col = mix(col, color * 0.5, clamp(length(q), 0.0, 1.0));\n" +
+                    "    col = mix(col, color * 1.5, clamp(length(r.x), 0.0, 1.0));\n" +
+                    "    col = (f * f * f * 1.2 + 0.8 * f) * col;\n" +
+                    "    gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n" +
                     "}\n";
 
     private final String yuri =
             "#version 120\n" +
-                    "\n" +
                     "uniform float time;\n" +
-                    "\n" +
+                    "uniform vec3 color;\n" +
                     "float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }\n" +
                     "float noise(vec2 p) {\n" +
                     "    vec2 i = floor(p);\n" +
@@ -734,8 +694,63 @@ public class ShaderUtils {
                     "    vec2 p = dir.xy / (1.0 + abs(dir.z));\n" +
                     "    vec2 flow = p * 1.6 + vec2(time * 0.02, time * 0.015);\n" +
                     "    float n = fbm(flow);\n" +
-                    "    vec3 purple = vec3(0.42, 0.20, 0.62);\n" +
                     "    float brightness = 0.35 + 0.65 * n;\n" +
-                    "    gl_FragColor = vec4(purple * brightness, 1.0);\n" +
+                    "    gl_FragColor = vec4(color * brightness, 1.0);\n" +
+                    "}\n";
+
+    private final String aurora =
+            "#version 120\n" +
+                    "uniform float time;\n" +
+                    "uniform vec3 color;\n" +
+                    "float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }\n" +
+                    "float noise(vec2 p) {\n" +
+                    "    vec2 i = floor(p);\n" +
+                    "    vec2 f = fract(p);\n" +
+                    "    float a = hash(i);\n" +
+                    "    float b = hash(i + vec2(1.0, 0.0));\n" +
+                    "    float c = hash(i + vec2(0.0, 1.0));\n" +
+                    "    float d = hash(i + vec2(1.0, 1.0));\n" +
+                    "    vec2 u = f * f * (3.0 - 2.0 * f);\n" +
+                    "    return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;\n" +
+                    "}\n" +
+                    "void main() {\n" +
+                    "    vec3 dir = normalize(gl_TexCoord[0].xyz);\n" +
+                    "    vec2 uv = dir.xz / (abs(dir.y) + 0.2);\n" +
+                    "    float wave = sin(uv.x * 2.0 + time) * 0.5 + noise(uv * 3.0 + time * 0.1) * 0.5;\n" +
+                    "    float intensity = smoothstep(0.1, 0.9, wave) * (1.0 - abs(dir.y));\n" +
+                    "    vec3 finalCol = mix(vec3(0.05, 0.05, 0.1), color, intensity);\n" +
+                    "    gl_FragColor = vec4(finalCol, 1.0);\n" +
+                    "}\n";
+
+    private final String galaxy =
+            "#version 120\n" +
+                    "uniform float time;\n" +
+                    "uniform vec3 color;\n" +
+                    "float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }\n" +
+                    "void main() {\n" +
+                    "    vec3 dir = normalize(gl_TexCoord[0].xyz);\n" +
+                    "    vec2 uv = dir.xy / (1.0 + abs(dir.z));\n" +
+                    "    float star = step(0.996, hash(floor(uv * 120.0)));\n" +
+                    "    float twinkle = sin(time * 3.0 + hash(floor(uv * 120.0)) * 6.28) * 0.5 + 0.5;\n" +
+                    "    vec3 starColor = vec3(star * twinkle);\n" +
+                    "    vec3 bg = color * (0.15 + 0.1 * sin(uv.x * 3.0 + time * 0.2));\n" +
+                    "    gl_FragColor = vec4(bg + starColor, 1.0);\n" +
+                    "}\n";
+
+    private final String vaporwave =
+            "#version 120\n" +
+                    "uniform float time;\n" +
+                    "uniform vec3 color;\n" +
+                    "void main() {\n" +
+                    "    vec3 dir = normalize(gl_TexCoord[0].xyz);\n" +
+                    "    float h = dir.y * 0.5 + 0.5;\n" +
+                    "    vec3 topColor = color * 0.3;\n" +
+                    "    vec3 horizonColor = color * 1.4;\n" +
+                    "    vec3 col = mix(horizonColor, topColor, pow(h, 0.6));\n" +
+                    "    float grid = step(0.96, fract(dir.x * 20.0 + time * 0.1)) + step(0.96, fract(dir.z * 20.0));\n" +
+                    "    if (dir.y < 0.0) {\n" +
+                    "        col += vec3(grid * 0.2) * color;\n" +
+                    "    }\n" +
+                    "    gl_FragColor = vec4(col, 1.0);\n" +
                     "}\n";
 }

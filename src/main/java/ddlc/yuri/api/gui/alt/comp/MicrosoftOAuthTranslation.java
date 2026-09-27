@@ -1,6 +1,7 @@
 package ddlc.yuri.api.gui.alt.comp;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
 import com.sun.net.httpserver.HttpExchange;
@@ -102,23 +103,32 @@ public class MicrosoftOAuthTranslation {
 
     static Gson gson = new Gson();
 
+    private static <T> T safeFromJson(String json, Class<T> type) {
+        if (json == null || json.isEmpty()) return null;
+        try {
+            return gson.fromJson(json, type);
+        } catch (JsonSyntaxException | IllegalStateException e) {
+            return null;
+        }
+    }
+
     public static LoginData login(String refreshToken) {
         if (refreshToken == null || refreshToken.isEmpty()) return new LoginData();
 
         RedeemResult redeemed = redeemRefreshToken(refreshToken);
-        if (redeemed.response == null || redeemed.response.access_token == null || redeemed.response.access_token.isEmpty()) return new LoginData();
+        if (redeemed == null || redeemed.response == null || redeemed.response.access_token == null || redeemed.response.access_token.isEmpty()) return new LoginData();
 
         String accessToken = redeemed.response.access_token;
         String newRefreshToken = redeemed.response.refresh_token != null ? redeemed.response.refresh_token : refreshToken;
 
-        XblXstsResponse xblRes = gson.fromJson(
+        XblXstsResponse xblRes = safeFromJson(
                 NetworkUtils.postExternal("https://user.auth.xboxlive.com/user/authenticate",
                         "{\"Properties\":{\"AuthMethod\":\"RPS\",\"SiteName\":\"user.auth.xboxlive.com\",\"RpsTicket\":\"" + redeemed.rpsPrefix + accessToken + "\"},\"RelyingParty\":\"http://auth.xboxlive.com\",\"TokenType\":\"JWT\"}", true),
                 XblXstsResponse.class);
 
         if (xblRes == null || xblRes.Token == null || xblRes.Token.isEmpty()) return new LoginData();
 
-        XblXstsResponse xstsRes = gson.fromJson(
+        XblXstsResponse xstsRes = safeFromJson(
                 NetworkUtils.postExternal("https://xsts.auth.xboxlive.com/xsts/authorize",
                         "{\"Properties\":{\"SandboxId\":\"RETAIL\",\"UserTokens\":[\"" + xblRes.Token + "\"]},\"RelyingParty\":\"rp://api.minecraftservices.com/\",\"TokenType\":\"JWT\"}", true),
                 XblXstsResponse.class);
@@ -127,20 +137,20 @@ public class MicrosoftOAuthTranslation {
         if (xblRes.DisplayClaims == null || xblRes.DisplayClaims.xui == null || xblRes.DisplayClaims.xui.length == 0
                 || xblRes.DisplayClaims.xui[0].uhs == null || xblRes.DisplayClaims.xui[0].uhs.isEmpty()) return new LoginData();
 
-        McResponse mcRes = gson.fromJson(
+        McResponse mcRes = safeFromJson(
                 NetworkUtils.postExternal("https://api.minecraftservices.com/authentication/login_with_xbox",
                         "{\"identityToken\":\"XBL3.0 x=" + xblRes.DisplayClaims.xui[0].uhs + ";" + xstsRes.Token + "\"}", true),
                 McResponse.class);
 
         if (mcRes == null || mcRes.access_token == null || mcRes.access_token.isEmpty()) return new LoginData();
 
-        GameOwnershipResponse gameOwnershipRes = gson.fromJson(
+        GameOwnershipResponse gameOwnershipRes = safeFromJson(
                 NetworkUtils.getBearerResponse("https://api.minecraftservices.com/entitlements/mcstore", mcRes.access_token),
                 GameOwnershipResponse.class);
 
         if (gameOwnershipRes == null || !gameOwnershipRes.hasGameOwnership()) return new LoginData();
 
-        ProfileResponse profileRes = gson.fromJson(
+        ProfileResponse profileRes = safeFromJson(
                 NetworkUtils.getBearerResponse("https://api.minecraftservices.com/minecraft/profile", mcRes.access_token),
                 ProfileResponse.class);
 
@@ -150,7 +160,7 @@ public class MicrosoftOAuthTranslation {
     }
 
     private static RedeemResult redeemRefreshToken(String refreshToken) {
-        AuthTokenResponse res = gson.fromJson(
+        AuthTokenResponse res = safeFromJson(
                 NetworkUtils.postExternal("https://login.live.com/oauth20_token.srf",
                         "client_id=" + XBOX_CLIENT_ID + "&grant_type=refresh_token&redirect_uri=" + XBOX_REDIRECT_URI + "&refresh_token=" + refreshToken + "&scope=" + XBOX_SCOPE, false),
                 AuthTokenResponse.class);
@@ -162,7 +172,7 @@ public class MicrosoftOAuthTranslation {
             return result;
         }
 
-        AuthTokenResponse fallback = gson.fromJson(
+        AuthTokenResponse fallback = safeFromJson(
                 NetworkUtils.postExternal("https://login.live.com/oauth20_token.srf",
                         "client_id=" + CLIENT_ID + "&client_secret=" + CLIENT_SECRET + "&refresh_token=" + refreshToken + "&grant_type=refresh_token&redirect_uri=http://localhost:" + PORT, false),
                 AuthTokenResponse.class);
@@ -232,7 +242,7 @@ public class MicrosoftOAuthTranslation {
         private void handleCode(String code) {
             String response = NetworkUtils.postExternal("https://login.live.com/oauth20_token.srf",
                     "client_id=" + CLIENT_ID + "&code=" + code + "&client_secret=" + CLIENT_SECRET + "&grant_type=authorization_code&redirect_uri=http://localhost:" + PORT, false);
-            AuthTokenResponse res = gson.fromJson(response, AuthTokenResponse.class);
+            AuthTokenResponse res = safeFromJson(response, AuthTokenResponse.class);
 
             if (res == null) callback.accept(null);
             else callback.accept(res.refresh_token);

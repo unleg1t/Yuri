@@ -36,6 +36,7 @@ public class AnimationsModule extends Module {
     }
 
     public static ModeProperty<AnimationMode> mode = new ModeProperty<>("Block Animations", AnimationMode.OLD);
+    public static NumberProperty spinSpeed = new NumberProperty("Spin Speed", 1.0, 1.0, 10.0, 1.0, () -> mode.getValue() == AnimationMode.SPIN);
     public static Property<Boolean> fluxSwing = new Property<>("Flux Swing", false);
     public static Property<Boolean> dontResetBlock = new Property<>("Dont Reset Block", true);
     public static Property<Boolean> swingEating = new Property<>("Swing While Eating", false);

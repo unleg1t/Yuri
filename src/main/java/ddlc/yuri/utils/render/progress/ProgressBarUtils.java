@@ -22,7 +22,7 @@ public class ProgressBarUtils {
 
         float fillRadius = Math.min(radius, fillWidth / 2f);
 
-        RoundedUtils.drawRoundOutline(centerX - half, centerY, width, 4f, radius, -0.5f, trackColor, fillColor.darker().darker());
+        RoundedUtils.drawRoundOutline(centerX - half, centerY, width, 4f, radius, -0.4f, trackColor, fillColor.darker().darker());
         RoundedUtils.drawRoundedRect(centerX - half + 0.5f, centerY + 1, fillWidth - 2f, 4f - 2.5f, fillRadius, fillColor);
     }
 

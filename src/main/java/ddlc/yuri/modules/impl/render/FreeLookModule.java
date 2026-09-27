@@ -1,7 +1,7 @@
 package ddlc.yuri.modules.impl.render;
 
 import ddlc.yuri.api.events.annotations.EventHook;
-import ddlc.yuri.api.events.impl.render.Render2DEvent;
+import ddlc.yuri.api.events.impl.client.PostTickEvent;
 import ddlc.yuri.api.events.impl.world.WorldJoinEvent;
 import ddlc.yuri.api.properties.Property;
 import ddlc.yuri.modules.Module;
@@ -13,30 +13,33 @@ import org.lwjgl.input.Keyboard;
 @ModuleInfo(label = "Free Look", description = "Allows you to look around freely while moving.", category = ModuleCategory.RENDER)
 public class FreeLookModule extends Module {
 
-    // for all you nerds looking in this code wondering how to make this work, you have to hold your set bind for freelook. duh.
-
     public Property<Boolean> invertPitch = new Property<>("Invert Pitch", false);
+    public Property<Boolean> hold = new Property<>("Hold", true);
 
-    private int previousPerspective;
-    public float originalYaw, originalPitch, lastYaw, lastPitch;
+    private int previousPerspective = 0;
+    public float cameraYaw, cameraPitch;
+    public float prevCameraYaw, prevCameraPitch;
 
     @Override
     public void onEnable() {
+        if (mc.thePlayer == null) {
+            setEnabled(false);
+            return;
+        }
         previousPerspective = mc.gameSettings.thirdPersonView;
-        originalYaw = lastYaw = mc.thePlayer.rotationYaw;
-        originalPitch = lastPitch = mc.thePlayer.rotationPitch;
-
-        if (invertPitch.getValue()) lastPitch *= -1;
-        Keyboard.enableRepeatEvents(false);
+        cameraYaw = mc.thePlayer.rotationYaw;
+        cameraPitch = mc.thePlayer.rotationPitch;
+        prevCameraYaw = cameraYaw;
+        prevCameraPitch = cameraPitch;
+        mc.gameSettings.thirdPersonView = 1;
     }
 
     @Override
     public void onDisable() {
-        mc.thePlayer.rotationYaw = originalYaw;
-        mc.thePlayer.rotationPitch = originalPitch;
-        mc.gameSettings.thirdPersonView = previousPerspective;
+        if (mc.gameSettings != null) {
+            mc.gameSettings.thirdPersonView = previousPerspective;
+        }
     }
-
 
     @EventHook
     public void onLoadWorld(WorldJoinEvent event) {
@@ -44,19 +47,33 @@ public class FreeLookModule extends Module {
     }
 
     @EventHook
-    public void onRender2D(Render2DEvent event) {
-        if (this.getKey() == Keyboard.KEY_NONE || !Keyboard.isKeyDown(this.getKey())) {
-            this.setEnabled(false);
-            return;
+    public void onPostTick(PostTickEvent event) {
+        if (mc.gameSettings != null && mc.gameSettings.thirdPersonView != 1) {
+            mc.gameSettings.thirdPersonView = 1;
         }
+        if (mc.currentScreen == null && hold.getValue() && getKey() != Keyboard.KEY_NONE && !Keyboard.isKeyDown(getKey())) {
+            this.setEnabled(false);
+        }
+    }
 
-        mc.mouseHelper.mouseXYChange();
-        final float f = mc.gameSettings.mouseSensitivity * 0.6F + 0.2F;
-        final float f1 = (float) (f * f * f * 1.5);
-        lastYaw += mc.mouseHelper.deltaX * f1;
-        lastPitch -= mc.mouseHelper.deltaY * f1;
+    public void handleMouseChange(float deltaX, float deltaY) {
+        prevCameraYaw = cameraYaw;
+        prevCameraPitch = cameraPitch;
 
-        lastPitch = MathHelper.clamp_float(lastPitch, -90, 90);
-        mc.gameSettings.thirdPersonView = 1;
+        cameraYaw += deltaX * 0.15F;
+        float pitchChange = deltaY * 0.15F;
+        if (invertPitch.getValue()) {
+            cameraPitch = MathHelper.clamp_float(cameraPitch + pitchChange, -90.0F, 90.0F);
+        } else {
+            cameraPitch = MathHelper.clamp_float(cameraPitch - pitchChange, -90.0F, 90.0F);
+        }
+    }
+
+    public float getYaw(float partialTicks) {
+        return prevCameraYaw + (cameraYaw - prevCameraYaw) * partialTicks;
+    }
+
+    public float getPitch(float partialTicks) {
+        return prevCameraPitch + (cameraPitch - prevCameraPitch) * partialTicks;
     }
 }

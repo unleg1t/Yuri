@@ -429,7 +429,7 @@ public class ItemRenderer {
                                             transformFirstPersonItem(f, 0.0F);
                                             GlStateManager.translate(0, 0.2F, -1);
                                             GlStateManager.rotate(-59, -1, 0, 3);
-                                            GlStateManager.rotate(-(System.currentTimeMillis() / 2 % 360), 1, 0, 0.0F);
+                                            GlStateManager.rotate(-(float) ((System.currentTimeMillis() / 3 * AnimationsModule.spinSpeed.getValue().doubleValue()) % 360), 1.0F, 0.0F, 0.0F);
                                             GlStateManager.rotate(60.0F, 0.0F, 1.0F, 0.0F);
                                             break;
                                         case LEAKED:

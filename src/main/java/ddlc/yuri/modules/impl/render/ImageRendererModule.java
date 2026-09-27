@@ -31,13 +31,15 @@ public final class ImageRendererModule extends Module {
 
     public enum Images {
         YURI("Yuri", false),
-        YURI_2("Yuri 2", false),
-        YURI_3("Yuri 3", false),
+        YURI_2("Yuri 2", true),
+        YURI_3("Yuri 3", true),
         YURI_NSFW("Yuri NSFW", false),
         NATSUKI("Natsuki", false),
         DEATH_THREATS("Death Threats", true),
+        DANCE("Dance", true),
         BIRTHDAY("Birthday", false),
         NEP("Nep", false),
+        NETANYAHU("Netanyahu", false),
         GAMER("Gamer", false),
         CUSTOM("Custom", false);
 

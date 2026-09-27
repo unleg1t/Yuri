@@ -160,7 +160,7 @@ public class YuriClickGUI extends GuiScreen {
 
         Color searchBg = RenderUtils.withAlphaColor(Theme.WINDOW_BG, scaledAlpha(Theme.WINDOW_BG, progress));
 
-        RoundedUtils.drawRoundOutline(x, y, width, height, 5f, -0.5f,
+        RoundedUtils.drawRoundOutline(x, y, width, height, 5f, -0.4f,
                 searchBg, RenderUtils.withAlphaColor(Theme.accent(), argb));
 
         String text = searchQuery.isEmpty() ? "Search..." : searchQuery;
@@ -187,7 +187,7 @@ public class YuriClickGUI extends GuiScreen {
 
         Color tooltipBg = RenderUtils.withAlphaColor(Theme.TOOLTIP_BG, scaledAlpha(Theme.TOOLTIP_BG, progress));
 
-        RoundedUtils.drawRoundOutline(x, y, width, height, 4f, -0.5f,
+        RoundedUtils.drawRoundOutline(x, y, width, height, 4f, -0.4f,
                 tooltipBg, RenderUtils.withAlphaColor(Theme.accent(), argb));
 
         float textY = y + (height - font.getHeight()) / 2f;

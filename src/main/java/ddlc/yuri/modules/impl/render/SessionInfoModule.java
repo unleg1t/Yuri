@@ -222,7 +222,7 @@ SessionInfoModule extends Module implements IMinecraft {
         if (x > sr.getScaledWidth()) x = sr.getScaledWidth() - width;
         if (y > sr.getScaledHeight()) y = sr.getScaledHeight() - height;
 
-        RoundedUtils.drawRoundOutline(x, y, width, height, RADIUS, -0.5f, BG_COLOR,
+        RoundedUtils.drawRoundOutline(x, y, width, height, RADIUS, -0.4f, BG_COLOR,
                 ColorManager.getColor());
 
         float cx = x + width / 2f;

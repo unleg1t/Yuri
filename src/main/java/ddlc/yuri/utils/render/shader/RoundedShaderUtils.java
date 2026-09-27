@@ -212,7 +212,8 @@ public class RoundedShaderUtils {
             "\n" +
             "\n" +
             "void main() {\n" +
-            "    float distance = roundedBoxSDF((rectSize * .5) - (gl_TexCoord[0].st * rectSize), (rectSize * .5) - radius - 1., radius);\n" +
+            "    float safeRadius = min(radius, min(rectSize.x, rectSize.y) * 0.5);\n" +
+            "    float distance = roundedBoxSDF((rectSize * .5) - (gl_TexCoord[0].st * rectSize), (rectSize * .5) - safeRadius - 1., safeRadius);\n" +
             "    float smoothedAlpha =  (1.0-smoothstep(0.0, 2.0, distance)) * alpha;\n" +
             "    gl_FragColor = vec4(texture2D(textureIn, gl_TexCoord[0].st).rgb, smoothedAlpha);\n" +
             "}";
@@ -228,7 +229,8 @@ public class RoundedShaderUtils {
             "}\n" +
             "\n" +
             "void main() {\n" +
-            "    float distance = roundedSDF(gl_FragCoord.xy - location - (rectSize * .5), (rectSize * .5) + (outlineThickness *.5) - 1.0, radius);\n" +
+            "    float safeRadius = min(radius, min(rectSize.x, rectSize.y) * 0.5);\n" +
+            "    float distance = roundedSDF(gl_FragCoord.xy - location - (rectSize * .5), (rectSize * .5) + (outlineThickness *.5) - 1.0, safeRadius);\n" +
             "\n" +
             "    float blendAmount = smoothstep(0., 2., abs(distance) - (outlineThickness * .5));\n" +
             "\n" +
@@ -261,7 +263,8 @@ public class RoundedShaderUtils {
             "    vec2 halfSize = rectSize * .5;\n" +
             "    \n" +
             "   // use the bottom leftColor as the alpha\n" +
-            "    float smoothedAlpha =  (1.0-smoothstep(0.0, 2., roundSDF(halfSize - (gl_TexCoord[0].st * rectSize), halfSize - radius - 1., radius)));\n" +
+            "    float safeRadius = min(radius, min(halfSize.x, halfSize.y));\n" +
+            "    float smoothedAlpha =  (1.0-smoothstep(0.0, 2., roundSDF(halfSize - (gl_TexCoord[0].st * rectSize), halfSize - safeRadius - 1., safeRadius)));\n" +
             "    vec4 gradient = createGradient(st, color1, color2, color3, color4);" +
             "    gl_FragColor = vec4(gradient.rgb, gradient.a * smoothedAlpha);\n" +
             "}";
@@ -272,10 +275,9 @@ public class RoundedShaderUtils {
                     "uniform vec4 color;\n" +
                     "uniform float radius;\n" +
                     "uniform bool blur;\n" +
-                    "uniform vec4 corners;\n" + // x: top-left, y: top-right, z: bottom-right, w: bottom-left
+                    "uniform vec4 corners;\n" +
                     "\n" +
                     "float getRadius(vec2 st) {\n" +
-                    "    // gl_TexCoord[0].st ranges from (0,0) top-left to (1,1) bottom-right\n" +
                     "    if (st.x < 0.5 && st.y < 0.5) return radius * corners.x;\n" +
                     "    if (st.x >= 0.5 && st.y < 0.5) return radius * corners.y;\n" +
                     "    if (st.x >= 0.5 && st.y >= 0.5) return radius * corners.z;\n" +
@@ -289,8 +291,8 @@ public class RoundedShaderUtils {
                     "\n" +
                     "void main() {\n" +
                     "    vec2 st = gl_TexCoord[0].st;\n" +
-                    "    float currentRadius = getRadius(st);\n" +
                     "    vec2 rectHalf = rectSize * 0.5;\n" +
+                    "    float currentRadius = min(getRadius(st), min(rectHalf.x, rectHalf.y));\n" +
                     "    float dist = roundSDF(rectHalf - (st * rectSize), rectHalf - currentRadius - 1.0, currentRadius);\n" +
                     "    gl_FragColor = vec4(color.rgb, (1.0 - smoothstep(0.0, 1.0, dist)) * color.a);\n" +
                     "}";

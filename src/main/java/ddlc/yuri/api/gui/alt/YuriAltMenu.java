@@ -237,7 +237,7 @@ public class YuriAltMenu extends GuiScreen {
     }
 
     private void drawPanelShadow(int x, int y, int w, int h) {
-        RoundedUtils.drawRoundOutline(x + SHADOW_OFFSET, y + SHADOW_OFFSET, w, h, RADIUS, -0.5f,
+        RoundedUtils.drawRoundOutline(x + SHADOW_OFFSET, y + SHADOW_OFFSET, w, h, RADIUS, -0.4f,
                 RenderUtils.withAlphaColor(Color.BLACK, 90), RenderUtils.withAlphaColor(Color.BLACK, 0));
     }
 
@@ -263,7 +263,7 @@ public class YuriAltMenu extends GuiScreen {
 
         boolean backHovered = isMouseOverButton(mouseX, mouseY, PADDING - 6, 6, backButtonWidth + 12, HEADER_HEIGHT - 12);
         if (backHovered) {
-            RoundedUtils.drawRoundOutline(PADDING - 6, 6, backButtonWidth + 12, HEADER_HEIGHT - 12, RADIUS, -0.5f,
+            RoundedUtils.drawRoundOutline(PADDING - 6, 6, backButtonWidth + 12, HEADER_HEIGHT - 12, RADIUS, -0.4f,
                     RenderUtils.withAlphaColor(Color.WHITE, 20), RenderUtils.withAlphaColor(Color.WHITE, 0));
         }
         regular.drawStringWithShadow("Back", PADDING, (HEADER_HEIGHT - fontHeight) / 2, backHovered ? accent.getRGB() : Color.WHITE.getRGB());
@@ -289,16 +289,16 @@ public class YuriAltMenu extends GuiScreen {
         int pillX = width - PADDING - pillWidth;
         int pillY = (HEADER_HEIGHT - pillHeight) / 2;
 
-        RoundedUtils.drawRoundOutline(pillX, pillY, pillWidth, pillHeight, RADIUS, -0.5f, BODY_COLOR, RenderUtils.withAlphaColor(accent, 160));
+        RoundedUtils.drawRoundOutline(pillX, pillY, pillWidth, pillHeight, RADIUS, -0.4f, BODY_COLOR, RenderUtils.withAlphaColor(accent, 160));
         int dotX = pillX + pillPaddingX;
         int dotY = pillY + (pillHeight - dotSize) / 2;
-        RoundedUtils.drawRoundOutline(dotX, dotY, dotSize, dotSize, 2.0f, -0.5f, accent, RenderUtils.withAlphaColor(Color.BLACK, 180));
+        RoundedUtils.drawRoundOutline(dotX, dotY, dotSize, dotSize, 2.0f, -0.4f, accent, RenderUtils.withAlphaColor(Color.BLACK, 180));
         regular.drawString(pillLabel, dotX + dotSize + 6, pillY + (pillHeight - fontHeight) / 2f, Color.WHITE.getRGB());
     }
 
     private void drawAddAccountPanel(int mouseX, int mouseY) {
         drawPanelShadow(addX, addY, addWidth, addHeight);
-        RoundedUtils.drawRoundOutline(addX, addY, addWidth, addHeight, RADIUS, -0.5f, BODY_COLOR, ColorManager.getColor());
+        RoundedUtils.drawRoundOutline(addX, addY, addWidth, addHeight, RADIUS, -0.4f, BODY_COLOR, ColorManager.getColor());
 
         drawSectionHeader(addX + PADDING, addY + PADDING, "Add", new ChatComponentText(" Account").getFormattedText());
 
@@ -331,7 +331,7 @@ public class YuriAltMenu extends GuiScreen {
         int pillX = addX + (addWidth - pillWidth) / 2;
         int pillY = statusY - pillHeight / 2;
 
-        RoundedUtils.drawRoundOutline(pillX, pillY, pillWidth, pillHeight, RADIUS, -0.5f,
+        RoundedUtils.drawRoundOutline(pillX, pillY, pillWidth, pillHeight, RADIUS, -0.4f,
                 RenderUtils.withAlphaColor(tint, 25), RenderUtils.withAlphaColor(tint, 130));
         regular.drawCenteredStringWithShadow(statusString, addX + addWidth / 2f, pillY + (pillHeight - regular.getHeight()) / 2f, tint.getRGB());
     }
@@ -345,7 +345,7 @@ public class YuriAltMenu extends GuiScreen {
                 : RenderUtils.withAlphaColor(accent, hovered ? 45 : 18);
         Color outline = primary ? accent : (hovered ? accent : RenderUtils.withAlphaColor(accent, 130));
 
-        RoundedUtils.drawRoundOutline(x, y, w, BUTTON_HEIGHT, RADIUS, -0.5f, fill, outline);
+        RoundedUtils.drawRoundOutline(x, y, w, BUTTON_HEIGHT, RADIUS, -0.4f, fill, outline);
 
         CustomFontRenderer font = FontUtils.getFont("sf", 18);
         int textColor = primary ? Color.BLACK.getRGB() : (hovered ? accent.getRGB() : Color.WHITE.getRGB());
@@ -357,7 +357,7 @@ public class YuriAltMenu extends GuiScreen {
 
     private void drawAccountsPanel(int mouseX, int mouseY) {
         drawPanelShadow(accountsX, accountsY, accountsWidth, accountsHeight);
-        RoundedUtils.drawRoundOutline(accountsX, accountsY, accountsWidth, accountsHeight, RADIUS, -0.5f, BODY_COLOR, ColorManager.getColor());
+        RoundedUtils.drawRoundOutline(accountsX, accountsY, accountsWidth, accountsHeight, RADIUS, -0.4f, BODY_COLOR, ColorManager.getColor());
 
         CustomFontRenderer regular = FontUtils.getFont("sf", 18);
         int fontHeight = regular.getHeight();
@@ -369,7 +369,7 @@ public class YuriAltMenu extends GuiScreen {
             CustomFontRenderer small = FontUtils.getFont("sf", 18);
             int labelWidth = small.getStringWidth(selectedLabel) + 16;
             int labelX = accountsX + accountsWidth - PADDING - labelWidth;
-            RoundedUtils.drawRoundOutline(labelX, accountsY + PADDING - 2, labelWidth, 20, RADIUS, -0.5f,
+            RoundedUtils.drawRoundOutline(labelX, accountsY + PADDING - 2, labelWidth, 20, RADIUS, -0.4f,
                     RenderUtils.withAlphaColor(ColorManager.getColor(), 30), RenderUtils.withAlphaColor(ColorManager.getColor(), 150));
             small.drawCenteredStringWithShadow(selectedLabel, labelX + labelWidth / 2f, accountsY + PADDING, ColorManager.getColor().getRGB());
         }
@@ -415,9 +415,9 @@ public class YuriAltMenu extends GuiScreen {
         int thumbY = scrollbarY + (scrollbarHeight - thumbHeight) * scrollOffset / Math.max(1, maxScroll);
         boolean scrollbarHovered = mouseX >= scrollbarX - 2 && mouseX <= scrollbarX + SCROLLBAR_WIDTH + 2 && mouseY >= thumbY && mouseY <= thumbY + thumbHeight;
 
-        RoundedUtils.drawRoundOutline(scrollbarX, scrollbarY, SCROLLBAR_WIDTH, scrollbarHeight, SCROLLBAR_WIDTH / 2f, -0.5f,
+        RoundedUtils.drawRoundOutline(scrollbarX, scrollbarY, SCROLLBAR_WIDTH, scrollbarHeight, SCROLLBAR_WIDTH / 2f, -0.4f,
                 RenderUtils.withAlphaColor(BODY_COLOR, 200), RenderUtils.withAlphaColor(Color.BLACK, 0));
-        RoundedUtils.drawRoundOutline(scrollbarX, thumbY, SCROLLBAR_WIDTH, thumbHeight, SCROLLBAR_WIDTH / 2f, -0.5f,
+        RoundedUtils.drawRoundOutline(scrollbarX, thumbY, SCROLLBAR_WIDTH, thumbHeight, SCROLLBAR_WIDTH / 2f, -0.4f,
                 (draggingScrollbar || scrollbarHovered) ? ColorManager.getColor() : RenderUtils.withAlphaColor(ColorManager.getColor(), 170),
                 RenderUtils.withAlphaColor(Color.BLACK, 0));
 
@@ -439,7 +439,7 @@ public class YuriAltMenu extends GuiScreen {
 
         Color fill = selected ? RenderUtils.withAlphaColor(accent, 35) : BODY_COLOR;
         Color outline = selected ? accent : (hovered ? RenderUtils.withAlphaColor(accent, 150) : RenderUtils.withAlphaColor(Color.WHITE, 25));
-        RoundedUtils.drawRoundOutline(x, y, w, h, RADIUS, selected ? 0.5f : -0.5f, fill, outline);
+        RoundedUtils.drawRoundOutline(x, y, w, h, RADIUS, selected ? 0.5f : -0.4f, fill, outline);
 
         loadHead(uuid);
         drawHead(x, y, uuid, h);
@@ -450,7 +450,7 @@ public class YuriAltMenu extends GuiScreen {
         int dotX = x + ENTRY_PADDING + avatarSize - dotSize + 2;
         int dotY = y + ENTRY_PADDING + avatarSize - dotSize + 2;
         Color dotColor = premium ? new Color(90, 210, 130) : new Color(150, 150, 150);
-        RoundedUtils.drawRoundOutline(dotX, dotY, dotSize, dotSize, 2.0f, -0.5f, dotColor, RenderUtils.withAlphaColor(Color.BLACK, 180));
+        RoundedUtils.drawRoundOutline(dotX, dotY, dotSize, dotSize, 2.0f, -0.4f, dotColor, RenderUtils.withAlphaColor(Color.BLACK, 180));
 
         int textX = x + ENTRY_PADDING + avatarSize + ENTRY_PADDING;
         CustomFontRenderer nameFont = FontUtils.getFont("sf", 18);
@@ -563,7 +563,7 @@ public class YuriAltMenu extends GuiScreen {
                 if (GuiScreen.isAltKeyDown()) {
                     if (selectedAlts.contains(index)) selectedAlts.remove((Integer) index);
                     else selectedAlts.add(index);
-                } else {
+                } else if (!isLoggingIn) {
                     loginWithAlt(alts.get(index));
                 }
                 return;
@@ -583,21 +583,45 @@ public class YuriAltMenu extends GuiScreen {
             SessionChanger.getInstance().setUserOffline(parts[1]);
             setStatus("Logged In With " + parts[1] + "!", false);
         } else if (alt.startsWith("microsoftOAuth|")) {
-            String user = parts[1];
-            String refreshToken = loadRefreshToken(user);
-            if (refreshToken != null) {
-                MicrosoftOAuthTranslation.LoginData login = MicrosoftOAuthTranslation.login(refreshToken);
-                mc.setSession(new Session(login.username, login.uuid, login.mcToken, "microsoft"));
-                setStatus("Logged In With " + login.username + "!", false);
-            } else {
-                setStatus("No Stored Token For " + user + "!", true);
-            }
+            loginWithStoredMicrosoftAlt(parts[1]);
         } else if (alt.startsWith("token|")) {
             if (parts.length >= 4) {
                 mc.setSession(new Session(parts[1], parts[2], parts[3], "mojang"));
                 setStatus("Logged In With " + parts[1] + "!", false);
             }
         }
+    }
+
+    private void loginWithStoredMicrosoftAlt(String user) {
+        String refreshToken = loadRefreshToken(user);
+        if (refreshToken == null) {
+            setStatus("No Stored Token For " + user + "!", true);
+            return;
+        }
+
+        isLoggingIn = true;
+        setStatus("Authenticating " + user + "...", false);
+
+        new Thread(() -> {
+            try {
+                MicrosoftOAuthTranslation.LoginData login = MicrosoftOAuthTranslation.login(refreshToken);
+                mc.addScheduledTask(() -> {
+                    if (login.isGood()) {
+                        mc.setSession(new Session(login.username, login.uuid, login.mcToken, "microsoft"));
+                        setStatus("Logged In With " + login.username + "!", false);
+                    } else {
+                        setStatus("Stored Token For " + user + " Is No Longer Valid!", true);
+                    }
+                    isLoggingIn = false;
+                });
+            } catch (Exception e) {
+                e.printStackTrace();
+                mc.addScheduledTask(() -> {
+                    setStatus("Microsoft Auth Failed For " + user + "!", true);
+                    isLoggingIn = false;
+                });
+            }
+        }, "Stored Microsoft Alt Auth Worker").start();
     }
 
     private void handleTokenLogin() {

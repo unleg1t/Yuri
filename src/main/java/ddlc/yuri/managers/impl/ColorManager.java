@@ -1,13 +1,10 @@
 package ddlc.yuri.managers.impl;
 
-import ddlc.yuri.api.events.annotations.EventHook;
-import ddlc.yuri.api.events.impl.render.Render2DEvent;
 import ddlc.yuri.modules.impl.render.ClickGUIModule;
 import ddlc.yuri.utils.misc.Pair;
 import ddlc.yuri.utils.render.RenderUtils;
-import lombok.Getter;
 
-import java.awt.*;
+import java.awt.Color;
 import java.util.EnumMap;
 import java.util.Map;
 
@@ -15,68 +12,38 @@ public class ColorManager {
 
     private static final Map<ClickGUIModule.Color, Color[]> STATIC_COLORS = new EnumMap<>(ClickGUIModule.Color.class);
 
-    private static final long UPDATE_INTERVAL_MS = 50L;
-
-    private static ClickGUIModule.Color lastMode = null;
-    private static long lastUpdate = 0L;
-
-    @Getter
-    public static Pair<Color, Color> colors = Pair.of(new Color(161, 82, 230), new Color(130, 58, 185));
-    @Getter
-    private static Color color = RenderUtils.interpolateColorsBackAndForth(5, 10, colors.getFirst(), colors.getSecond(), false);
-
-    @EventHook
-    public void onRender(Render2DEvent event) {
+    public static Color getColor() {
         ClickGUIModule.Color mode = ClickGUIModule.color.getValue();
         long now = System.currentTimeMillis();
 
-        if (mode != lastMode) {
-            lastMode = mode;
-            lastUpdate = 0L;
-            if (mode != ClickGUIModule.Color.RAINBOW
-                    && mode != ClickGUIModule.Color.NOVOLINE
-                    && mode != ClickGUIModule.Color.ASTOLFO) {
-                Color[] staticColors = staticColors(mode);
-                colors = Pair.of(staticColors[0], staticColors[1]);
-            }
-        }
+        switch (mode) {
+            case RAINBOW:
+                return Color.getHSBColor((now % 3000) / 3000f, 0.55f, 0.9f);
 
-        if (now - lastUpdate < UPDATE_INTERVAL_MS) {
-            return;
+            case ASTOLFO:
+                return RenderUtils.astolfoColors(15, 75);
+
+            case NOVOLINE:
+                return Color.getHSBColor((now % 3000) / 3000f, 0.25f, 0.9f);
+
+            default:
+                return getColors().getFirst();
         }
-        lastUpdate = now;
+    }
+
+    public static Pair<Color, Color> getColors() {
+        ClickGUIModule.Color mode = ClickGUIModule.color.getValue();
 
         switch (mode) {
-            case RAINBOW: {
-                float hue = (now % 3000) / 3000f;
-                Color c = Color.getHSBColor(hue, 0.55f, 0.9f);
-                color = c;
-                colors = Pair.of(c, c);
-                break;
-            }
+            case RAINBOW:
+            case ASTOLFO:
+            case NOVOLINE:
+                Color dynamicColor = getColor();
+                return Pair.of(dynamicColor, dynamicColor);
 
-            case ASTOLFO: {
-                Color c = RenderUtils.astolfoColors(15, 75);
-                color = c;
-                colors = Pair.of(c, c);
-                break;
-            }
-
-            case NOVOLINE: {
-                float hue = (now % 3000) / 3000f;
-                Color c = Color.getHSBColor(hue, 0.25f, 0.9f);
-                color = c;
-                colors = Pair.of(c, c);
-                break;
-            }
-
-            default: {
+            default:
                 Color[] staticColors = staticColors(mode);
-                color = RenderUtils.interpolateColorsBackAndForth(
-                        ClickGUIModule.colorSpeed.getValue().intValue(), 10,
-                        staticColors[0], staticColors[1], false);
-                break;
-            }
+                return Pair.of(staticColors[0], staticColors[1]);
         }
     }
 
@@ -89,75 +56,75 @@ public class ColorManager {
                 case YURI:
                 default:
                     first = new Color(161, 82, 230);
-                    second = first.darker().darker();
+                    second = new Color(55, 18, 90);
                     break;
                 case SUNSET:
-                    first = new Color(161, 82, 230);
-                    second = new Color(255, 104, 69);
+                    first = new Color(255, 104, 69);
+                    second = new Color(140, 35, 140);
                     break;
                 case TENACITY:
                     first = new Color(236, 133, 209);
                     second = new Color(28, 167, 222);
                     break;
-                case AMETHYST:
-                    first = new Color(147, 61, 211);
-                    second = new Color(79, 26, 122);
+                case PURPLE:
+                    first = new Color(170, 70, 255);
+                    second = new Color(60, 15, 110);
                     break;
-                case ROYAL:
-                    first = new Color(63, 81, 181);
-                    second = new Color(26, 35, 126);
+                case ROYAL_BLUE:
+                    first = new Color(65, 120, 255);
+                    second = new Color(15, 25, 90);
                     break;
-                case LAVENDER:
-                    first = new Color(181, 156, 214);
-                    second = new Color(108, 92, 140);
+                case PASTEL_PURPLE:
+                    first = new Color(205, 175, 255);
+                    second = new Color(90, 60, 140);
                     break;
-                case AZURE:
-                    first = new Color(128, 128, 255);
-                    second = new Color(168, 168, 255);
+                case PASTEL_BLUE:
+                    first = new Color(140, 200, 255);
+                    second = new Color(45, 90, 160);
                     break;
-                case INDIGO:
-                    first = new Color(48, 63, 159);
-                    second = new Color(17, 24, 84);
+                case MIDNIGHT:
+                    first = new Color(80, 90, 220);
+                    second = new Color(15, 18, 55);
                     break;
-                case OCEAN:
-                    first = new Color(0, 150, 199);
-                    second = new Color(0, 68, 105);
+                case OCEAN_BLUE:
+                    first = new Color(0, 190, 245);
+                    second = new Color(2, 45, 95);
                     break;
-                case CRYSTAL:
-                    first = new Color(183, 235, 235);
-                    second = new Color(94, 173, 173);
+                case TURQUOISE:
+                    first = new Color(80, 235, 220);
+                    second = new Color(15, 95, 90);
                     break;
-                case PETAL:
-                    first = new Color(255, 133, 191);
-                    second = new Color(194, 59, 112);
+                case PINK:
+                    first = new Color(255, 105, 180);
+                    second = new Color(120, 20, 70);
                     break;
-                case CITRUS:
-                    first = new Color(176, 213, 41);
-                    second = new Color(94, 122, 15);
+                case LIME:
+                    first = new Color(160, 235, 40);
+                    second = new Color(45, 90, 10);
                     break;
-                case EVERGREEN:
-                    first = new Color(34, 153, 84);
-                    second = new Color(11, 74, 40);
+                case FOREST_GREEN:
+                    first = new Color(45, 200, 105);
+                    second = new Color(10, 65, 30);
                     break;
-                case LEMON:
-                    first = new Color(234, 219, 66);
-                    second = new Color(145, 128, 20);
+                case GOLD:
+                    first = new Color(255, 200, 50);
+                    second = new Color(130, 80, 10);
                     break;
-                case EMBER:
-                    first = new Color(219, 98, 33);
-                    second = new Color(110, 40, 10);
+                case ORANGE:
+                    first = new Color(255, 120, 30);
+                    second = new Color(110, 30, 5);
                     break;
-                case CRIMSON:
-                    first = new Color(176, 32, 55);
-                    second = new Color(79, 12, 22);
+                case RED:
+                    first = new Color(245, 45, 70);
+                    second = new Color(85, 10, 20);
                     break;
-                case ICE:
-                    first = new Color(224, 247, 255);
-                    second = new Color(137, 196, 214);
+                case ICE_BLUE:
+                    first = new Color(200, 245, 255);
+                    second = new Color(60, 125, 160);
                     break;
-                case GRAPHITE:
-                    first = new Color(176, 180, 186);
-                    second = new Color(68, 71, 77);
+                case MONOCHROME:
+                    first = new Color(220, 225, 230);
+                    second = new Color(35, 38, 45);
                     break;
             }
             cached = new Color[]{first, second};

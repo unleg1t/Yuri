@@ -153,7 +153,7 @@ public class PropertyRow {
             float boxX = rightX - boxSize + 2f;
             float boxY = y + (getHeight() - boxSize) / 2f - 1;
 
-            RoundedUtils.drawRoundOutline(boxX, boxY, boxSize, boxSize, 2.5f, -0.5f,
+            RoundedUtils.drawRoundOutline(boxX, boxY, boxSize, boxSize, 2.5f, -0.4f,
                     barBgColor, RenderUtils.withAlphaColor(Theme.BAR_BORDER, scaledAlpha(Theme.BAR_BORDER, safeAlpha)));
 
             if (toggleAnimation > 0.01f) {
@@ -191,7 +191,7 @@ public class PropertyRow {
                 Color bg = selected ? RenderUtils.withAlphaColor(Theme.accent().darker(), argb) : barBgColor;
                 int textCol = selected ? RenderUtils.withAlpha(Theme.TEXT, argb) : RenderUtils.withAlpha(Theme.TEXT_MUTED, argb);
 
-                RoundedUtils.drawRoundOutline(currentX, currentY, itemWidth, ITEM_HEIGHT, 2f, -0.5f,
+                RoundedUtils.drawRoundOutline(currentX, currentY, itemWidth, ITEM_HEIGHT, 2f, -0.4f,
                         bg, RenderUtils.withAlphaColor(Theme.BAR_BORDER, scaledAlpha(Theme.BAR_BORDER, safeAlpha)));
                 font.drawString(opt, optTextX, optTextY, textCol);
 
@@ -215,7 +215,7 @@ public class PropertyRow {
                     ? RenderUtils.withAlphaColor(Theme.accent().brighter(), MathHelper.clamp_int((int) (40 * safeAlpha), 0, 255))
                     : barBgColor;
 
-            RoundedUtils.drawRoundOutline(innerX, boxY, innerWidth, boxH, 2.5f, -0.5f,
+            RoundedUtils.drawRoundOutline(innerX, boxY, innerWidth, boxH, 2.5f, -0.4f,
                     boxBg, RenderUtils.withAlphaColor(Theme.BAR_BORDER, scaledAlpha(Theme.BAR_BORDER, safeAlpha)));
 
             String displayVal = value + (textHovered && (System.currentTimeMillis() % 1000 > 500) ? "_" : "");

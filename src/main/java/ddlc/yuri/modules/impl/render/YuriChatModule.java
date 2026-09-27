@@ -288,7 +288,7 @@ public class YuriChatModule extends Module implements IMinecraft {
 
         float renderX = x + PADDING;
         float logoY = y + PADDING;
-        float textboxY = logoY;
+        float textboxY = logoY + TEXTBOX_HEIGHT + 32;
 
         float textboxX = renderX + Math.max(0, (LOGO_SIZE - calculatedTextboxWidth) / 2f);
         float textboxCenterX = textboxX + (calculatedTextboxWidth / 2f);

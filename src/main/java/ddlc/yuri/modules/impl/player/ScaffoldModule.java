@@ -252,10 +252,10 @@ public final class ScaffoldModule extends Module {
 
         if (mode.getValue() == Mode.HYPIXEL) {
             float moveYaw = RotationUtils.getMovementYaw();
-            float offsetYaw = moveYaw + 45.0f;
+            float offsetYaw = moveYaw + 50.0f;
             float yawDelta = Math.abs(MathHelper.wrapAngleTo180_float(offsetYaw - targetYaw));
             if (this.placeTimer == (yawDelta > 60.0f ? 8 : 9) && !mc.gameSettings.keyBindJump.isKeyDown() && mc.thePlayer.onGround) {
-                targetYaw = moveYaw + 45.0f;
+                targetYaw = moveYaw + 50.0f;
             }
             if (mc.thePlayer.onGround) {
                 startY = Math.floor(mc.thePlayer.posY);

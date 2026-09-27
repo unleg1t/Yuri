@@ -22,20 +22,11 @@ public class CustomFont
     protected int charOffset = 0;
     protected DynamicTexture tex;
     private static final int PADDING = 2;
-    // advance (atlas pixels) used for chars that have no rasterized glyph, so a
-    // missing glyph pushes the rest of the line right instead of pulling it left
     protected int missingCharAdvance = 8;
-    // only the game font itself is rasterized past this point (keeps the atlas
-    // from being flooded by low-priority fallback ranges)
     private static final int FALLBACK_CHAR_LIMIT = 0x2C00;
     private static final String[] FALLBACK_FONT_NAMES = {
-        // symbols (heart/star/gear etc. that servers use in chat and scoreboard)
-        "Segoe UI Symbol", "Segoe UI Emoji", "Noto Sans Symbols", "Noto Sans Symbols 2",
-        "Apple Symbols", "DejaVu Sans", "Symbola", "Arial Unicode MS"
-        // note: chinese/japanese/hangul are NOT rasterized here - a 2048x2048 atlas
-        // fits only a fraction of the ~21000 cjk ideographs. the renderer delegates
-        // wide east-asian chars to the vanilla font renderer, whose unicode font
-        // pages have complete cjk coverage (same as how vanilla displays them)
+            "Segoe UI Symbol", "Segoe UI Emoji", "Noto Sans Symbols", "Noto Sans Symbols 2",
+            "Apple Symbols", "DejaVu Sans", "Symbola", "Arial Unicode MS"
     };
 
     public CustomFont(Font font, boolean antiAlias, boolean fractionalMetrics)
@@ -100,8 +91,6 @@ public class CustomFont
         List<Font> fallbackFonts = loadFallbackFonts(font);
         FontMetrics baseMetrics = g.getFontMetrics(font);
 
-        // every glyph shares one baseline inside its cell so mixed fonts (game
-        // font + symbol/CJK fallbacks) stay vertically aligned
         int maxAscent = Math.max(baseMetrics.getMaxAscent(), 1);
         int maxDescent = Math.max(baseMetrics.getMaxDescent(), 1);
 
@@ -117,8 +106,6 @@ public class CustomFont
         Rectangle2D spaceBounds = baseMetrics.getStringBounds(" ", g);
         this.missingCharAdvance = Math.max((int) spaceBounds.getWidth(), 4);
 
-        // reference ink of the game font itself ('H' = plain capital, no
-        // descender/overshoot): small symbols get vertically centered on it
         int baseInkCenter;
         int baseInkHeight;
         BufferedImage scratch = new BufferedImage(128, cellHeight + 4, BufferedImage.TYPE_INT_ARGB);
@@ -148,15 +135,8 @@ public class CustomFont
 
         int[] cursor = {0, 1};
 
-        // order matters: the game font's own glyphs win, then unicode symbols the
-        // game font is missing (servers use those in chat and scoreboard), then
-        // latin-ext/greek/cyrillic with whatever room is left. wide east-asian
-        // chars are delegated to the vanilla renderer by CustomFontRenderer
         rasterizeRange(g, chars, bufferedImage, font, baseMetrics, font, 0x0000, 0x10000, cursor, imgSize, cellHeight, maxAscent, baseGlyphTop, baseInkCenter, symbolMaxInkHeight);
 
-        // separator bars (box drawing / block elements, e.g. hypixel's chat separator):
-        // the dedicated symbol fonts draw these as fat blocks, while the logical
-        // font's thin bars match the vanilla look people expect
         Font logicalFallback = fallbackFonts.get(fallbackFonts.size() - 1);
         rasterizeRange(g, chars, bufferedImage, logicalFallback, g.getFontMetrics(logicalFallback), font, 0x2500, 0x25B0, cursor, imgSize, cellHeight, maxAscent, baseGlyphTop, baseInkCenter, symbolMaxInkHeight);
 
@@ -170,8 +150,6 @@ public class CustomFont
             rasterizeRange(g, chars, bufferedImage, fallback, g.getFontMetrics(fallback), font, 0x0000, 0x2190, cursor, imgSize, cellHeight, maxAscent, baseGlyphTop, baseInkCenter, symbolMaxInkHeight);
         }
 
-        // line spacing must keep matching the original renderer: base font metrics
-        // only, fallback fonts are not allowed to inflate getHeight()
         this.fontHeight = baseMetrics.getHeight();
         return bufferedImage;
     }
@@ -201,7 +179,7 @@ public class CustomFont
 
             if (positionY + cellHeight + PADDING >= imgSize)
             {
-                break; // atlas is full, remaining chars fall back to missingCharAdvance
+                break;
             }
 
             CharData charData = chars[i];
@@ -214,28 +192,21 @@ public class CustomFont
             g.setFont(renderFont);
             g.drawString(String.valueOf(ch), positionX + 2, positionY + maxAscent);
 
-            // measure the actual ink: invisible glyphs (servers hide zero-width
-            // obfuscation chars inside words) must not eat space, and small
-            // symbol glyphs get centered on the text line instead of trusting
-            // the fallback font's metrics
             int[] ink = measureInk(atlas, positionX + 2, positionY, advance + 4, cellHeight);
 
             if (ink == null)
             {
                 if (ch != ' ' && ch != '\u00A0')
                 {
-                    charData.width = 8; // fully blank cell -> zero visible width
+                    charData.width = 8;
                 }
             }
             else if (!isBase && ink[1] - ink[0] + 1 <= symbolMaxInkHeight)
             {
-                // small standalone symbol: center its ink on the game font's line
-                // (subtracting 1 or 2 pixels shifts the symbol slightly upward)
                 charData.glyphTop = ((ink[0] + ink[1]) / 2 - baseInkCenter) + 12;
             }
             else
             {
-                // letters, CJK and tall glyphs sit on the baseline like the game font
                 charData.glyphTop = baseGlyphTop;
             }
 
@@ -246,7 +217,6 @@ public class CustomFont
         cursor[1] = positionY;
     }
 
-    // returns {inkTop, inkBottom} relative to the scanned region, or null when blank
     private int[] measureInk(BufferedImage image, int x, int y, int width, int height)
     {
         width = Math.min(width, image.getWidth() - x);
@@ -290,7 +260,6 @@ public class CustomFont
         {
             Font candidate = new Font(name, Font.PLAIN, 1).deriveFont(size);
 
-            // java silently maps unknown family names to Dialog
             if (!candidate.getFamily().equalsIgnoreCase(name))
             {
                 continue;
@@ -299,7 +268,6 @@ public class CustomFont
             fallbacks.add(candidate);
         }
 
-        // logical font, always present: covers greek/cyrillic/etc. via platform mapping
         fallbacks.add(new Font(Font.DIALOG, Font.PLAIN, 1).deriveFont(size));
 
         return fallbacks;
@@ -310,8 +278,6 @@ public class CustomFont
         try
         {
             if (chars[c] == null || !chars[c].valid) return;
-            // shift the quad up by glyphTop so every glyph lands where the layout
-            // decided (baseline-aligned letters, ink-centered symbols)
             drawQuad(x, y - chars[c].glyphTop, chars[c].width, chars[c].height, chars[c].storedX, chars[c].storedY, chars[c].width, chars[c].height);
         }
         catch (Exception e)
@@ -347,7 +313,7 @@ public class CustomFont
 
     public int getHeight()
     {
-        return (this.fontHeight - 8) / 2;
+        return Math.round((this.fontHeight - 8) / 2f);
     }
 
     public int getStringWidth(String text)
@@ -385,16 +351,11 @@ public class CustomFont
 
         int type = Character.getType(c);
 
-        // unassigned / private-use / lone surrogate codepoints no font can show:
-        // servers use these as invisible padding, giving them space width only
-        // punches visible holes in words
         if (type == Character.UNASSIGNED || type == Character.PRIVATE_USE || type == Character.SURROGATE)
         {
             return 0;
         }
 
-        // wide east-asian glyphs that did not fit in the atlas still need their
-        // full-width slot so the rest of the line keeps its rhythm
         if (isWideEastAsian(c))
         {
             return this.missingCharAdvance * 2;
@@ -405,23 +366,20 @@ public class CustomFont
 
     protected static boolean isWideEastAsian(char c)
     {
-        return (c >= 0x2E80 && c <= 0x9FFF)     // cjk radicals, kana, unified ideographs, yijing
-            || (c >= 0xAC00 && c <= 0xD7AF)     // hangul syllables
-            || (c >= 0xF900 && c <= 0xFAFF)     // cjk compatibility ideographs
-            || (c >= 0xFF00 && c <= 0xFF60)     // fullwidth forms
-            || (c >= 0xFFE0 && c <= 0xFFE6);    // fullwidth signs
+        return (c >= 0x2E80 && c <= 0x9FFF)
+                || (c >= 0xAC00 && c <= 0xD7AF)
+                || (c >= 0xF900 && c <= 0xFAFF)
+                || (c >= 0xFF00 && c <= 0xFF60)
+                || (c >= 0xFFE0 && c <= 0xFFE6);
     }
 
-    // zero-width/combining chars (ZWSP, ZWNJ, soft hyphen, combining marks,
-    // variation selectors...) - servers hide these inside text, they must
-    // never take up visible space
     protected static boolean isZeroWidth(char c)
     {
         int type = Character.getType(c);
 
         return type == Character.FORMAT
-            || type == Character.NON_SPACING_MARK
-            || type == Character.COMBINING_SPACING_MARK;
+                || type == Character.NON_SPACING_MARK
+                || type == Character.COMBINING_SPACING_MARK;
     }
 
     public boolean isAntiAlias()
