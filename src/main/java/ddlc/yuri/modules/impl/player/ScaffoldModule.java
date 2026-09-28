@@ -292,7 +292,7 @@ public final class ScaffoldModule extends Module {
                     Yuri.INSTANCE.getModuleManager().getModule(SpeedModule.class).isEnabled()
                             && !mc.gameSettings.keyBindJump.isKeyDown()) && MoveUtils.isMoving()) && Math.abs(mc.thePlayer.posY - startY) <= 3.0;
 
-            final int blockSlot = ScaffoldUtils.findPreferredBlockSlot();
+            final int blockSlot = ScaffoldUtils.getBlockSlot();
             if (blockSlot == -1) {
                 Yuri.INSTANCE.getNotificationHandler().pop(getLabel(), "Disabled, no blocks found.");
                 this.toggle();

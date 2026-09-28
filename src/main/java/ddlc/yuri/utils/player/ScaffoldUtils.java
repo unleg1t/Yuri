@@ -5,8 +5,10 @@ import ddlc.yuri.managers.impl.RotationManager;
 import ddlc.yuri.modules.impl.player.ScaffoldModule;
 import ddlc.yuri.utils.render.FontUtils;
 import ddlc.yuri.utils.render.RenderUtils;
+import net.minecraft.block.Block;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ScaledResolution;
+import net.minecraft.init.Blocks;
 import net.minecraft.item.ItemBlock;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.*;
@@ -276,20 +278,34 @@ public final class ScaffoldUtils {
         return BlockUtils.blockRelativeToPlayer(offset.getX(), -down + offset.getY(), offset.getZ()).isReplaceable(mc.theWorld, new BlockPos(mc.thePlayer).down(down));
     }
 
-    public static int findPreferredBlockSlot() {
-        int fallbackSingle = -1;
-        for (int slot = 0; slot < HOTBAR_SIZE; slot++) {
-            ItemStack stack = mc.thePlayer.inventory.mainInventory[slot];
-            if (stack == null || !(stack.getItem() instanceof ItemBlock)) continue;
-            if (BlockUtils.blacklist.contains(((ItemBlock) stack.getItem()).getBlock())) continue;
-            if (stack.stackSize > 1) {
-                return slot;
-            }
-            if (fallbackSingle == -1) {
-                fallbackSingle = slot;
+    public static int getBlockSlot() {
+        for (int i = 0; i < 9; i++) {
+            final ItemStack itemStack = mc.thePlayer.inventory.mainInventory[i];
+            if (itemStack != null && itemStack.getItem() instanceof ItemBlock && itemStack.stackSize > 0) {
+                final ItemBlock itemBlock = (ItemBlock) itemStack.getItem();
+                if (isBlockValid(itemBlock.getBlock())) {
+                    return i;
+                }
             }
         }
-        return fallbackSingle;
+        return -1;
+    }
+
+    public static boolean isBlockValid(final Block block) {
+        return (block.isFullBlock() || block == Blocks.glass || block == Blocks.stained_glass) &&
+                block != Blocks.sand &&
+                block != Blocks.gravel &&
+                block != Blocks.dispenser &&
+                block != Blocks.command_block &&
+                block != Blocks.noteblock &&
+                block != Blocks.furnace &&
+                block != Blocks.crafting_table &&
+                block != Blocks.tnt &&
+                block != Blocks.dropper &&
+                block != Blocks.soul_sand &&
+                block != Blocks.ice &&
+                block != Blocks.packed_ice &&
+                block != Blocks.beacon;
     }
 
     public static int countBlocks() {
