@@ -234,6 +234,89 @@ public final class ImGuiStyles {
                 .color(ImGuiCol.ModalWindowDimBg, new Color(10, 12, 18), 130);
     }
 
+    public static ImGuiStyleSheet csgo() {
+        Color scheme = new Color(162, 144, 225);
+        Color text = new Color(255, 255, 255);
+        Color disabled = new Color(78, 78, 78);
+        Color window = new Color(10, 10, 10);
+        Color child = new Color(8, 8, 8);
+        Color border = new Color(255, 255, 255);
+        Color frame = new Color(19, 19, 19);
+        Color frameHover = new Color(23, 23, 23);
+        Color frameActive = new Color(27, 27, 27);
+        Color button = new Color(26, 25, 26);
+        Color buttonHover = new Color(36, 35, 36);
+        Color buttonActive = new Color(46, 45, 46);
+        Color grab = new Color(32, 31, 32);
+        Color grabHover = new Color(37, 36, 37);
+        Color grabActive = new Color(42, 41, 42);
+
+        return new ImGuiStyleSheet()
+                .rounding(0f, 0f, 0f)
+                .windowPadding(0f, 0f)
+                .windowMinSize(480f, 330f)
+                .framePadding(4f, 4f)
+                .itemSpacing(8f, 4f)
+                .itemInnerSpacing(8f, 3f)
+                .grabMinSize(12f)
+                .grabRounding(0f)
+                .scrollbarSize(9f)
+                .scrollbarRounding(0f)
+                .color(ImGuiCol.Text, text, 255)
+                .color(ImGuiCol.TextDisabled, disabled, 255)
+                .color(ImGuiCol.WindowBg, window, 255)
+                .color(ImGuiCol.ChildBg, child, 255)
+                .color(ImGuiCol.PopupBg, new Color(20, 20, 20), 240)
+                .color(ImGuiCol.Border, border, 15)
+                .color(ImGuiCol.BorderShadow, new Color(0, 0, 0), 255)
+                .color(ImGuiCol.FrameBg, frame, 255)
+                .color(ImGuiCol.FrameBgHovered, frameHover, 255)
+                .color(ImGuiCol.FrameBgActive, frameActive, 255)
+                .color(ImGuiCol.TitleBg, new Color(10, 10, 10), 255)
+                .color(ImGuiCol.TitleBgActive, new Color(10, 10, 10), 255)
+                .color(ImGuiCol.TitleBgCollapsed, new Color(10, 10, 10), 130)
+                .color(ImGuiCol.MenuBarBg, new Color(36, 36, 36), 255)
+                .color(ImGuiCol.ScrollbarBg, new Color(0, 0, 0), 0)
+                .color(ImGuiCol.ScrollbarGrab, grab, 255)
+                .color(ImGuiCol.ScrollbarGrabHovered, grabHover, 255)
+                .color(ImGuiCol.ScrollbarGrabActive, grabActive, 255)
+                .color(ImGuiCol.CheckMark, scheme, 255)
+                .color(ImGuiCol.SliderGrab, scheme, 255)
+                .color(ImGuiCol.SliderGrabActive, new Color(132, 114, 195), 255)
+                .color(ImGuiCol.Button, button, 255)
+                .color(ImGuiCol.ButtonHovered, buttonHover, 255)
+                .color(ImGuiCol.ButtonActive, buttonActive, 255)
+                .color(ImGuiCol.Header, scheme, 80)
+                .color(ImGuiCol.HeaderHovered, scheme, 140)
+                .color(ImGuiCol.HeaderActive, scheme, 200)
+                .color(ImGuiCol.Separator, border, 15)
+                .color(ImGuiCol.SeparatorHovered, scheme, 180)
+                .color(ImGuiCol.SeparatorActive, scheme, 255)
+                .color(ImGuiCol.ResizeGrip, scheme, 50)
+                .color(ImGuiCol.ResizeGripHovered, scheme, 170)
+                .color(ImGuiCol.ResizeGripActive, scheme, 240)
+                .color(ImGuiCol.Tab, frame, 255)
+                .color(ImGuiCol.TabHovered, scheme, 180)
+                .color(ImGuiCol.TabActive, scheme, 220)
+                .color(ImGuiCol.TabUnfocused, child, 255)
+                .color(ImGuiCol.TabUnfocusedActive, frame, 255)
+                .color(ImGuiCol.PlotLines, text, 161)
+                .color(ImGuiCol.PlotLinesHovered, scheme, 255)
+                .color(ImGuiCol.PlotHistogram, scheme, 255)
+                .color(ImGuiCol.PlotHistogramHovered, new Color(132, 114, 195), 255)
+                .color(ImGuiCol.TableHeaderBg, frame, 255)
+                .color(ImGuiCol.TableBorderStrong, new Color(80, 80, 90), 255)
+                .color(ImGuiCol.TableBorderLight, new Color(59, 59, 64), 255)
+                .color(ImGuiCol.TableRowBg, new Color(0, 0, 0), 0)
+                .color(ImGuiCol.TableRowBgAlt, new Color(255, 255, 255), 15)
+                .color(ImGuiCol.TextSelectedBg, scheme, 128)
+                .color(ImGuiCol.DragDropTarget, scheme, 230)
+                .color(ImGuiCol.NavHighlight, scheme, 255)
+                .color(ImGuiCol.NavWindowingHighlight, new Color(255, 255, 255), 178)
+                .color(ImGuiCol.NavWindowingDimBg, new Color(204, 204, 204), 51)
+                .color(ImGuiCol.ModalWindowDimBg, new Color(204, 204, 204), 89);
+    }
+
     public static ImGuiStyleSheet amethyst() {
         Color base = new Color(30, 24, 40);
         Color accent = new Color(178, 108, 240);

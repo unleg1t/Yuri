@@ -8,6 +8,7 @@ import ddlc.yuri.api.events.annotations.EventHook;
 import ddlc.yuri.api.events.impl.client.GameStartupEvent;
 import ddlc.yuri.api.events.impl.client.GameStoppingEvent;
 import ddlc.yuri.api.events.impl.render.Render2DEvent;
+import ddlc.yuri.api.gui.click.csgo.CsgoClickGui;
 import ddlc.yuri.api.gui.click.imgui.ImGuiClickGui;
 import ddlc.yuri.api.gui.click.novoline.NovolineClickGui;
 import ddlc.yuri.api.gui.click.yuri.YuriClickGUI;
@@ -36,6 +37,8 @@ public class Yuri {
     private final NovolineClickGui novolineClickGui = new NovolineClickGui();
     @Getter
     private final ImGuiClickGui imGuiClickGui = new ImGuiClickGui();
+    @Getter
+    private final CsgoClickGui csgoClickGui = new CsgoClickGui();
     @Getter
     private NotificationHandler notificationHandler = new NotificationHandler();
     private BindsConfig bindsConfig;

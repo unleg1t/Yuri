@@ -24,6 +24,7 @@ public class ClickGUIModule extends Module implements IMinecraft {
     public enum Mode {
         YURI("Yuri"),
         IMGUI("ImGui"),
+        CSGO("CSGO"),
         NOVOLINE("Novoline");
 
         public final String name;
@@ -88,6 +89,9 @@ public class ClickGUIModule extends Module implements IMinecraft {
             case IMGUI:
                 mc.displayGuiScreen(Yuri.INSTANCE.getImGuiClickGui());
                 break;
+            case CSGO:
+                mc.displayGuiScreen(Yuri.INSTANCE.getCsgoClickGui());
+                break;
         }
     }
 
@@ -97,6 +101,8 @@ public class ClickGUIModule extends Module implements IMinecraft {
             Yuri.INSTANCE.getNovolineClickGui().beginClose();
         } else if (mc.currentScreen == Yuri.INSTANCE.getImGuiClickGui() && !Yuri.INSTANCE.getImGuiClickGui().isClosing()) {
             Yuri.INSTANCE.getImGuiClickGui().beginClose();
+        } else if (mc.currentScreen == Yuri.INSTANCE.getCsgoClickGui() && !Yuri.INSTANCE.getCsgoClickGui().isClosing()) {
+            Yuri.INSTANCE.getCsgoClickGui().beginClose();
         } else if (mc.currentScreen == Yuri.INSTANCE.getYuriClickGUI() && !Yuri.INSTANCE.getYuriClickGUI().isClosing()) {
             Yuri.INSTANCE.getYuriClickGUI().beginClose();
         }

@@ -538,8 +538,12 @@ public final class ScaffoldModule extends Module {
             case TELLY:
                 if (canPlace && !mc.gameSettings.keyBindPickBlock.isKeyDown()) {
                     if (mc.objectMouseOver.sideHit != enumFacing.getEnumFacing() || !mc.objectMouseOver.getBlockPos().equals(blockFace)) {
-                        ScaffoldUtils.computeNormalRotations(blockFace, enumFacing, target,
-                                searchAlgorithm.getValue(), rayCast.getValue() == RayCast.STRICT);
+                        if (!hypixelTelly.getValue()) {
+                            ScaffoldUtils.computeNormalRotations(blockFace, enumFacing, target,
+                                    searchAlgorithm.getValue(), rayCast.getValue() == RayCast.STRICT);
+                        } else {
+                            ScaffoldUtils.computeWatchdog3Rotations(blockFace, enumFacing, target, rayCast.getValue() == RayCast.STRICT);
+                        }
                     }
                 }
 
@@ -550,10 +554,10 @@ public final class ScaffoldModule extends Module {
                     } else {
                         rotSpeed = 20.0f;
                     }
-                    target[0] = RotationUtils.getMovementYaw();
+                        target[0] = RotationUtils.getMovementYaw();
                 } else {
                     if (hypixelTelly.getValue()) {
-                        rotSpeed = isDiagonal() || mc.gameSettings.keyBindJump.isKeyDown() ? 3.25f : 1.9f;
+                        rotSpeed = isDiagonal() || mc.gameSettings.keyBindJump.isKeyDown() ? 4.5f : 1.9f;
                     }
                 }
                 break;
