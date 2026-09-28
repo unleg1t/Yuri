@@ -109,6 +109,7 @@ public class CsgoClickGui extends GuiScreen {
         float winW = ImGui.getWindowWidth();
         float winH = ImGui.getWindowHeight();
         CsgoTheme.updateScale(winW, winH);
+        CsgoTheme.applyAccents();
         ImFont compact = ImGuiManager.get().getCompactFont(CsgoTheme.fontSize());
         if (compact != null) {
             ImGui.pushFont(compact);
