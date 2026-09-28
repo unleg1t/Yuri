@@ -557,7 +557,7 @@ public final class ScaffoldModule extends Module {
                         target[0] = RotationUtils.getMovementYaw();
                 } else {
                     if (hypixelTelly.getValue()) {
-                        rotSpeed = isDiagonal() || mc.gameSettings.keyBindJump.isKeyDown() ? 4.5f : 1.9f;
+                        rotSpeed = isDiagonal() ? 4.75f : mc.gameSettings.keyBindJump.isKeyDown() ? 3.25f : 2.5f;
                     }
                 }
                 break;

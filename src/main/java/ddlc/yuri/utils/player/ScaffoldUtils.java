@@ -300,11 +300,7 @@ public final class ScaffoldUtils {
                 block != Blocks.noteblock &&
                 block != Blocks.furnace &&
                 block != Blocks.crafting_table &&
-                block != Blocks.tnt &&
                 block != Blocks.dropper &&
-                block != Blocks.soul_sand &&
-                block != Blocks.ice &&
-                block != Blocks.packed_ice &&
                 block != Blocks.beacon;
     }
 
