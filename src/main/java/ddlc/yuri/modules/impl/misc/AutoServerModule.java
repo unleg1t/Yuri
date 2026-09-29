@@ -49,7 +49,7 @@ public final class AutoServerModule extends Module {
     public enum Mode {
         REGISTER("Register"),
         AUTO_PLAY("Auto Play"),
-        POLICIES("POLICIES"),
+        POLICIES("Auto Policies"),
         AUTO_REPORT("Auto Report"),
         AUTO_EXCUSE("Auto Excuse");
 
