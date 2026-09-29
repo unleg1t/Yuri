@@ -35,6 +35,7 @@ public final class AutoSwapModule extends Module {
 
     private final Property<Boolean> sneakOnly = new Property<>("Sneak Only", false);
     private final ModeProperty<SwapMode> swapMode = new ModeProperty<>("Swap Mode", SwapMode.CLIENT);
+    private final Property<Boolean> swapBack = new Property<>("Swap Back", false, () -> swapMode.getValue() == SwapMode.CLIENT);
 
     public static boolean shouldSwap = true;
     private boolean isSwappingState = false;
@@ -45,7 +46,8 @@ public final class AutoSwapModule extends Module {
 
         if (!shouldStorageSwapValid()) {
             if (isSwappingState) {
-                SlotManager.swapBack();
+                if (swapBack.getValue() || swapMode.getValue() == SwapMode.SERVER)
+                    SlotManager.swapBack();
                 isSwappingState = false;
             }
             return;
@@ -80,7 +82,8 @@ public final class AutoSwapModule extends Module {
         }
 
         if (isSwappingState) {
-            SlotManager.swapBack();
+            if (swapBack.getValue() || swapMode.getValue() == SwapMode.SERVER)
+                SlotManager.swapBack();
             isSwappingState = false;
         }
     }
@@ -97,7 +100,8 @@ public final class AutoSwapModule extends Module {
 
     @Override
     public void onDisable() {
-        SlotManager.swapBack();
+        if (swapBack.getValue() || swapMode.getValue() == SwapMode.SERVER)
+            SlotManager.swapBack();
         isSwappingState = false;
         super.onDisable();
     }
