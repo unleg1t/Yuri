@@ -8,9 +8,11 @@ import ddlc.yuri.api.events.impl.player.MoveEvent;
 import ddlc.yuri.api.events.impl.player.PreUpdateEvent;
 import ddlc.yuri.api.events.impl.player.StrafeEvent;
 import ddlc.yuri.api.events.impl.render.Render2DEvent;
+import ddlc.yuri.api.events.impl.render.Render3DEvent;
 import ddlc.yuri.api.properties.Property;
 import ddlc.yuri.api.properties.impl.ModeProperty;
 import ddlc.yuri.api.properties.impl.NumberProperty;
+import ddlc.yuri.managers.impl.ColorManager;
 import ddlc.yuri.managers.impl.ProgressBarManager;
 import ddlc.yuri.managers.impl.RotationManager;
 import ddlc.yuri.managers.impl.SlotManager;
@@ -22,11 +24,13 @@ import ddlc.yuri.utils.client.MathUtils;
 import ddlc.yuri.utils.client.TimerUtils;
 import ddlc.yuri.utils.player.*;
 import ddlc.yuri.utils.player.packet.PacketUtils;
+import ddlc.yuri.utils.render.RenderUtils;
 import ddlc.yuri.utils.render.progress.ProgressBarEntry;
 import lombok.Getter;
 import lombok.Setter;
 import net.minecraft.block.BlockAir;
 import net.minecraft.client.gui.ScaledResolution;
+import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.projectile.EntityFireball;
 import net.minecraft.item.ItemBlock;
@@ -35,6 +39,7 @@ import net.minecraft.network.play.client.C0APacketAnimation;
 import net.minecraft.network.play.server.S02PacketChat;
 import net.minecraft.util.*;
 import org.lwjgl.input.Keyboard;
+import org.lwjgl.opengl.GL11;
 import org.lwjgl.util.vector.Vector2f;
 
 @ModuleInfo(label = "Scaffold", description = "Automatically builds bridges for you", category = ModuleCategory.PLAYER)
@@ -395,6 +400,31 @@ public final class ScaffoldModule extends Module {
     }
 
     @EventHook
+    public void onRender3D(Render3DEvent event) {
+        GL11.glEnable(3042);
+        GL11.glBlendFunc(770, 771);
+        GL11.glEnable(2848);
+        GL11.glDisable(2929);
+        GL11.glDisable(3553);
+        GlStateManager.disableCull();
+        GL11.glDepthMask(false);
+        final float red = ColorManager.getColor().getRed() / 255f;
+        final float green = ColorManager.getColor().getGreen() / 255f;
+        final float blue = ColorManager.getColor().getBlue() / 255f;
+        if (this.blockFace != null) {
+            RenderUtils.drawBlockESP(this.blockFace, red, green, blue, 0.3137255f, 0.0f, 0.0f);
+        }
+        GL11.glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+        GL11.glDepthMask(true);
+        GlStateManager.enableCull();
+        GL11.glEnable(3553);
+        GL11.glEnable(2929);
+        GL11.glDisable(3042);
+        GL11.glBlendFunc(770, 771);
+        GL11.glDisable(2848);
+    }
+
+    @EventHook
     public void onPacketReceived(PacketReceivedEvent event) {
         if (autoJump.getValue()) {
             if (event.getPacket() instanceof S02PacketChat) {
@@ -548,16 +578,16 @@ public final class ScaffoldModule extends Module {
                 }
 
                 mc.entityRenderer.getMouseOver(1);
-                if (mc.thePlayer.onGround && MoveUtils.isMoving() && (mc.gameSettings.keyBindJump.isKeyDown() || !mc.thePlayer.isSprinting())) {
+                if (mc.thePlayer.onGround && (!mc.thePlayer.isSprinting() || mc.gameSettings.keyBindJump.isKeyDown()) && MoveUtils.isMoving() && (mc.gameSettings.keyBindJump.isKeyDown() || !mc.thePlayer.isSprinting())) {
                     if (hypixelTelly.getValue()) {
                         rotSpeed = 10.0f;
                     } else {
                         rotSpeed = 20.0f;
                     }
-                        target[0] = RotationUtils.getMovementYaw();
+                        target[0] = mc.thePlayer.rotationYaw;
                 } else {
                     if (hypixelTelly.getValue()) {
-                        rotSpeed = isDiagonal() ? 4.75f : mc.gameSettings.keyBindJump.isKeyDown() ? 3.25f : 2.5f;
+                        rotSpeed = isDiagonal() ? 5.2f : mc.gameSettings.keyBindJump.isKeyDown() ? 3.25f : 2.5f;
                     }
                 }
                 break;

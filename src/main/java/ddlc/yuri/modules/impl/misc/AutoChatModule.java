@@ -42,8 +42,8 @@ public final class AutoChatModule extends Module {
     }
 
     private final MultiModeProperty<Mode> modes = new MultiModeProperty<>("Modes", Mode.REGISTER, Mode.AUTO_PLAY);
-    private final Property<String> password = new Property<>("Password", "yuri420");
-    private final Property<Boolean> doublePassword = new Property<>("Double Password", true);
+    private final Property<String> password = new Property<>("Password", "yuri420", () -> modes.isSelected(Mode.REGISTER));
+    private final Property<Boolean> doublePassword = new Property<>("Double Password", true, () -> modes.isSelected(Mode.REGISTER));
 
     @EventHook
     public void onPacket(PacketReceivedEvent event) {

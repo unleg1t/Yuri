@@ -7,10 +7,6 @@ import ddlc.yuri.utils.render.RoundedUtils;
 
 import java.awt.Color;
 
-/**
- * Self-contained menu button: owns its hitbox, hover animation, click dispatch,
- * and box rendering.
- */
 public class MenuButton {
 
     public static final float DEFAULT_WIDTH = 85f;
@@ -41,21 +37,6 @@ public class MenuButton {
         this.heightOverride = height;
         this.width = width;
         this.height = height;
-    }
-
-    public MenuButton withWidth(float width) {
-        this.widthOverride = width;
-        return this;
-    }
-
-    public MenuButton autoWidth() {
-        this.widthOverride = null;
-        return this;
-    }
-
-    public MenuButton mutedText() {
-        this.textColor = GuiTheme.TEXT_MUTE;
-        return this;
     }
 
     public float getLayoutWidth(float textWidth) {
@@ -90,15 +71,9 @@ public class MenuButton {
         return RenderUtils.interpolateColor(textColor, ColorManager.getColor(), hoverAnim);
     }
 
-    /**
-     * Draws the background box + animated hover line along the bottom edge.
-     */
     public void renderBox() {
-        // Draw primary base button background
-        RoundedUtils.drawRoundOutline(this.x, this.y, this.width, this.height, 6f, -0.4f, BG_COLOR,
-                ColorManager.getColor());
+        RoundedUtils.drawRoundedRect(this.x, this.y, this.width, this.height, 2f, BG_COLOR);
 
-        // Draw hover underline expansion
         if (this.hoverAnim > 0.001f) {
             float ease = 1f - (1f - this.hoverAnim) * (1f - this.hoverAnim);
             float animatedWidth = this.width * ease;

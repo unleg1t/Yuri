@@ -4,6 +4,8 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import ddlc.yuri.Yuri;
+import ddlc.yuri.api.gui.main.YuriMenu;
+import ddlc.yuri.api.gui.main.api.MenuShaderBackground;
 import ddlc.yuri.modules.impl.render.ClickGUIModule;
 import ddlc.yuri.utils.render.FontUtils;
 import net.minecraft.client.Minecraft;
@@ -631,17 +633,14 @@ public abstract class GuiScreen extends Gui implements GuiYesNoCallback
     {
         GlStateManager.disableLighting();
         GlStateManager.disableFog();
-        Tessellator tessellator = Tessellator.getInstance();
-        WorldRenderer worldrenderer = tessellator.getWorldRenderer();
-        this.mc.getTextureManager().bindTexture(optionsBackground);
+        GlStateManager.enableBlend();
+        GlStateManager.blendFunc(770, 771);
+
+        Gui.drawRect(0, 0, this.width, this.height, YuriMenu.BASE_BG.getRGB());
+        MenuShaderBackground.get().render(this.width, this.height);
+
+        GlStateManager.enableTexture2D();
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        float f = 32.0F;
-        worldrenderer.begin(7, DefaultVertexFormats.POSITION_TEX_COLOR);
-        worldrenderer.pos(0.0D, (double)this.height, 0.0D).tex(0.0D, (double)((float)this.height / 32.0F + (float)tint)).color(64, 64, 64, 255).endVertex();
-        worldrenderer.pos((double)this.width, (double)this.height, 0.0D).tex((double)((float)this.width / 32.0F), (double)((float)this.height / 32.0F + (float)tint)).color(64, 64, 64, 255).endVertex();
-        worldrenderer.pos((double)this.width, 0.0D, 0.0D).tex((double)((float)this.width / 32.0F), (double)tint).color(64, 64, 64, 255).endVertex();
-        worldrenderer.pos(0.0D, 0.0D, 0.0D).tex(0.0D, (double)tint).color(64, 64, 64, 255).endVertex();
-        tessellator.draw();
     }
 
     public boolean doesGuiPauseGame()

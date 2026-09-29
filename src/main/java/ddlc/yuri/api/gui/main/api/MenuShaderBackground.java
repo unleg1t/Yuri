@@ -1,17 +1,22 @@
 package ddlc.yuri.api.gui.main.api;
 
+import ddlc.yuri.managers.impl.ColorManager;
+import net.minecraft.client.renderer.GlStateManager;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL20;
 
+import java.awt.Color;
+
 public final class MenuShaderBackground {
 
+    private static final long START_NANOS = System.nanoTime();
     private static MenuShaderBackground instance;
 
-    private boolean initialized;
+    private boolean failed;
     private int program;
     private int uTimeLocation;
     private int uResolutionLocation;
-    private long startTime;
+    private int uColorLocation;
 
     private static final String VERTEX_SOURCE =
             "#version 120\n" +
@@ -26,6 +31,7 @@ public final class MenuShaderBackground {
                     "uniform float uTime;\n" +
                     "uniform vec2 uResolution;\n" +
                     "varying vec2 vPos;\n" +
+                    "uniform vec3 color;\n" +
                     "float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }\n" +
                     "float noise(vec2 p) {\n" +
                     "    vec2 i = floor(p);\n" +
@@ -51,9 +57,8 @@ public final class MenuShaderBackground {
                     "    vec2 uv = vPos / max(uResolution.y, 1.0);\n" +
                     "    vec2 flow = uv * 1.6 + vec2(uTime * 0.02, uTime * 0.015);\n" +
                     "    float n = fbm(flow);\n" +
-                    "    vec3 purple = vec3(0.42, 0.20, 0.62);\n" +
                     "    float alpha = n * 0.8;\n" +
-                    "    gl_FragColor = vec4(purple, alpha);\n" +
+                    "    gl_FragColor = vec4(color, alpha);\n" +
                     "}\n";
 
     private MenuShaderBackground() {
@@ -66,14 +71,22 @@ public final class MenuShaderBackground {
         return instance;
     }
 
-    private void init() {
-        int vertexShader = GL20.glCreateShader(GL20.GL_VERTEX_SHADER);
-        GL20.glShaderSource(vertexShader, VERTEX_SOURCE);
-        GL20.glCompileShader(vertexShader);
+    private int compile(int type, String source) {
+        int shader = GL20.glCreateShader(type);
+        GL20.glShaderSource(shader, source);
+        GL20.glCompileShader(shader);
+        if (GL20.glGetShaderi(shader, GL20.GL_COMPILE_STATUS) == GL11.GL_FALSE) {
+            System.err.println("MenuShaderBackground compile error: " + GL20.glGetShaderInfoLog(shader, 4096));
+            GL20.glDeleteShader(shader);
+            return 0;
+        }
+        return shader;
+    }
 
-        int fragmentShader = GL20.glCreateShader(GL20.GL_FRAGMENT_SHADER);
-        GL20.glShaderSource(fragmentShader, FRAGMENT_SOURCE);
-        GL20.glCompileShader(fragmentShader);
+    private boolean init() {
+        int vertexShader = compile(GL20.GL_VERTEX_SHADER, VERTEX_SOURCE);
+        int fragmentShader = compile(GL20.GL_FRAGMENT_SHADER, FRAGMENT_SOURCE);
+        if (vertexShader == 0 || fragmentShader == 0) return false;
 
         program = GL20.glCreateProgram();
         GL20.glAttachShader(program, vertexShader);
@@ -83,36 +96,63 @@ public final class MenuShaderBackground {
         GL20.glDeleteShader(vertexShader);
         GL20.glDeleteShader(fragmentShader);
 
+        if (GL20.glGetProgrami(program, GL20.GL_LINK_STATUS) == GL11.GL_FALSE) {
+            System.err.println("MenuShaderBackground link error: " + GL20.glGetProgramInfoLog(program, 4096));
+            GL20.glDeleteProgram(program);
+            program = 0;
+            return false;
+        }
+
+        uColorLocation = GL20.glGetUniformLocation(program, "color");
         uTimeLocation = GL20.glGetUniformLocation(program, "uTime");
         uResolutionLocation = GL20.glGetUniformLocation(program, "uResolution");
-
-        startTime = System.currentTimeMillis();
-        initialized = true;
+        return true;
     }
 
     public void render(float width, float height) {
-        if (!initialized) {
-            init();
+        if (failed) return;
+
+        if (program == 0 || !GL20.glIsProgram(program)) {
+            if (!init()) {
+                failed = true;
+                return;
+            }
         }
 
-        float elapsed = (System.currentTimeMillis() - startTime) / 1000f;
+        float elapsed = (float) (((System.nanoTime() - START_NANOS) / 1.0e9) % 100000.0);
 
-        GL11.glEnable(GL11.GL_BLEND);
-        GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-        GL11.glDisable(GL11.GL_TEXTURE_2D);
+        int previousProgram = GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM);
+
+        GlStateManager.enableBlend();
+        GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GlStateManager.disableTexture2D();
+        GlStateManager.disableLighting();
+        GlStateManager.disableFog();
+        GlStateManager.disableAlpha();
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
 
         GL20.glUseProgram(program);
         GL20.glUniform1f(uTimeLocation, elapsed);
         GL20.glUniform2f(uResolutionLocation, width, height);
 
+        Color c = ColorManager.getColor();
+        GL20.glUniform3f(uColorLocation, c.getRed() / 255.0f, c.getGreen() / 255.0f, c.getBlue() / 255.0f);
+
+        GlStateManager.disableCull();
+        GlStateManager.disableDepth();
+
         GL11.glBegin(GL11.GL_QUADS);
-        GL11.glVertex2f(0, 0);
-        GL11.glVertex2f(width, 0);
-        GL11.glVertex2f(width, height);
         GL11.glVertex2f(0, height);
+        GL11.glVertex2f(width, height);
+        GL11.glVertex2f(width, 0);
+        GL11.glVertex2f(0, 0);
         GL11.glEnd();
 
-        GL20.glUseProgram(0);
-        GL11.glEnable(GL11.GL_TEXTURE_2D);
+        GlStateManager.enableDepth();
+
+        GL20.glUseProgram(previousProgram);
+
+        GlStateManager.enableAlpha();
+        GlStateManager.enableTexture2D();
     }
 }

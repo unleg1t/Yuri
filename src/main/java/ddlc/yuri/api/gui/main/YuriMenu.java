@@ -25,7 +25,7 @@ public class YuriMenu extends GuiScreen {
     private WelcomeWindow welcomeWindow;
     private static boolean displayWindow = true;
 
-    private static final Color BASE_BG = new Color(10, 9, 13, 255);
+    public static final Color BASE_BG = new Color(10, 9, 13, 255);
     private static final Color ERROR_COLOR = new Color(214, 64, 69);
     private static final float CARD_PADDING_TOP = 32f;
     private static final float CARD_PADDING_BOTTOM = 28f;
@@ -141,9 +141,9 @@ public class YuriMenu extends GuiScreen {
         float logoHeight = 128f;
         float logoGap = 20f;
         float lineHeight = font.getHeight();
-        float lineGap = 20f;
+        float lineGap = 30f;
         float buttonHeight = FontUtils.getScaledFont("sf", 14, (float) sr.getScaleFactor() / 2f).getHeight() + 10f;
-        float rowSpacing = 6f;
+        float rowSpacing = 2.0f;
         float buttonsHeight = buttonHeight * 2 + rowSpacing;
 
         float cardHeight = CARD_PADDING_TOP + logoHeight + logoGap + buttonsHeight + lineGap + lineHeight + CARD_PADDING_BOTTOM;

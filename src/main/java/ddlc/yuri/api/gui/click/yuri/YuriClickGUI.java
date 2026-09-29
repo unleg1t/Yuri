@@ -1,7 +1,6 @@
 package ddlc.yuri.api.gui.click.yuri;
 
 import ddlc.yuri.Yuri;
-import ddlc.yuri.api.font.CustomFontRenderer;
 import ddlc.yuri.modules.ModuleCategory;
 import ddlc.yuri.modules.impl.render.ClickGUIModule;
 import ddlc.yuri.utils.render.FontUtils;
@@ -10,19 +9,15 @@ import ddlc.yuri.utils.render.RoundedUtils;
 import ddlc.yuri.utils.render.ScaleUtils;
 import ddlc.yuri.utils.render.animations.Direction;
 import ddlc.yuri.utils.render.animations.impl.DecelerateAnimation;
-import ddlc.yuri.utils.render.shader.impl.Blur;
-import lombok.Getter;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Gui;
+import ddlc.yuri.utils.render.shader.impl.Shadow;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
-import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.util.MathHelper;
+import net.minecraft.client.shader.Framebuffer;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.GL11;
 
-import java.awt.*;
+import java.awt.Color;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,15 +25,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 public class YuriClickGUI extends GuiScreen {
 
-    private static final List<CategoryWindow> windows = new CopyOnWriteArrayList<>();
-    private static final OnlineConfigPanel onlineConfigPanel = new OnlineConfigPanel();
-    private static boolean firstOpen = true;
-
-    public static String searchQuery = "";
-    private static boolean searching = false;
-
-    private final DecelerateAnimation openAnimation = new DecelerateAnimation(220, 1.0D, Direction.FORWARDS);
-    @Getter
+    private final List<YuriPanel> panels = new CopyOnWriteArrayList<>();
+    private final DecelerateAnimation openAnimation = new DecelerateAnimation(280, 1.0D, Direction.FORWARDS);
+    private Framebuffer shadowFramebuffer = new Framebuffer(1, 1, false);
     private boolean closing;
 
     @Override
@@ -46,26 +35,20 @@ public class YuriClickGUI extends GuiScreen {
         openAnimation.setDirection(Direction.FORWARDS);
         openAnimation.reset();
         closing = false;
-        searching = false;
-        searchQuery = "";
 
-        if (firstOpen) {
-            float gap = 8f;
-            float startX = 20f;
-            float y = 20f;
+        if (panels.isEmpty()) {
+            float x = 18f;
             for (ModuleCategory category : ModuleCategory.values()) {
-                windows.add(new CategoryWindow(category, startX, y));
-                startX += CategoryWindow.WIDTH + gap;
+                panels.add(new YuriPanel(category, x, 14f));
+                x += YuriTheme.PANEL_WIDTH + YuriTheme.PANEL_GAP;
             }
-            firstOpen = false;
+            panels.add(new YuriConfigPanel(x, 14f));
         }
 
+        for (YuriPanel panel : panels) {
+            panel.resetAnimations();
+        }
         super.initGui();
-    }
-
-    @Override
-    public boolean doesGuiPauseGame() {
-        return false;
     }
 
     @Override
@@ -74,260 +57,191 @@ public class YuriClickGUI extends GuiScreen {
         super.onGuiClosed();
     }
 
-    public void beginClose() {
-        if (closing) return;
-        closing = true;
-        openAnimation.setDirection(Direction.BACKWARDS);
-        openAnimation.reset();
-    }
-
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        float progress = MathHelper.clamp_float(openAnimation.getOutput().floatValue(), 0.0f, 1.0f);
+        float progress = openAnimation.getOutput().floatValue();
 
-        if (closing && openAnimation.finished(Direction.BACKWARDS)) {
-            Minecraft.getMinecraft().displayGuiScreen(null);
+        if (progress < 0.06F) {
+            if (closing) {
+                mc.displayGuiScreen(null);
+            }
             return;
         }
 
-        if (progress < 0.08f) return;
-
-        Minecraft mc = Minecraft.getMinecraft();
-        ScaledResolution sr = new ScaledResolution(mc);
-        int[] scaled = ScaleUtils.getScaledMouseCoordinates(mc, mouseX, mouseY);
-        int scaledMouseX = scaled[0];
-        int scaledMouseY = scaled[1];
-
-        Blur.startBlur();
-        Gui.drawRect(0, 0, sr.getScaledWidth(), sr.getScaledHeight(), -1);
-        Blur.endBlur(12f * progress, 2f, 1f);
+        if (closing && openAnimation.finished(Direction.BACKWARDS)) {
+            mc.displayGuiScreen(null);
+            return;
+        }
 
         GL11.glPushMatrix();
+        ScaledResolution sr = new ScaledResolution(mc);
+        int[] scaledMouse = ScaleUtils.getScaledMouseCoordinates(mc, mouseX, mouseY);
+        int scaledMouseX = scaledMouse[0];
+        int scaledMouseY = scaledMouse[1];
         ScaleUtils.scale(mc);
 
-        GlStateManager.enableBlend();
-        GlStateManager.tryBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ZERO);
+        drawRect(0, 0, sr.getScaledWidth(), sr.getScaledHeight(),
+                RenderUtils.withAlpha(YuriTheme.OVERLAY, (int) (YuriTheme.OVERLAY.getAlpha() * progress)));
 
-        float guiScale = ScaleUtils.getScale(mc);
-        float effectiveWidth = sr.getScaledWidth() / guiScale;
-        float effectiveHeight = sr.getScaledHeight() / guiScale;
-
-        int backgroundAlpha = MathHelper.clamp_int((int) (130 * progress), 0, 255);
-        drawRect(0, 0, (int) effectiveWidth, (int) effectiveHeight, RenderUtils.withAlpha(new Color(0, 0, 0), backgroundAlpha));
-
-        CategoryWindow topmostHovered = null;
-        for (int i = windows.size() - 1; i >= 0; i--) {
-            CategoryWindow window = windows.get(i);
-            if (window.isMouseOver(scaledMouseX, scaledMouseY)) {
-                topmostHovered = window;
-                break;
-            }
-        }
+        applyPanelShadow(progress);
 
         String tooltip = null;
-        for (CategoryWindow window : windows) {
-            window.updateDrag(scaledMouseX, scaledMouseY);
-            String windowTooltip = window.drawScreen(scaledMouseX, scaledMouseY, progress);
-            if (window == topmostHovered && windowTooltip != null) {
-                tooltip = windowTooltip;
+        for (YuriPanel panel : panels) {
+            String panelTooltip = panel.drawScreen(scaledMouseX, scaledMouseY, progress);
+            if (panelTooltip != null) {
+                tooltip = panelTooltip;
             }
+            panel.updateDrag(scaledMouseX, scaledMouseY);
         }
-
-        onlineConfigPanel.drawScreen(scaledMouseX, scaledMouseY, progress);
-        drawSearchBar(sr, progress, effectiveWidth, effectiveHeight);
 
         if (tooltip != null) {
-            drawTooltip(tooltip, scaledMouseX, scaledMouseY, progress, effectiveWidth, effectiveHeight);
+            drawTooltip(tooltip, scaledMouseX, scaledMouseY, progress, sr);
         }
 
+        super.drawScreen(mouseX, mouseY, partialTicks);
         GL11.glPopMatrix();
     }
 
-    private static int scaledAlpha(Color base, float safeAlpha) {
-        return MathHelper.clamp_int((int) (base.getAlpha() * safeAlpha), 0, 255);
+    private void applyPanelShadow(float progress) {
+        if (progress < 0.12F) {
+            return;
+        }
+
+        shadowFramebuffer = RenderUtils.createFrameBuffer(shadowFramebuffer, true);
+        shadowFramebuffer.framebufferClear();
+        shadowFramebuffer.bindFramebuffer(true);
+        RenderUtils.resetColor();
+        for (YuriPanel panel : panels) {
+            panel.drawShaderMask(progress);
+        }
+        shadowFramebuffer.unbindFramebuffer();
+        RenderUtils.resetColor();
+        if (shadowFramebuffer.framebufferTexture > 0) {
+            Shadow.renderShadow(shadowFramebuffer.framebufferTexture, 14, 1, 1.1f);
+        }
     }
 
-    private void drawSearchBar(ScaledResolution sr, float progress, float effectiveWidth, float effectiveHeight) {
-        int argb = MathHelper.clamp_int((int) (255 * progress), 0, 255);
-        float width = 140f;
-        float height = 18f;
-        float x = effectiveWidth / 2f - width / 2f;
-        float y = effectiveHeight - 38f;
-
-        Blur.startBlur();
-        RoundedUtils.drawRoundedRect(x, y, width, height, 5f, Color.WHITE);
-        Blur.endBlur(8f * progress, 2f, 1f);
-
-        Color searchBg = RenderUtils.withAlphaColor(Theme.WINDOW_BG, scaledAlpha(Theme.WINDOW_BG, progress));
-
-        RoundedUtils.drawRoundOutline(x, y, width, height, 5f, -0.4f,
-                searchBg, RenderUtils.withAlphaColor(Theme.accent(), argb));
-
-        String text = searchQuery.isEmpty() ? "Search..." : searchQuery;
-        Color color = searchQuery.isEmpty() ? Theme.TEXT_MUTED : Theme.TEXT;
-        CustomFontRenderer font = FontUtils.getFont("sf", 14);
-        float textY = y + (height - font.getHeight()) / 2f;
-        font.drawCenteredStringWithShadow(text, effectiveWidth / 2f, textY, RenderUtils.withAlpha(color, argb));
-    }
-
-    private void drawTooltip(String description, int mouseX, int mouseY, float progress, float effectiveWidth, float effectiveHeight) {
-        GlStateManager.disableDepth();
-        GlStateManager.enableBlend();
-        GlStateManager.tryBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ZERO);
-
-        int argb = MathHelper.clamp_int((int) (255 * progress), 0, 255);
-        CustomFontRenderer font = FontUtils.getFont("sf", 13);
-        int padding = 4;
-        int width = font.getStringWidth(description) + padding * 2;
-        int height = 14;
+    private void drawTooltip(String description, int mouseX, int mouseY, float animationProgress, ScaledResolution sr) {
+        int padding = 5;
+        int width = FontUtils.getFont("sf", 12).getStringWidth(description) + padding * 2;
+        int height = 12;
         int x = mouseX + 8;
         int y = mouseY + 8;
-        if (x + width > effectiveWidth) x = mouseX - width - 4;
-        if (y + height > effectiveHeight) y = mouseY - height - 4;
 
-        Color tooltipBg = RenderUtils.withAlphaColor(Theme.TOOLTIP_BG, scaledAlpha(Theme.TOOLTIP_BG, progress));
+        if (x + width > sr.getScaledWidth()) {
+            x = mouseX - width - 6;
+        }
+        if (y + height > sr.getScaledHeight()) {
+            y = mouseY - height - 6;
+        }
 
-        RoundedUtils.drawRoundOutline(x, y, width, height, 4f, -0.4f,
-                tooltipBg, RenderUtils.withAlphaColor(Theme.accent(), argb));
-
-        float textY = y + (height - font.getHeight()) / 2f;
-        font.drawString(description, x + padding - 1f, textY, RenderUtils.withAlpha(Theme.TEXT, argb));
-
-        GlStateManager.enableDepth();
+        RoundedUtils.drawRoundedRect(x, y, width, height, 3f, YuriTheme.fade(YuriTheme.TOOLTIP_BG, animationProgress));
+        FontUtils.getFont("sf", 12).drawStringWithShadow(
+                description,
+                x + padding,
+                y + 2.5f,
+                YuriTheme.text(YuriTheme.TEXT_SECONDARY, animationProgress)
+        );
     }
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
-        if (closing) return;
-
-        Minecraft mc = Minecraft.getMinecraft();
-        ScaledResolution sr = new ScaledResolution(mc);
-        float guiScale = ScaleUtils.getScale(mc);
-        float effectiveWidth = sr.getScaledWidth() / guiScale;
-        float effectiveHeight = sr.getScaledHeight() / guiScale;
-
-        int[] scaled = ScaleUtils.getScaledMouseCoordinates(mc, mouseX, mouseY);
-        int scaledMouseX = scaled[0];
-        int scaledMouseY = scaled[1];
-
-        if (onlineConfigPanel.mouseClicked(scaledMouseX, scaledMouseY, mouseButton)) {
+        if (closing) {
             return;
         }
 
-        float searchW = 140f;
-        float searchX = effectiveWidth / 2f - searchW / 2f;
-        float searchY = effectiveHeight - 38f;
+        int[] scaledMouse = ScaleUtils.getScaledMouseCoordinates(mc, mouseX, mouseY);
+        int scaledMouseX = scaledMouse[0];
+        int scaledMouseY = scaledMouse[1];
 
-        if (scaledMouseX >= searchX && scaledMouseX <= searchX + searchW && scaledMouseY >= searchY && scaledMouseY <= searchY + 18) {
-            searching = true;
-        } else if (searching) {
-            searching = false;
-        }
-
-        CategoryWindow clickedWindow = null;
-        for (int i = windows.size() - 1; i >= 0; i--) {
-            CategoryWindow window = windows.get(i);
-            if (window.isMouseOver(scaledMouseX, scaledMouseY)) {
-                clickedWindow = window;
-                break;
+        for (YuriPanel panel : panels) {
+            if (panel.isHeaderHovered(scaledMouseX, scaledMouseY) && mouseButton == 0 && !anyDragging()) {
+                panel.startDragging(scaledMouseX, scaledMouseY);
             }
-        }
-
-        if (clickedWindow != null) {
-            windows.remove(clickedWindow);
-            windows.add(clickedWindow);
-
-            if (clickedWindow.isHeaderHovered(scaledMouseX, scaledMouseY) && mouseButton == 0 && !anyDragging()) {
-                clickedWindow.startDragging(scaledMouseX, scaledMouseY);
-            }
-            clickedWindow.mouseClicked(scaledMouseX, scaledMouseY, mouseButton);
+            panel.mouseClicked(scaledMouseX, scaledMouseY, mouseButton);
         }
 
         super.mouseClicked(mouseX, mouseY, mouseButton);
     }
 
     @Override
-    protected void mouseReleased(int mouseX, int mouseY, int state) {
-        Minecraft mc = Minecraft.getMinecraft();
-        int[] scaled = ScaleUtils.getScaledMouseCoordinates(mc, mouseX, mouseY);
-        for (CategoryWindow window : windows) window.mouseReleased(scaled[0], scaled[1], state);
-        super.mouseReleased(mouseX, mouseY, state);
-    }
+    protected void keyTyped(char typedChar, int keyCode) throws IOException {
+        if (keyCode == Keyboard.KEY_ESCAPE && !areAnyTextFieldsHovered()) {
+            beginClose();
+            return;
+        }
 
-    private boolean anyDragging() {
-        for (CategoryWindow window : windows) if (window.dragging) return true;
-        return false;
+        panels.forEach(panel -> panel.keyTyped(typedChar, keyCode));
     }
 
     @Override
     public void handleMouseInput() throws IOException {
         super.handleMouseInput();
         int wheel = Mouse.getEventDWheel();
-        if (wheel == 0) return;
-
-        Minecraft mc = Minecraft.getMinecraft();
-        int guiMouseX = Mouse.getEventX() * this.width / mc.displayWidth;
-        int guiMouseY = this.height - Mouse.getEventY() * this.height / mc.displayHeight - 1;
-
-        int[] scaled = ScaleUtils.getScaledMouseCoordinates(mc, guiMouseX, guiMouseY);
-        int scaledMouseX = scaled[0];
-        int scaledMouseY = scaled[1];
-
-        if (onlineConfigPanel.scroll(wheel > 0 ? -16f : 16f)) {
+        if (wheel == 0 || closing) {
             return;
         }
 
-        for (int i = windows.size() - 1; i >= 0; i--) {
-            CategoryWindow window = windows.get(i);
-            if (window.isMouseOver(scaledMouseX, scaledMouseY)) {
-                window.scroll(wheel > 0 ? -16f : 16f);
+        int guiMouseX = Mouse.getEventX() * this.width / mc.displayWidth;
+        int guiMouseY = this.height - Mouse.getEventY() * this.height / mc.displayHeight - 1;
+        int[] scaled = ScaleUtils.getScaledMouseCoordinates(mc, guiMouseX, guiMouseY);
+
+        float amount = wheel > 0 ? -16.0F : 16.0F;
+        for (YuriPanel panel : panels) {
+            if (panel.isMouseOver(scaled[0], scaled[1])) {
+                panel.scroll(amount);
                 break;
             }
         }
     }
 
     @Override
-    protected void keyTyped(char typedChar, int keyCode) throws IOException {
-        boolean ctrl = Keyboard.isKeyDown(Keyboard.KEY_LCONTROL) || Keyboard.isKeyDown(Keyboard.KEY_RCONTROL);
-
-        if (searching) {
-            if (keyCode == Keyboard.KEY_ESCAPE || keyCode == Keyboard.KEY_RETURN) {
-                searching = false;
-            } else if (keyCode == Keyboard.KEY_BACK) {
-                if (!searchQuery.isEmpty()) searchQuery = searchQuery.substring(0, searchQuery.length() - 1);
-            } else if (!isIgnoredKey(keyCode)) {
-                searchQuery += typedChar;
-            }
-            return;
-        }
-
-        if (keyCode == Keyboard.KEY_F && ctrl) {
-            searching = true;
-            return;
-        }
-
-        if (keyCode == Keyboard.KEY_ESCAPE && !anyTextFieldHovered()) {
-            beginClose();
-            return;
-        }
-
-        for (CategoryWindow window : windows) window.keyTyped(typedChar, keyCode);
-    }
-
-    private boolean anyTextFieldHovered() {
-        for (CategoryWindow window : windows) if (window.isAnyTextFieldHovered()) return true;
+    public boolean doesGuiPauseGame() {
         return false;
     }
 
-    private static boolean isIgnoredKey(int keyCode) {
-        return keyCode == Keyboard.KEY_RCONTROL
-                || keyCode == Keyboard.KEY_LCONTROL
-                || keyCode == Keyboard.KEY_RSHIFT
-                || keyCode == Keyboard.KEY_LSHIFT
-                || keyCode == Keyboard.KEY_TAB;
+    public void beginClose() {
+        if (closing) {
+            return;
+        }
+        closing = true;
+        openAnimation.setDirection(Direction.BACKWARDS);
+        openAnimation.reset();
     }
 
-    public static List<CategoryWindow> getWindows() {
-        return new ArrayList<>(windows);
+    public boolean isClosing() {
+        return closing;
+    }
+
+    private boolean areAnyTextFieldsHovered() {
+        for (YuriPanel panel : panels) {
+            if (panel.isTyping()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    protected void mouseReleased(int mouseX, int mouseY, int state) {
+        if (state == 0) {
+            panels.forEach(panel -> panel.dragging = false);
+        }
+        int[] scaledMouse = ScaleUtils.getScaledMouseCoordinates(mc, mouseX, mouseY);
+        panels.forEach(panel -> panel.mouseReleased(scaledMouse[0], scaledMouse[1], state));
+        super.mouseReleased(mouseX, mouseY, state);
+    }
+
+    private boolean anyDragging() {
+        for (YuriPanel panel : panels) {
+            if (panel.dragging) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public List<YuriPanel> getPanels() {
+        return new ArrayList<>(panels);
     }
 }

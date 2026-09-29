@@ -35,6 +35,7 @@ public class ModListModule extends Module implements IMinecraft {
     public static final Property<Boolean> hideVisuals = new Property<>("Hide Visuals", false);
     public static final Property<Boolean> hideMisc = new Property<>("Hide Misc", false);
     private static final Property<Boolean> useCustomFont = new Property<>("Use Custom Font", true);
+    public static final NumberProperty fontSize = new NumberProperty("Font Size", 18, 16, 24, 1);
     private static final Property<Boolean> hideSuffix = new Property<>("Hide Suffix", false);
     private final ModeProperty<SuffixMode> suffixMode = new ModeProperty<>("Suffix Mode", SuffixMode.SPACE, () -> !hideSuffix.getValue());
     private final Property<Boolean> noSpaces = new Property<>("No Spaces", false);
@@ -45,7 +46,7 @@ public class ModListModule extends Module implements IMinecraft {
     public static NumberProperty offset = new NumberProperty("Offset", 0, 0, 30, 1);
     private final NumberProperty lineWidth = new NumberProperty("Line Width", 1.0, 0.5, 1.0, 0.1);
 
-    private static final float TEXT_HEIGHT = 8f;
+    private float textHeight = 8f;
 
     private static final int[][] MTF_COLORS = {
             {91, 206, 250},
@@ -100,6 +101,8 @@ public class ModListModule extends Module implements IMinecraft {
             return;
         }
 
+        textHeight = fr.getHeight();
+
         for (Module module : moduleCache) {
             displayLabelCache.put(module, getDisplayLabel(module));
         }
@@ -118,7 +121,7 @@ public class ModListModule extends Module implements IMinecraft {
     }
 
     private CustomFontRenderer getActiveFont() {
-        return FontUtils.getFont(bold.getValue() ? "sf-bold" : "sf", 18);
+        return FontUtils.getFont(bold.getValue() ? "sf-bold" : "sf", fontSize.getValue().intValue());
     }
 
     private boolean isMcFontActive() {
@@ -174,7 +177,7 @@ public class ModListModule extends Module implements IMinecraft {
         float off = offset.getValue().floatValue();
         float screenX = sr.getScaledWidth() - off;
         float screenRight = sr.getScaledWidth();
-        float rowStep = TEXT_HEIGHT + (pad * 2);
+        float rowStep = textHeight + (pad * 2);
 
         List<Module> filteredModules = new ArrayList<>();
         for (Module module : moduleCache) {
@@ -219,7 +222,7 @@ public class ModListModule extends Module implements IMinecraft {
                 if (bg.getValue()) {
                     float bgLeft = (!line.getValue() && !outline.getValue()) ? (float) translateX - pad : (float) translateX - pad - lw;
                     float bgRight = (off > 0 && outline.getValue()) ? screenX + lw : screenX;
-                    Gui.drawRect(bgLeft, (float) translateY - pad, bgRight, (float) translateY + TEXT_HEIGHT + pad, getColorForBG().getRGB());
+                    Gui.drawRect(bgLeft, (float) translateY - pad, bgRight, (float) translateY + textHeight + pad, getColorForBG().getRGB());
                 }
 
                 float textX = line.getValue() && !outline.getValue() ? (float) (translateX - lw) : (float) ((float) offset.getValue().floatValue() == 0 ? translateX - 0.5f : (float) translateX);
@@ -227,13 +230,13 @@ public class ModListModule extends Module implements IMinecraft {
                     textX -= pad / getTextWidth(fr, name);
                 }
 
-                drawText(fr, name, useCustomFont.getValue() ? offset.getValue().intValue() > 0 ? textX - 1.0f : textX : textX, (float) translateY, aColor);
+                drawText(fr, name, useCustomFont.getValue() ? offset.getValue().intValue() > 0 ? textX - 1.0f : textX : !outline.getValue() || !line.getValue() ? textX + 0.5f : textX, (float) translateY, aColor);
 
                 if (outline.getValue()) {
-                    Gui.drawRect((float) translateX - pad - lw, (float) translateY - pad, (float) translateX - pad, (float) translateY + TEXT_HEIGHT + pad, aColor);
+                    Gui.drawRect((float) translateX - pad - lw, (float) translateY - pad, (float) translateX - pad, (float) translateY + textHeight + pad, aColor);
 
                     double outlineTop = translateY - pad - lw;
-                    double outlineBottom = translateY + TEXT_HEIGHT + pad;
+                    double outlineBottom = translateY + textHeight + pad;
                     float rightEdge = (off > 0) ? screenX + lw : screenX;
 
                     if (i != firstVisibleModuleIndex) {
@@ -279,13 +282,13 @@ public class ModListModule extends Module implements IMinecraft {
                     }
 
                     if (off > 0) {
-                        Gui.drawRect(screenX, (float) translateY - pad, screenX + lw, (float) translateY + TEXT_HEIGHT + pad, aColor);
+                        Gui.drawRect(screenX, (float) translateY - pad, screenX + lw, (float) translateY + textHeight + pad, aColor);
                     }
                 }
 
                 if (line.getValue() && !outline.getValue()) {
                     if (i == firstVisibleModuleIndex) {
-                        Gui.drawRect(screenX - lw, off - pad, screenX, (float) translateY + TEXT_HEIGHT + pad, aColor);
+                        Gui.drawRect(screenX - lw, off - pad, screenX, (float) translateY + textHeight + pad, aColor);
                     } else {
                         Module prevModule = null;
                         for (int j = i - 1; j >= 0; j--) {
@@ -296,7 +299,7 @@ public class ModListModule extends Module implements IMinecraft {
                         }
                         if (prevModule != null) {
                             double prevY = prevModule.getTranslate().getY();
-                            Gui.drawRect(screenX - lw, (float) prevY + TEXT_HEIGHT + pad, screenX, (float) translateY + TEXT_HEIGHT + pad, aColor);
+                            Gui.drawRect(screenX - lw, (float) prevY + textHeight + pad, screenX, (float) translateY + textHeight + pad, aColor);
                         }
                     }
                 }

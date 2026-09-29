@@ -18,7 +18,7 @@ public class ClickGUIModule extends Module implements IMinecraft {
     public static final NumberProperty colorSpeed = new NumberProperty("Color Speed", 5, 1, 10, 1);
     public static final ModeProperty<Mode> mode = new ModeProperty<>("Mode", Mode.YURI);
     public static final ModeProperty<ImGuiStyleType> style = new ModeProperty<>("Style", ImGuiStyleType.REGULAR, () -> mode.getValue() == Mode.IMGUI);
-    private final Property<Boolean> closePrevious = new Property<>("Close Previous", true, () -> mode.getValue() == Mode.NOVOLINE);
+    private final Property<Boolean> closePrevious = new Property<>("Close Previous", true, () -> mode.getValue() == Mode.NOVOLINE || mode.getValue() == Mode.YURI);
     public static final Property<Boolean> logoInGuis = new Property<>("Logo In GUIS", false);
 
     public enum Mode {

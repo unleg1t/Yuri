@@ -266,7 +266,7 @@ public class AuraModule extends Module {
                 break;
             case HYPIXEL:
                 autoBlocking = true;
-                if (mc.thePlayer.getDistanceToEntity(target) <= 3.0f) {
+                if (mc.thePlayer.getDistanceToEntity(target) <= 2.6f) {
                     switch (blockTicks) {
                         case 0:
                             if (!mc.thePlayer.isUsingItem()) {

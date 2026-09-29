@@ -1,6 +1,7 @@
 package ddlc.yuri.utils.render;
 
 import ddlc.yuri.managers.impl.ColorManager;
+import net.minecraft.block.Block;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.renderer.GlStateManager;
@@ -52,6 +53,22 @@ public class RenderUtils {
         // Rotate to face the camera (billboarding effect)
         GlStateManager.rotate(-mc.getRenderManager().playerViewY, 0.0F, 1.0F, 0.0F);
         GlStateManager.rotate(mc.getRenderManager().playerViewX, 1.0F, 0.0F, 0.0F);
+    }
+
+
+    public static void drawBlockESP(final BlockPos blockPos, final float red, final float green, final float blue, final float alpha, final float lineAlpha, final float lineWidth) {
+        GlStateManager.color(red, green, blue, alpha);
+        final float x = (float)(blockPos.getX() - mc.getRenderManager().renderPosX);
+        final float y = (float)(blockPos.getY() - mc.getRenderManager().renderPosY);
+        final float z = (float)(blockPos.getZ() - mc.getRenderManager().renderPosZ);
+        final Block block = mc.theWorld.getBlockState(blockPos).getBlock();
+        drawBoundingBox(new AxisAlignedBB(x, y, z, x + block.getBlockBoundsMaxX(), y + block.getBlockBoundsMaxY(), z + block.getBlockBoundsMaxZ()));
+        if (lineWidth > 0.0f) {
+            GL11.glLineWidth(lineWidth);
+            GlStateManager.color(red, green, blue, lineAlpha);
+            drawOutlinedBoundingBox(new AxisAlignedBB(x, y, z, x + block.getBlockBoundsMaxX(), y + block.getBlockBoundsMaxY(), z + block.getBlockBoundsMaxZ()));
+        }
+        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
     }
 
     public static void drawBoundingBox(final AxisAlignedBB a) {
