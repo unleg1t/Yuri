@@ -20,171 +20,49 @@ public final class ScaffoldUtils {
 
     private static final Minecraft mc = Minecraft.getMinecraft();
     private static final int HOTBAR_SIZE = 9;
-    private static final int MAX_SEARCH_RADIUS = 270;
-
-    private static final float[] FALLBACK_RESULT = new float[2];
-    private static boolean fallbackFound;
-
-    private ScaffoldUtils() {}
+    private ScaffoldUtils() {
+    }
 
     private static Vector2f serverRotations() {
         return RotationManager.rotations != null ? RotationManager.rotations : new Vector2f(mc.thePlayer.rotationYaw, mc.thePlayer.rotationPitch);
     }
 
-    private static boolean checkCandidate(float serverYaw, float serverPitch, int dYaw, int dPitch, EnumFacing facing, BlockPos blockFace, float[] target) {
-        float testYaw = MathHelper.wrapAngleTo180_float(serverYaw + dYaw);
-        float testPitch = MathHelper.clamp_float(serverPitch + dPitch, -90, 90);
-        Vector2f testRot = new Vector2f(testYaw, testPitch);
-
-        if (RayCastUtils.overBlock(testRot, facing, blockFace, true)) {
-            target[0] = testYaw;
-            target[1] = testPitch;
-            return true;
-        }
-
-        if (!fallbackFound && RayCastUtils.overBlock(testRot, facing, blockFace, false)) {
-            FALLBACK_RESULT[0] = testYaw;
-            FALLBACK_RESULT[1] = testPitch;
-            fallbackFound = true;
-        }
-
-        return false;
-    }
-
-    private static boolean searchRotation(EnumFacing facing, BlockPos blockFace, float[] target) {
-        Vector2f server = serverRotations();
-        float serverYaw = server.x;
-        float serverPitch = server.y;
-
-        for (int radius = 0; radius <= MAX_SEARCH_RADIUS; radius++) {
-            for (int dy = -radius; dy <= radius; dy++) {
-                int remaining = radius - Math.abs(dy);
-                if (remaining == 0) {
-                    if (checkCandidate(serverYaw, serverPitch, dy, 0, facing, blockFace, target)) return true;
-                } else {
-                    if (checkCandidate(serverYaw, serverPitch, dy, remaining, facing, blockFace, target)) return true;
-                    if (checkCandidate(serverYaw, serverPitch, dy, -remaining, facing, blockFace, target)) return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private static void computeJPSRotations(BlockPos blockFace, EnumFacingOffset enumFacing, float[] target) {
-        EnumFacing primary = enumFacing.getEnumFacing();
-        fallbackFound = false;
-
-        if (searchRotation(primary, blockFace, target)) return;
-
-        for (EnumFacing face : EnumFacing.VALUES) {
-            if (face == primary) continue;
-            if (searchRotation(face, blockFace, target)) return;
-        }
-
-        if (fallbackFound) {
-            target[0] = FALLBACK_RESULT[0];
-            target[1] = FALLBACK_RESULT[1];
-            return;
-        }
-
-        final Vector2f fallback = RotationUtils.calculate(
-                new Vector3d(blockFace.getX(), blockFace.getY(), blockFace.getZ()), primary);
-        target[0] = fallback.x;
-        target[1] = fallback.y;
-    }
-
-    public static void computeNormalRotations(BlockPos blockFace, EnumFacingOffset enumFacing, float[] target, ScaffoldModule.SearchAlgorithm algorithm, boolean strict) {
+    public static void computeNormalRotations(BlockPos blockFace, EnumFacingOffset enumFacing, float[] target) {
         if (ScaffoldModule.rotations.getValue() == ScaffoldModule.Rotations.OLD) {
             computeOldRotations(blockFace, enumFacing, target);
             return;
         }
 
-        switch (algorithm) {
-            case NORMAL: {
-                double difference = mc.thePlayer.posY + mc.thePlayer.getEyeHeight()
-                        - blockFace.getY() - 0.5 - (Math.random() - 0.5) * 0.1;
+        double difference = mc.thePlayer.posY + mc.thePlayer.getEyeHeight()
+                - blockFace.getY() - 0.5 - (Math.random() - 0.5) * 0.1;
 
-                for (int offset = -180; offset <= 180; offset += 45) {
-                    mc.thePlayer.setPosition(mc.thePlayer.posX, mc.thePlayer.posY - difference, mc.thePlayer.posZ);
-                    MovingObjectPosition mop = RayCastUtils.rayCast(
-                            new Vector2f((float) (mc.thePlayer.rotationYaw + (offset * 3)), 0), 4.5);
-                    mc.thePlayer.setPosition(mc.thePlayer.posX, mc.thePlayer.posY + difference, mc.thePlayer.posZ);
+        for (int offset = -180; offset <= 180; offset += 45) {
+            mc.thePlayer.setPosition(mc.thePlayer.posX, mc.thePlayer.posY - difference, mc.thePlayer.posZ);
+            MovingObjectPosition mop = RayCastUtils.rayCast(
+                    new Vector2f((float) (mc.thePlayer.rotationYaw + (offset * 3)), 0), 4.5);
+            mc.thePlayer.setPosition(mc.thePlayer.posX, mc.thePlayer.posY + difference, mc.thePlayer.posZ);
 
-                    if (mop == null || mop.hitVec == null) return;
+            if (mop == null || mop.hitVec == null) return;
 
-                    Vector2f rotations = RotationUtils.calculate(mop.hitVec);
-                    if (RayCastUtils.overBlock(rotations, blockFace, enumFacing.getEnumFacing())) {
-                        target[0] = rotations.x;
-                        target[1] = rotations.y;
-                        return;
-                    }
-                }
-
-                final Vector2f rotations = RotationUtils.calculate(
-                        new Vector3d(blockFace.getX(), blockFace.getY(), blockFace.getZ()),
-                        enumFacing.getEnumFacing());
-
-                if (!RayCastUtils.overBlock(new Vector2f(target[0], target[1]), blockFace, enumFacing.getEnumFacing())) {
-                    target[0] = rotations.x;
-                    target[1] = rotations.y;
-                }
-                break;
+            Vector2f rotations = RotationUtils.calculate(mop.hitVec);
+            if (RayCastUtils.overBlock(rotations, blockFace, enumFacing.getEnumFacing())) {
+                target[0] = rotations.x;
+                target[1] = rotations.y;
+                return;
             }
-            case SECONDARY: {
-                double deltaX = blockFace.getX() - mc.thePlayer.posX + 0.5;
-                double deltaY = blockFace.getY() - (mc.thePlayer.posY + mc.thePlayer.getEyeHeight()) + 0.5;
-                double deltaZ = blockFace.getZ() - mc.thePlayer.posZ + 0.5;
-                double horizontalDistance = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
+        }
 
-                float baseYaw = (float) Math.toDegrees(Math.atan2(deltaZ, deltaX)) - 90.0f;
-                float basePitch = (float) -Math.toDegrees(Math.atan2(deltaY, horizontalDistance));
+        final Vector2f rotations = RotationUtils.calculate(
+                new Vector3d(blockFace.getX(), blockFace.getY(), blockFace.getZ()),
+                enumFacing.getEnumFacing());
 
-                float bestYaw = baseYaw;
-                float bestPitch = basePitch;
-                double bestDistance = Double.MAX_VALUE;
-
-                Vector2f server = serverRotations();
-
-                for (float yawOff = -15; yawOff <= 15; yawOff += 3) {
-                    for (float pitchOff = -15; pitchOff <= 15; pitchOff += 3) {
-                        float testYaw = baseYaw + yawOff;
-                        float testPitch = MathHelper.clamp_float(basePitch + pitchOff, -90, 90);
-                        Vector2f testRot = new Vector2f(testYaw, testPitch);
-
-                        if (RayCastUtils.overBlock(testRot, enumFacing.getEnumFacing(), blockFace, strict)) {
-                            double yawDiff = Math.abs(MathHelper.wrapAngleTo180_float(testYaw - server.x));
-                            double pitchDiff = Math.abs(testPitch - server.y);
-                            double totalDist = Math.sqrt(yawDiff * yawDiff + pitchDiff * pitchDiff);
-
-                            if (totalDist < bestDistance) {
-                                bestDistance = totalDist;
-                                bestYaw = testYaw;
-                                bestPitch = testPitch;
-                            }
-                        }
-                    }
-                }
-
-                if (bestDistance != Double.MAX_VALUE) {
-                    target[0] = bestYaw;
-                    target[1] = bestPitch;
-                } else {
-                    final Vector2f rotations = RotationUtils.calculate(
-                            new Vector3d(blockFace.getX(), blockFace.getY(), blockFace.getZ()),
-                            enumFacing.getEnumFacing());
-                    target[0] = rotations.x;
-                    target[1] = rotations.y;
-                }
-                break;
-            }
-            case ULTRA_SAFE: {
-                computeJPSRotations(blockFace, enumFacing, target);
-                break;
-            }
+        if (!RayCastUtils.overBlock(new Vector2f(target[0], target[1]), blockFace, enumFacing.getEnumFacing())) {
+            target[0] = rotations.x;
+            target[1] = rotations.y;
         }
     }
 
-    public static void computeWatchdog3Rotations(BlockPos blockFace, EnumFacingOffset enumFacing, float[] target, boolean strict) {
+    public static void computeWatchdog3Rotations(BlockPos blockFace, EnumFacingOffset enumFacing, float[] target) {
         float yawBase = RotationUtils.getMovementYaw() + 90.0f;
         float pitchBase = 90.0f;
 
@@ -222,7 +100,7 @@ public final class ScaffoldUtils {
             }
         }
 
-        computeNormalRotations(blockFace, enumFacing, target, ScaffoldModule.SearchAlgorithm.NORMAL, strict);
+        computeNormalRotations(blockFace, enumFacing, target);
     }
 
     public static void computeOldRotations(BlockPos blockFace, EnumFacingOffset enumFacing, float[] target) {
@@ -231,12 +109,24 @@ public final class ScaffoldUtils {
         double z = blockFace.getZ() + 0.5;
 
         switch (enumFacing.getEnumFacing()) {
-            case DOWN:  y = blockFace.getY(); break;
-            case UP:    y = blockFace.getY() + 1.0; break;
-            case NORTH: z = blockFace.getZ(); break;
-            case EAST:  x = blockFace.getX() + 1.0; break;
-            case SOUTH: z = blockFace.getZ() + 1.0; break;
-            case WEST:  x = blockFace.getX(); break;
+            case DOWN:
+                y = blockFace.getY();
+                break;
+            case UP:
+                y = blockFace.getY() + 1.0;
+                break;
+            case NORTH:
+                z = blockFace.getZ();
+                break;
+            case EAST:
+                x = blockFace.getX() + 1.0;
+                break;
+            case SOUTH:
+                z = blockFace.getZ() + 1.0;
+                break;
+            case WEST:
+                x = blockFace.getX();
+                break;
         }
 
         final double xDif = x - mc.thePlayer.posX;
@@ -257,18 +147,18 @@ public final class ScaffoldUtils {
         double randY = minMargin + Math.random() * (maxMargin - minMargin);
         double randZ = minMargin + Math.random() * (maxMargin - minMargin);
         double x = (facing.getAxis() == EnumFacing.Axis.X) ? (facing == EnumFacing.EAST ? blockFace.getX() + 1.0 : blockFace.getX()) : blockFace.getX() + randX;
-        double y = (facing.getAxis() == EnumFacing.Axis.Y) ? (facing == EnumFacing.UP   ? blockFace.getY() + 1.0 : blockFace.getY()) : blockFace.getY() + randY;
+        double y = (facing.getAxis() == EnumFacing.Axis.Y) ? (facing == EnumFacing.UP ? blockFace.getY() + 1.0 : blockFace.getY()) : blockFace.getY() + randY;
         double z = (facing.getAxis() == EnumFacing.Axis.Z) ? (facing == EnumFacing.SOUTH ? blockFace.getZ() + 1.0 : blockFace.getZ()) : blockFace.getZ() + randZ;
         Vec3 hitVec = new Vec3(x, y, z);
-        final MovingObjectPosition mop = RayCastUtils.rayCast(serverRotations(),mc.playerController.getBlockReachDistance());
-        if (mop != null && mop.getBlockPos() != null && mop.hitVec != null&& mop.getBlockPos().equals(blockFace)&& mop.sideHit == facing) {
+        final MovingObjectPosition mop = RayCastUtils.rayCast(serverRotations(), mc.playerController.getBlockReachDistance());
+        if (mop != null && mop.getBlockPos() != null && mop.hitVec != null && mop.getBlockPos().equals(blockFace) && mop.sideHit == facing) {
             double jitter = 0.03;
             double jX = (Math.random() - 0.5) * (jitter * 2);
             double jY = (Math.random() - 0.5) * (jitter * 2);
             double jZ = (Math.random() - 0.5) * (jitter * 2);
-            double mopX = facing.getAxis() == EnumFacing.Axis.X ? mop.hitVec.xCoord: Math.max(blockFace.getX() + minMargin, Math.min(blockFace.getX() + maxMargin, mop.hitVec.xCoord + jX));
-            double mopY = facing.getAxis() == EnumFacing.Axis.Y ? mop.hitVec.yCoord: Math.max(blockFace.getY() + minMargin, Math.min(blockFace.getY() + maxMargin, mop.hitVec.yCoord + jY));
-            double mopZ = facing.getAxis() == EnumFacing.Axis.Z ? mop.hitVec.zCoord: Math.max(blockFace.getZ() + minMargin, Math.min(blockFace.getZ() + maxMargin, mop.hitVec.zCoord + jZ));
+            double mopX = facing.getAxis() == EnumFacing.Axis.X ? mop.hitVec.xCoord : Math.max(blockFace.getX() + minMargin, Math.min(blockFace.getX() + maxMargin, mop.hitVec.xCoord + jX));
+            double mopY = facing.getAxis() == EnumFacing.Axis.Y ? mop.hitVec.yCoord : Math.max(blockFace.getY() + minMargin, Math.min(blockFace.getY() + maxMargin, mop.hitVec.yCoord + jY));
+            double mopZ = facing.getAxis() == EnumFacing.Axis.Z ? mop.hitVec.zCoord : Math.max(blockFace.getZ() + minMargin, Math.min(blockFace.getZ() + maxMargin, mop.hitVec.zCoord + jZ));
             hitVec = new Vec3(mopX, mopY, mopZ);
         }
         return hitVec;
@@ -308,7 +198,7 @@ public final class ScaffoldUtils {
         int count = 0;
         for (int slot = 0; slot < HOTBAR_SIZE; slot++) {
             ItemStack stack = mc.thePlayer.inventory.mainInventory[slot];
-            if (stack != null && stack.getItem() instanceof ItemBlock&& !BlockUtils.blacklist.contains(((ItemBlock) stack.getItem()).getBlock())) {
+            if (stack != null && stack.getItem() instanceof ItemBlock && !BlockUtils.blacklist.contains(((ItemBlock) stack.getItem()).getBlock())) {
                 count += stack.stackSize;
             }
         }

@@ -53,7 +53,6 @@ public final class ScaffoldModule extends Module {
     public static final ModeProperty<Rotations> rotations = new ModeProperty<>("Rotations", Rotations.NORMAL);
     private final NumberProperty randomizedSpeedMin = new NumberProperty("Randomized Speed Min", 3, 0, 10, 0.5f, () -> rotations.getValue() == Rotations.RANDOMIZED);
     private final NumberProperty randomizedSpeedMax = new NumberProperty("Randomized Speed Max", 7, 0, 10, 0.5f, () -> rotations.getValue() == Rotations.RANDOMIZED);
-    public final ModeProperty<SearchAlgorithm> searchAlgorithm = new ModeProperty<>("Search Algorithm", SearchAlgorithm.NORMAL, () -> rotations.getValue() != Rotations.OLD);
     private final NumberProperty minRotationSpeed = new NumberProperty("Min Rotation Speed", 3, 0, 10, 0.5f);
     private final NumberProperty maxRotationSpeed = new NumberProperty("Max Rotation Speed", 7, 0, 10, 0.5f);
     private final NumberProperty placeDelay = new NumberProperty("Place Delay", 0, 0, 10, 1);
@@ -147,19 +146,6 @@ public final class ScaffoldModule extends Module {
         public final String name;
 
         SwapMode(String name) {
-            this.name = name;
-        }
-
-        public String toString() {
-            return name;
-        }
-    }
-
-    public enum SearchAlgorithm {
-        NORMAL("Normal"), ULTRA_SAFE("Ultra Safe"), SECONDARY("Secondary");
-        public final String name;
-
-        SearchAlgorithm(String name) {
             this.name = name;
         }
 
@@ -497,8 +483,7 @@ public final class ScaffoldModule extends Module {
                 mc.entityRenderer.getMouseOver(1);
                 if (canPlace && !mc.gameSettings.keyBindPickBlock.isKeyDown()) {
                     if (mc.objectMouseOver.sideHit != enumFacing.getEnumFacing() || !mc.objectMouseOver.getBlockPos().equals(blockFace)) {
-                        ScaffoldUtils.computeNormalRotations(blockFace, enumFacing, target,
-                                searchAlgorithm.getValue(), rayCast.getValue() == RayCast.STRICT);
+                        ScaffoldUtils.computeNormalRotations(blockFace, enumFacing, target);
                     }
                 }
                 break;
@@ -506,8 +491,7 @@ public final class ScaffoldModule extends Module {
                 mc.entityRenderer.getMouseOver(1);
                 if (canPlace && !mc.gameSettings.keyBindPickBlock.isKeyDown()) {
                     if (mc.objectMouseOver.sideHit != enumFacing.getEnumFacing() || !mc.objectMouseOver.getBlockPos().equals(blockFace)) {
-                        ScaffoldUtils.computeNormalRotations(blockFace, enumFacing, target,
-                                searchAlgorithm.getValue(), rayCast.getValue() == RayCast.STRICT);
+                        ScaffoldUtils.computeNormalRotations(blockFace, enumFacing, target);
                     }
                 }
                 directionalChange++;
@@ -569,10 +553,9 @@ public final class ScaffoldModule extends Module {
                 if (canPlace && !mc.gameSettings.keyBindPickBlock.isKeyDown()) {
                     if (mc.objectMouseOver.sideHit != enumFacing.getEnumFacing() || !mc.objectMouseOver.getBlockPos().equals(blockFace)) {
                         if (!hypixelTelly.getValue()) {
-                            ScaffoldUtils.computeNormalRotations(blockFace, enumFacing, target,
-                                    searchAlgorithm.getValue(), rayCast.getValue() == RayCast.STRICT);
+                            ScaffoldUtils.computeNormalRotations(blockFace, enumFacing, target);
                         } else {
-                            ScaffoldUtils.computeWatchdog3Rotations(blockFace, enumFacing, target, rayCast.getValue() == RayCast.STRICT);
+                            ScaffoldUtils.computeWatchdog3Rotations(blockFace, enumFacing, target);
                         }
                     }
                 }
@@ -594,7 +577,7 @@ public final class ScaffoldModule extends Module {
             case HYPIXEL:
                 rotSpeed = isDiagonal() || mc.gameSettings.keyBindJump.isKeyDown() ? 5.2f : 4.8f;
                 if (canPlace && !mc.gameSettings.keyBindPickBlock.isKeyDown()) {
-                    ScaffoldUtils.computeWatchdog3Rotations(blockFace, enumFacing, target, rayCast.getValue() == RayCast.STRICT);
+                    ScaffoldUtils.computeWatchdog3Rotations(blockFace, enumFacing, target);
                 }
                 break;
         }
