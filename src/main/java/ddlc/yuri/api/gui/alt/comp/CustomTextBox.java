@@ -42,7 +42,7 @@ public class CustomTextBox extends Gui {
     public void drawTextBox() {
         String text = masked ? mask(this.text) : this.text;
 
-        RoundedUtils.drawRoundedRect(xPosition, yPosition, width, height, YuriTheme.RADIUS, FIELD_BACKGROUND);
+        RoundedUtils.drawRoundedRect(xPosition, yPosition, width, height, 4f, FIELD_BACKGROUND);
         if (focused) {
             RoundedUtils.drawRoundedRect(xPosition, yPosition + height - 1.2f, width, 1.2f, 0.6f, YuriTheme.accent());
         }

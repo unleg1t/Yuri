@@ -6,13 +6,13 @@ import ddlc.yuri.api.events.impl.player.PlayerDamageEvent;
 import ddlc.yuri.api.events.impl.player.PlayerDeathEvent;
 import ddlc.yuri.api.events.impl.render.Render2DEvent;
 import ddlc.yuri.api.events.impl.render.Shader2DEvent;
-import ddlc.yuri.api.font.CustomFontRenderer;
+import ddlc.yuri.api.properties.Property;
 import ddlc.yuri.modules.Module;
 import ddlc.yuri.modules.ModuleCategory;
 import ddlc.yuri.modules.ModuleInfo;
 import ddlc.yuri.utils.misc.IMinecraft;
 import ddlc.yuri.utils.render.DragUtils;
-import ddlc.yuri.utils.render.FontUtils;
+import ddlc.yuri.utils.render.adapters.FontAdapter;
 import ddlc.yuri.utils.render.RoundedUtils;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.util.ResourceLocation;
@@ -24,6 +24,8 @@ import java.util.Random;
 
 @ModuleInfo(label = "Yuri Chat", description = "Displays Yuri reacting to your actions in real time.", category = ModuleCategory.RENDER)
 public class YuriChatModule extends Module implements IMinecraft {
+
+    public final Property<Boolean> useCustomFont = new Property<>("Use Custom Font", true);
 
     private static final String KEY = "YuriChat";
 
@@ -247,14 +249,14 @@ public class YuriChatModule extends Module implements IMinecraft {
             }
         }
 
-        CustomFontRenderer font = FontUtils.getFont("sf", 15);
+        FontAdapter font = FontAdapter.of("sf", 15, useCustomFont.getValue());
         if (font == null) return;
 
         float calculatedTextboxWidth = MIN_TEXTBOX_WIDTH;
         Message activeMessage = messages.peekFirst();
 
         if (activeMessage != null) {
-            float textWidth = font.getStringWidth(activeMessage.text);
+            float textWidth = font.width(activeMessage.text);
             calculatedTextboxWidth = Math.max(MIN_TEXTBOX_WIDTH, textWidth + (TEXT_PADDING * 2f));
         }
 
@@ -300,8 +302,8 @@ public class YuriChatModule extends Module implements IMinecraft {
 
         if (activeMessage != null) {
             float textX = textboxX + TEXT_PADDING;
-            float textY = textboxY + (TEXTBOX_HEIGHT / 2f) - (font.getHeight() / 2f);
-            font.drawStringWithShadow(activeMessage.text, textX, textY, new Color(245, 240, 250).getRGB());
+            float textY = textboxY + (TEXTBOX_HEIGHT / 2f) - (font.height() / 2f);
+            font.draw(activeMessage.text, textX, textY, new Color(245, 240, 250).getRGB());
         }
     }
 

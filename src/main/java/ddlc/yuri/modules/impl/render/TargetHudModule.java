@@ -59,7 +59,8 @@ public final class TargetHudModule extends Module {
 
     private final ModeProperty<Mode> mode = new ModeProperty<>("Mode", Mode.YURI);
     private final Property<Boolean> grid = new Property<Boolean>("Grid", true);
-    public final Property<Boolean> showPrevious = new Property<Boolean>("Show Previous", true);
+    public final Property<Boolean> useCustomFont = new Property<>("Use Custom Font", true, () -> mode.getValue() == Mode.YURI);
+
     private final Map<Mode, TargetHudMode> modeMap = new HashMap<>();
 
     private static boolean positionInitialized = false;

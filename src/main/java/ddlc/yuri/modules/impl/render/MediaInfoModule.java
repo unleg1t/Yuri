@@ -5,6 +5,7 @@ import ddlc.yuri.api.events.annotations.EventPriority;
 import ddlc.yuri.api.events.impl.render.Render2DEvent;
 import ddlc.yuri.api.events.impl.render.Shader2DEvent;
 import ddlc.yuri.api.font.CustomFontRenderer;
+import ddlc.yuri.api.properties.Property;
 import ddlc.yuri.api.properties.impl.ModeProperty;
 import ddlc.yuri.managers.impl.ColorManager;
 import ddlc.yuri.modules.Module;
@@ -27,6 +28,7 @@ import java.awt.*;
 public class MediaInfoModule extends Module implements IMinecraft {
 
     public final ModeProperty<Mode> mode = new ModeProperty<>("Mode", Mode.YURI);
+    public final Property<Boolean> useCustomFont = new Property<>("Use Custom Font", true);
 
     private enum Mode {
         YURI("Yuri"),
@@ -89,6 +91,48 @@ public class MediaInfoModule extends Module implements IMinecraft {
         DragUtils.registerComponent(KEY, component);
     }
 
+    private final class Txt {
+        private final CustomFontRenderer custom;
+        private final boolean vanilla;
+        private final float scale;
+
+        private Txt(CustomFontRenderer custom, boolean vanilla) {
+            this.custom = custom;
+            this.vanilla = vanilla;
+            this.scale = vanilla ? custom.getHeight() / (float) mc.fontRendererObj.FONT_HEIGHT : 1f;
+        }
+
+        private float width(String text) {
+            if (vanilla) return mc.fontRendererObj.getStringWidth(text) * scale;
+            return custom.getStringWidth(text);
+        }
+
+        private float height() {
+            if (vanilla) return mc.fontRendererObj.FONT_HEIGHT * scale;
+            return custom.getHeight();
+        }
+
+        private void draw(String text, float x, float y, int color) {
+            if (!vanilla) {
+                custom.drawStringWithShadow(text, x, y, color);
+                return;
+            }
+            GlStateManager.pushMatrix();
+            GlStateManager.translate(x, y, 0f);
+            GlStateManager.scale(scale, scale, 1f);
+            mc.fontRendererObj.drawStringWithShadow(text, 0f, 0f, color);
+            GlStateManager.popMatrix();
+            GlStateManager.enableBlend();
+            GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+        }
+    }
+
+    private Txt font(String name, int size) {
+        CustomFontRenderer f = FontUtils.getFont(name, size);
+        if (f == null) return null;
+        return new Txt(f, !useCustomFont.getValue());
+    }
+
     @Override
     public void onEnable() {
         component.setWidth(0);
@@ -149,9 +193,9 @@ public class MediaInfoModule extends Module implements IMinecraft {
     private void renderYuri(boolean shaderPass) {
         MediaTrack track = tracker.getTrack();
 
-        CustomFontRenderer titleFont = FontUtils.getFont("sf-bold", 18);
-        CustomFontRenderer trackFont = FontUtils.getFont("sf-bold", 16);
-        CustomFontRenderer body = FontUtils.getFont("sf", 13);
+        Txt titleFont = font("sf-bold", 18);
+        Txt trackFont = font("sf-bold", 16);
+        Txt body = font("sf", 13);
         if (titleFont == null || trackFont == null || body == null) return;
 
         String titleText = "Media Info";
@@ -162,18 +206,18 @@ public class MediaInfoModule extends Module implements IMinecraft {
         long lengthMillis = track != null ? track.getLengthMillis() : 0L;
         String timeText = track != null ? formatTime(position) + (lengthMillis > 0 ? " / " + formatTime(lengthMillis) : "") : "";
 
-        float titleWidth = titleFont.getStringWidth(titleText);
-        float trackWidth = trackFont.getStringWidth(trackText);
-        float artistWidth = body.getStringWidth(artistText);
-        float timeWidth = body.getStringWidth(timeText);
+        float titleWidth = titleFont.width(titleText);
+        float trackWidth = trackFont.width(trackText);
+        float artistWidth = body.width(artistText);
+        float timeWidth = body.width(timeText);
 
         float contentWidth = Math.max(titleWidth, Math.max(YURI_COVER_SIZE, Math.max(trackWidth,
                 Math.max(artistWidth, Math.max(YURI_BAR_WIDTH, timeWidth)))));
         float width = Math.max(YURI_MIN_WIDTH, contentWidth + YURI_PADDING_X * 2);
 
-        float titleHeight = titleFont.getHeight();
-        float trackHeight = trackFont.getHeight();
-        float lineHeight = body.getHeight();
+        float titleHeight = titleFont.height();
+        float trackHeight = trackFont.height();
+        float lineHeight = body.height();
 
         float height = YURI_PADDING_Y * 2 + titleHeight + YURI_GAP_TITLE_COVER + YURI_COVER_SIZE + YURI_GAP_COVER_TRACK
                 + trackHeight + YURI_GAP_TRACK_ARTIST + lineHeight + YURI_GAP_ARTIST_BAR + BAR_HEIGHT
@@ -195,7 +239,7 @@ public class MediaInfoModule extends Module implements IMinecraft {
         float cx = x + width / 2f;
         float cursorY = y + YURI_PADDING_Y;
 
-        titleFont.drawStringWithShadow(titleText, cx - titleWidth / 2f, cursorY, WHITE_RGB);
+        titleFont.draw(titleText, cx - titleWidth / 2f, cursorY, WHITE_RGB);
         cursorY += titleHeight + YURI_GAP_TITLE_COVER;
 
         ResourceLocation cover = track != null ? tracker.getCoverLocation() : null;
@@ -208,10 +252,10 @@ public class MediaInfoModule extends Module implements IMinecraft {
         }
         cursorY += YURI_COVER_SIZE + YURI_GAP_COVER_TRACK;
 
-        trackFont.drawStringWithShadow(trackText, cx - trackWidth / 2f, cursorY, WHITE_RGB);
+        trackFont.draw(trackText, cx - trackWidth / 2f, cursorY, WHITE_RGB);
         cursorY += trackHeight + YURI_GAP_TRACK_ARTIST;
 
-        body.drawStringWithShadow(artistText, cx - artistWidth / 2f, cursorY, TEXT_SECONDARY_RGB);
+        body.draw(artistText, cx - artistWidth / 2f, cursorY, TEXT_SECONDARY_RGB);
         cursorY += lineHeight + YURI_GAP_ARTIST_BAR;
 
         float barX = cx - YURI_BAR_WIDTH / 2f;
@@ -226,17 +270,17 @@ public class MediaInfoModule extends Module implements IMinecraft {
         }
         cursorY += BAR_HEIGHT + YURI_GAP_BAR_TIME;
 
-        body.drawStringWithShadow(timeText, cx - timeWidth / 2f, cursorY, TEXT_SECONDARY_RGB);
+        body.draw(timeText, cx - timeWidth / 2f, cursorY, TEXT_SECONDARY_RGB);
     }
 
     private void renderPulsive(boolean shaderPass) {
         MediaTrack track = tracker.getTrack();
 
-        CustomFontRenderer bold = FontUtils.getFont("sf-bold", 16);
-        CustomFontRenderer regular = FontUtils.getFont("sf", 16);
-        CustomFontRenderer title = FontUtils.getFont("sf-bold", 14);
-        CustomFontRenderer artist = FontUtils.getFont("sf", 13);
-        CustomFontRenderer time = FontUtils.getFont("sf", 11);
+        Txt bold = font("sf-bold", 16);
+        Txt regular = font("sf", 16);
+        Txt title = font("sf-bold", 14);
+        Txt artist = font("sf", 13);
+        Txt time = font("sf", 11);
         if (bold == null || regular == null || title == null || artist == null || time == null) return;
 
         String nowWord = "now";
@@ -248,14 +292,14 @@ public class MediaInfoModule extends Module implements IMinecraft {
         long lengthMillis = track != null ? track.getLengthMillis() : 0L;
         String timeText = track != null ? formatTime(position) + (lengthMillis > 0 ? " / " + formatTime(lengthMillis) : "") : "";
 
-        float nowWidth = bold.getStringWidth(nowWord);
-        float playingWidth = regular.getStringWidth(playingWord);
+        float nowWidth = bold.width(nowWord);
+        float playingWidth = regular.width(playingWord);
         float headerTitleWidth = nowWidth + playingWidth;
-        float headerTitleHeight = Math.max(bold.getHeight(), regular.getHeight());
+        float headerTitleHeight = Math.max(bold.height(), regular.height());
 
-        float titleWidth = title.getStringWidth(titleText);
-        float artistWidth = artist.getStringWidth(artistText);
-        float timeWidth = time.getStringWidth(timeText);
+        float titleWidth = title.width(titleText);
+        float artistWidth = artist.width(artistText);
+        float timeWidth = time.width(timeText);
 
         float textBlockWidth = Math.max(titleWidth, Math.max(artistWidth, timeWidth));
         float contentWidth = COVER_SIZE + GAP_COVER_TEXT + textBlockWidth;
@@ -263,8 +307,8 @@ public class MediaInfoModule extends Module implements IMinecraft {
 
         float headerHeight = headerTitleHeight + HEADER_PADDING_Y * 2;
 
-        float textStackHeight = title.getHeight() + GAP_TITLE_ARTIST + artist.getHeight()
-                + GAP_ARTIST_BAR + BAR_HEIGHT + GAP_BAR_TIME + time.getHeight();
+        float textStackHeight = title.height() + GAP_TITLE_ARTIST + artist.height()
+                + GAP_ARTIST_BAR + BAR_HEIGHT + GAP_BAR_TIME + time.height();
         float bodyContentHeight = Math.max(COVER_SIZE, textStackHeight);
         float bodyHeight = bodyContentHeight + PADDING_Y * 2;
 
@@ -291,8 +335,8 @@ public class MediaInfoModule extends Module implements IMinecraft {
         float cx = x + width / 2f;
         float headerTitleX = cx - headerTitleWidth / 2f;
         float headerTitleY = y + HEADER_PADDING_Y;
-        bold.drawStringWithShadow(nowWord, headerTitleX, headerTitleY, WHITE_RGB);
-        regular.drawStringWithShadow(playingWord, headerTitleX + nowWidth, headerTitleY, TEXT_SECONDARY_RGB);
+        bold.draw(nowWord, headerTitleX, headerTitleY, WHITE_RGB);
+        regular.draw(playingWord, headerTitleX + nowWidth, headerTitleY, TEXT_SECONDARY_RGB);
 
         float coverX = x + PADDING_X;
         float coverY = y + headerHeight + PADDING_Y + (bodyContentHeight - COVER_SIZE) / 2f;
@@ -308,11 +352,11 @@ public class MediaInfoModule extends Module implements IMinecraft {
         float textX = coverX + COVER_SIZE + GAP_COVER_TEXT;
         float textY = y + headerHeight + PADDING_Y + (bodyContentHeight - textStackHeight) / 2f;
 
-        title.drawStringWithShadow(titleText, textX, textY, WHITE_RGB);
-        textY += title.getHeight() + GAP_TITLE_ARTIST;
+        title.draw(titleText, textX, textY, WHITE_RGB);
+        textY += title.height() + GAP_TITLE_ARTIST;
 
-        artist.drawStringWithShadow(artistText, textX, textY, TEXT_TERTIARY_RGB);
-        textY += artist.getHeight() + GAP_ARTIST_BAR;
+        artist.draw(artistText, textX, textY, TEXT_TERTIARY_RGB);
+        textY += artist.height() + GAP_ARTIST_BAR;
 
         float barWidth = (x + width - PADDING_X) - textX;
         float progress = (track != null && lengthMillis > 0) ? Math.min(1f, (float) position / (float) lengthMillis) : 0f;
@@ -326,7 +370,7 @@ public class MediaInfoModule extends Module implements IMinecraft {
         }
         textY += BAR_HEIGHT + GAP_BAR_TIME;
 
-        time.drawStringWithShadow(timeText, textX, textY, TEXT_QUATERNARY_RGB);
+        time.draw(timeText, textX, textY, TEXT_QUATERNARY_RGB);
     }
 
     private void drawCoverTexture(ResourceLocation location, float x, float y, float size) {

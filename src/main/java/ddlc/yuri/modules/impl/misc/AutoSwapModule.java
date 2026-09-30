@@ -45,45 +45,44 @@ public final class AutoSwapModule extends Module {
         if (!event.isPre()) return;
 
         if (!shouldStorageSwapValid()) {
-            if (isSwappingState) {
-                if (swapBack.getValue() || swapMode.getValue() == SwapMode.SERVER)
-                    SlotManager.swapBack();
-                isSwappingState = false;
-            }
+            restoreIfNeeded();
             return;
         }
 
         if (mc.objectMouseOver != null) {
-
             if (mc.gameSettings.keyBindAttack.isKeyDown() && mc.objectMouseOver.typeOfHit == MovingObjectPosition.MovingObjectType.BLOCK) {
                 BlockPos pos = mc.objectMouseOver.getBlockPos();
                 if (pos != null) {
                     int itemToUse = getBestToolSlot(pos);
                     if (itemToUse != -1) {
-                        if (mc.thePlayer.inventory.currentItem != itemToUse) {
-                            SlotManager.swap(itemToUse, swapMode.getValue() == SwapMode.SERVER);
-                        }
-                        isSwappingState = true;
+                        applySwap(itemToUse);
                         return;
                     }
                 }
-            }
-
-            else if (Yuri.INSTANCE.getModuleManager().getModule(AuraModule.class).isEnabled() && AuraModule.target != null && AuraModule.canAttack) {
+            } else if (Yuri.INSTANCE.getModuleManager().getModule(AuraModule.class).isEnabled() && AuraModule.target != null && AuraModule.canAttack) {
                 int itemToUse = getBestSwordSlot();
                 if (itemToUse != -1) {
-                    if (mc.thePlayer.inventory.currentItem != itemToUse) {
-                        SlotManager.swap(itemToUse, swapMode.getValue() == SwapMode.SERVER);
-                    }
-                    isSwappingState = true;
+                    applySwap(itemToUse);
                     return;
                 }
             }
         }
 
+        restoreIfNeeded();
+    }
+
+    private void applySwap(int slot) {
+        boolean server = swapMode.getValue() == SwapMode.SERVER;
+        boolean restore = swapBack.getValue() || server;
+        if (mc.thePlayer.inventory.currentItem != slot || (!restore && SlotManager.isActive())) {
+            SlotManager.swap(slot, server, restore);
+        }
+        isSwappingState = restore;
+    }
+
+    private void restoreIfNeeded() {
         if (isSwappingState) {
-            if (swapBack.getValue() || swapMode.getValue() == SwapMode.SERVER)
-                SlotManager.swapBack();
+            SlotManager.swapBack();
             isSwappingState = false;
         }
     }
@@ -100,9 +99,7 @@ public final class AutoSwapModule extends Module {
 
     @Override
     public void onDisable() {
-        if (swapBack.getValue() || swapMode.getValue() == SwapMode.SERVER)
-            SlotManager.swapBack();
-        isSwappingState = false;
+        restoreIfNeeded();
         super.onDisable();
     }
 

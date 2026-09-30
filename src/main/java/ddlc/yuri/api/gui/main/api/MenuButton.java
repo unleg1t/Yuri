@@ -72,17 +72,7 @@ public class MenuButton {
     }
 
     public void renderBox() {
-        RoundedUtils.drawRoundedRect(this.x, this.y, this.width, this.height, 2f, BG_COLOR);
-
-        if (this.hoverAnim > 0.001f) {
-            float ease = 1f - (1f - this.hoverAnim) * (1f - this.hoverAnim);
-            float animatedWidth = this.width * ease;
-            float animatedX = this.x + (this.width - animatedWidth) / 2f;
-            float animatedHeight = 1.5f;
-            float animatedY = this.y + this.height - animatedHeight;
-
-            RoundedUtils.drawRoundedRect(animatedX, animatedY, animatedWidth, animatedHeight, 0.2f, ColorManager.getColor());
-        }
+        RoundedUtils.drawRoundOutline(this.x, this.y, this.width, this.height, 2f, -0.4f, BG_COLOR, ColorManager.getColor());
     }
 
     public void mouseClicked() {

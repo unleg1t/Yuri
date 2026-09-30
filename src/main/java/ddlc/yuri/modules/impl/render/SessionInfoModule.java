@@ -3,7 +3,7 @@ package ddlc.yuri.modules.impl.render;
 import ddlc.yuri.api.events.annotations.EventHook;
 import ddlc.yuri.api.events.impl.render.Render2DEvent;
 import ddlc.yuri.api.events.impl.render.Shader2DEvent;
-import ddlc.yuri.api.font.CustomFontRenderer;
+import ddlc.yuri.api.properties.Property;
 import ddlc.yuri.api.properties.impl.ModeProperty;
 import ddlc.yuri.managers.impl.ColorManager;
 import ddlc.yuri.managers.impl.SessionStatsManager;
@@ -12,17 +12,17 @@ import ddlc.yuri.modules.ModuleCategory;
 import ddlc.yuri.modules.ModuleInfo;
 import ddlc.yuri.utils.misc.IMinecraft;
 import ddlc.yuri.utils.render.DragUtils;
-import ddlc.yuri.utils.render.FontUtils;
 import ddlc.yuri.utils.render.RoundedUtils;
+import ddlc.yuri.utils.render.adapters.FontAdapter;
 import net.minecraft.client.gui.ScaledResolution;
 
 import java.awt.*;
 
 @ModuleInfo(label = "Session Info", description = "Displays session information on the screen.", category = ModuleCategory.RENDER)
-public class
-SessionInfoModule extends Module implements IMinecraft {
+public class SessionInfoModule extends Module implements IMinecraft {
 
     public final ModeProperty<Mode> mode = new ModeProperty<>("Mode", Mode.PULSIVE);
+    public final Property<Boolean> useCustomFont = new Property<>("Use Custom Font", true);
 
     private enum Mode {
         PULSIVE("Pulsive"),
@@ -100,11 +100,15 @@ SessionInfoModule extends Module implements IMinecraft {
         }
     }
 
+    private FontAdapter font(String name, int size) {
+        return FontAdapter.of(name, size, useCustomFont.getValue());
+    }
+
     public void renderPulsive() {
-        CustomFontRenderer bold = FontUtils.getFont("sf-bold", 18);
-        CustomFontRenderer regular = FontUtils.getFont("sf", 18);
-        CustomFontRenderer body = FontUtils.getFont("sf", 16);
-        CustomFontRenderer timeFont = FontUtils.getFont("sf-bold", 24);
+        FontAdapter bold = font("sf-bold", 18);
+        FontAdapter regular = font("sf", 18);
+        FontAdapter body = font("sf", 16);
+        FontAdapter timeFont = font("sf-bold", 24);
         if (bold == null || regular == null || body == null || timeFont == null) return;
 
         String sessionWord = "session";
@@ -114,18 +118,18 @@ SessionInfoModule extends Module implements IMinecraft {
         String deathsText = "You have died " + SessionStatsManager.getDeaths() + " times";
         String winsText = "Games won " + SessionStatsManager.getWins() + " times";
 
-        float sessionWidth = bold.getStringWidth(sessionWord);
-        float infoWidth = regular.getStringWidth(infoWord);
+        float sessionWidth = bold.width(sessionWord);
+        float infoWidth = regular.width(infoWord);
         float titleWidth = sessionWidth + infoWidth;
-        float titleHeight = Math.max(bold.getHeight(), regular.getHeight());
+        float titleHeight = Math.max(bold.height(), regular.height());
 
-        float timeWidth = timeFont.getStringWidth(timeText);
-        float timeHeight = timeFont.getHeight();
+        float timeWidth = timeFont.width(timeText);
+        float timeHeight = timeFont.height();
 
-        float killsWidth = body.getStringWidth(killsText);
-        float deathsWidth = body.getStringWidth(deathsText);
-        float winsWidth = body.getStringWidth(winsText);
-        float lineHeight = body.getHeight();
+        float killsWidth = body.width(killsText);
+        float deathsWidth = body.width(deathsText);
+        float winsWidth = body.width(winsText);
+        float lineHeight = body.height();
 
         float contentWidth = Math.max(titleWidth, Math.max(timeWidth,
                 Math.max(killsWidth, Math.max(deathsWidth, winsWidth))));
@@ -157,28 +161,28 @@ SessionInfoModule extends Module implements IMinecraft {
         float cx = x + width / 2f;
         float titleX = cx - titleWidth / 2f;
         float titleY = y + HEADER_PADDING_Y;
-        bold.drawStringWithShadow(sessionWord, titleX, titleY, WHITE_RGB);
-        regular.drawStringWithShadow(infoWord, titleX + sessionWidth, titleY, TEXT_SECONDARY_RGB);
+        bold.draw(sessionWord, titleX, titleY, WHITE_RGB);
+        regular.draw(infoWord, titleX + sessionWidth, titleY, TEXT_SECONDARY_RGB);
 
         float leftX = x + PADDING_X;
         float cursorY = y + headerHeight + GAP_HEADER_TIME;
 
-        timeFont.drawStringWithShadow(timeText, leftX, cursorY, WHITE_RGB);
+        timeFont.draw(timeText, leftX, cursorY, WHITE_RGB);
         cursorY += timeHeight + GAP_TIME;
 
-        body.drawStringWithShadow(killsText, leftX, cursorY, TEXT_TERTIARY_RGB);
+        body.draw(killsText, leftX, cursorY, TEXT_TERTIARY_RGB);
         cursorY += lineHeight + GAP_LINE;
 
-        body.drawStringWithShadow(deathsText, leftX, cursorY, TEXT_TERTIARY_RGB);
+        body.draw(deathsText, leftX, cursorY, TEXT_TERTIARY_RGB);
         cursorY += lineHeight + GAP_LINE;
 
-        body.drawStringWithShadow(winsText, leftX, cursorY, TEXT_TERTIARY_RGB);
+        body.draw(winsText, leftX, cursorY, TEXT_TERTIARY_RGB);
     }
 
     public void renderYuri() {
-        CustomFontRenderer title = FontUtils.getFont("sf-bold", 20);
-        CustomFontRenderer welcome = FontUtils.getFont("sf-bold", 22);
-        CustomFontRenderer body = FontUtils.getFont("sf", 16);
+        FontAdapter title = font("sf-bold", 20);
+        FontAdapter welcome = font("sf-bold", 22);
+        FontAdapter body = font("sf", 16);
         if (title == null || welcome == null || body == null) return;
 
         String titleText = "Session Info";
@@ -190,20 +194,20 @@ SessionInfoModule extends Module implements IMinecraft {
                 + formatTimeYuri(SessionStatsManager.getSessionMs()) + ".";
         String serverText = "Server: " + getServerName();
 
-        float titleWidth = title.getStringWidth(titleText);
-        float welcomeWidth = welcome.getStringWidth(welcomeText);
-        float singleplayerWidth = body.getStringWidth(singleplayerText);
-        float killsWidth = body.getStringWidth(killsText);
-        float timeWidth = body.getStringWidth(timeText);
-        float serverWidth = body.getStringWidth(serverText);
+        float titleWidth = title.width(titleText);
+        float welcomeWidth = welcome.width(welcomeText);
+        float singleplayerWidth = body.width(singleplayerText);
+        float killsWidth = body.width(killsText);
+        float timeWidth = body.width(timeText);
+        float serverWidth = body.width(serverText);
 
         float contentWidth = Math.max(titleWidth, Math.max(welcomeWidth, Math.max(killsWidth,
                 Math.max(timeWidth, serverWidth))));
         float width = Math.max(MIN_WIDTH, contentWidth + PADDING_X * 2);
 
-        float titleHeight = title.getHeight();
-        float welcomeHeight = welcome.getHeight();
-        float lineHeight = body.getHeight();
+        float titleHeight = title.height();
+        float welcomeHeight = welcome.height();
+        float lineHeight = body.height();
 
         float gapTitleWelcome = 10f;
         float gapWelcomeKills = 8f;
@@ -228,22 +232,22 @@ SessionInfoModule extends Module implements IMinecraft {
         float cx = x + width / 2f;
         float cursorY = y + PADDING_Y;
 
-        title.drawStringWithShadow(titleText, cx - titleWidth / 2f, cursorY, WHITE_RGB);
+        title.draw(titleText, cx - titleWidth / 2f, cursorY, WHITE_RGB);
         cursorY += getServerName().equals("Singleplayer") ? titleHeight + gapTitleWelcome + 10f : titleHeight + gapTitleWelcome;
 
-        welcome.drawStringWithShadow(welcomeText, cx - welcomeWidth / 2f, cursorY, WHITE_RGB);
+        welcome.draw(welcomeText, cx - welcomeWidth / 2f, cursorY, WHITE_RGB);
         cursorY += welcomeHeight + gapWelcomeKills;
 
         if (getServerName().equals("Singleplayer")) {
-            body.drawStringWithShadow(singleplayerText, cx - singleplayerWidth / 2f, cursorY, TEXT_SECONDARY_RGB);
+            body.draw(singleplayerText, cx - singleplayerWidth / 2f, cursorY, TEXT_SECONDARY_RGB);
         } else {
-            body.drawStringWithShadow(killsText, cx - killsWidth / 2f, cursorY, TEXT_SECONDARY_RGB);
+            body.draw(killsText, cx - killsWidth / 2f, cursorY, TEXT_SECONDARY_RGB);
             cursorY += lineHeight + gapLine;
 
-            body.drawStringWithShadow(timeText, cx - timeWidth / 2f, cursorY, TEXT_SECONDARY_RGB);
+            body.draw(timeText, cx - timeWidth / 2f, cursorY, TEXT_SECONDARY_RGB);
             cursorY += lineHeight + gapKillsServer;
 
-            body.drawStringWithShadow(serverText, cx - serverWidth / 2f, cursorY, TEXT_SECONDARY_RGB);
+            body.draw(serverText, cx - serverWidth / 2f, cursorY, TEXT_SECONDARY_RGB);
         }
     }
 

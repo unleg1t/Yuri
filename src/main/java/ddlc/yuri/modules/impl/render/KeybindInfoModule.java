@@ -5,14 +5,14 @@ import ddlc.yuri.api.events.annotations.EventHook;
 import ddlc.yuri.api.events.annotations.EventPriority;
 import ddlc.yuri.api.events.impl.render.Render2DEvent;
 import ddlc.yuri.api.events.impl.render.Shader2DEvent;
-import ddlc.yuri.api.font.CustomFontRenderer;
+import ddlc.yuri.api.properties.Property;
 import ddlc.yuri.managers.impl.ColorManager;
 import ddlc.yuri.modules.Module;
 import ddlc.yuri.modules.ModuleCategory;
 import ddlc.yuri.modules.ModuleInfo;
 import ddlc.yuri.utils.misc.IMinecraft;
 import ddlc.yuri.utils.render.DragUtils;
-import ddlc.yuri.utils.render.FontUtils;
+import ddlc.yuri.utils.render.adapters.FontAdapter;
 import ddlc.yuri.utils.render.RoundedUtils;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
@@ -30,6 +30,8 @@ import java.util.Set;
 
 @ModuleInfo(label = "Keybind Info", description = "Shows a list of active keybinds", category = ModuleCategory.RENDER)
 public class KeybindInfoModule extends Module implements IMinecraft {
+
+    public final Property<Boolean> useCustomFont = new Property<>("Use Custom Font", true);
 
     private static final String KEY = "KeybindInfo";
 
@@ -109,17 +111,17 @@ public class KeybindInfoModule extends Module implements IMinecraft {
         List<Module> renderModules = new ArrayList<>(animationProgress.keySet());
         renderModules.sort(Comparator.comparing(Module::getLabel, String.CASE_INSENSITIVE_ORDER));
 
-        CustomFontRenderer titleFont = FontUtils.getFont("sf-bold", 18);
-        CustomFontRenderer rowFont = FontUtils.getFont("sf", 15);
+        FontAdapter titleFont = FontAdapter.of("sf-bold", 18, useCustomFont.getValue());
+        FontAdapter rowFont = FontAdapter.of("sf", 15, useCustomFont.getValue());
         if (titleFont == null || rowFont == null) return;
 
         String titleText = "Keybind Info";
-        float titleWidth = titleFont.getStringWidth(titleText);
-        float titleHeight = titleFont.getHeight();
-        float rowHeight = rowFont.getHeight();
+        float titleWidth = titleFont.width(titleText);
+        float titleHeight = titleFont.height();
+        float rowHeight = rowFont.height();
 
         String emptyText = "No modules enabled";
-        float emptyWidth = rowFont.getStringWidth(emptyText);
+        float emptyWidth = rowFont.width(emptyText);
         boolean showEmpty = renderModules.isEmpty();
 
         float contentWidth = titleWidth;
@@ -127,8 +129,8 @@ public class KeybindInfoModule extends Module implements IMinecraft {
             contentWidth = Math.max(contentWidth, emptyWidth);
         } else {
             for (Module module : renderModules) {
-                float labelWidth = rowFont.getStringWidth(module.getLabel());
-                float keyWidth = rowFont.getStringWidth(getKeyName(module));
+                float labelWidth = rowFont.width(module.getLabel());
+                float keyWidth = rowFont.width(getKeyName(module));
                 contentWidth = Math.max(contentWidth, labelWidth + GAP_LABEL_KEY + keyWidth);
             }
         }
@@ -164,11 +166,11 @@ public class KeybindInfoModule extends Module implements IMinecraft {
         float cx = x + width / 2f;
         float cursorY = y + PADDING_Y;
 
-        titleFont.drawStringWithShadow(titleText, cx - titleWidth / 2f, cursorY, WHITE_RGB);
+        titleFont.draw(titleText, cx - titleWidth / 2f, cursorY, WHITE_RGB);
         cursorY += titleHeight + GAP_TITLE_LIST;
 
         if (showEmpty) {
-            rowFont.drawStringWithShadow(emptyText, cx - emptyWidth / 2f, cursorY, TEXT_TERTIARY_RGB);
+            rowFont.draw(emptyText, cx - emptyWidth / 2f, cursorY, TEXT_TERTIARY_RGB);
             return;
         }
 
@@ -183,7 +185,7 @@ public class KeybindInfoModule extends Module implements IMinecraft {
 
                 String label = module.getLabel();
                 String keyName = getKeyName(module);
-                float keyWidth = rowFont.getStringWidth(keyName);
+                float keyWidth = rowFont.width(keyName);
 
                 float boxWidth = KEY_BOX_PADDING_X + 5.0f;
                 float boxHeight = rowHeight + KEY_BOX_PADDING_Y;
@@ -192,8 +194,8 @@ public class KeybindInfoModule extends Module implements IMinecraft {
 
                 RoundedUtils.drawRoundedRect(boxX, boxY, boxWidth, boxHeight, 2, withAlpha(HIGHLIGHT_BG_COLOR, rowAlpha));
 
-                rowFont.drawStringWithShadow(label, leftX - slideOffset, cursorY, withAlpha(TEXT_SECONDARY_RGB, rowAlpha));
-                rowFont.drawStringWithShadow(keyName, rightX - keyWidth + slideOffset, cursorY, withAlpha(TEXT_TERTIARY_RGB, rowAlpha));
+                rowFont.draw(label, leftX - slideOffset, cursorY, withAlpha(TEXT_SECONDARY_RGB, rowAlpha));
+                rowFont.draw(keyName, rightX - keyWidth + slideOffset, cursorY, withAlpha(TEXT_TERTIARY_RGB, rowAlpha));
             }
 
             cursorY += (rowHeight + GAP_ROW) * progress;

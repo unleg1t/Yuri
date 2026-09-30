@@ -35,7 +35,7 @@ public class ModListModule extends Module implements IMinecraft {
     public static final Property<Boolean> hideVisuals = new Property<>("Hide Visuals", false);
     public static final Property<Boolean> hideMisc = new Property<>("Hide Misc", false);
     private static final Property<Boolean> useCustomFont = new Property<>("Use Custom Font", true);
-    public static final NumberProperty fontSize = new NumberProperty("Font Size", 18, 16, 24, 1);
+    public static final NumberProperty fontSize = new NumberProperty("Font Size", 18, 16, 24, 1, useCustomFont::getValue);
     private static final Property<Boolean> hideSuffix = new Property<>("Hide Suffix", false);
     private final ModeProperty<SuffixMode> suffixMode = new ModeProperty<>("Suffix Mode", SuffixMode.SPACE, () -> !hideSuffix.getValue());
     private final Property<Boolean> noSpaces = new Property<>("No Spaces", false);
@@ -101,7 +101,7 @@ public class ModListModule extends Module implements IMinecraft {
             return;
         }
 
-        textHeight = fr.getHeight();
+        textHeight = useCustomFont.getValue() ? fr.getHeight() : 8f;
 
         for (Module module : moduleCache) {
             displayLabelCache.put(module, getDisplayLabel(module));
@@ -230,7 +230,7 @@ public class ModListModule extends Module implements IMinecraft {
                     textX -= pad / getTextWidth(fr, name);
                 }
 
-                drawText(fr, name, useCustomFont.getValue() ? offset.getValue().intValue() > 0 ? textX - 1.0f : textX : !outline.getValue() || !line.getValue() ? textX + 0.5f : textX, (float) translateY, aColor);
+                drawText(fr, name, useCustomFont.getValue() ? offset.getValue().intValue() > 0 ? textX - 1.0f : textX : !outline.getValue() || !line.getValue() ? offset.getValue().intValue() > 0 ? textX + 0.5f : textX + 1.0f : textX, (float) translateY, aColor);
 
                 if (outline.getValue()) {
                     Gui.drawRect((float) translateX - pad - lw, (float) translateY - pad, (float) translateX - pad, (float) translateY + textHeight + pad, aColor);

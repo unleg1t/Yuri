@@ -1,10 +1,9 @@
 package ddlc.yuri.modules.impl.render.targethud.impl;
 
-import ddlc.yuri.api.font.CustomFontRenderer;
 import ddlc.yuri.managers.impl.ColorManager;
 import ddlc.yuri.modules.impl.render.TargetHudModule;
 import ddlc.yuri.modules.impl.render.targethud.TargetHudMode;
-import ddlc.yuri.utils.render.FontUtils;
+import ddlc.yuri.utils.render.adapters.FontAdapter;
 import ddlc.yuri.utils.render.RenderUtils;
 import ddlc.yuri.utils.render.RoundedUtils;
 import net.minecraft.client.entity.AbstractClientPlayer;
@@ -18,8 +17,6 @@ import java.util.Locale;
 public final class YuriMode extends TargetHudMode {
 
     private final TargetHudModule parentModule;
-    private final CustomFontRenderer nameFont;
-    private final CustomFontRenderer bodyFont;
 
     private static final int WIDTH = 130;
     private static final int HEIGHT = 36;
@@ -48,8 +45,6 @@ public final class YuriMode extends TargetHudMode {
     public YuriMode(TargetHudModule parentModule) {
         super("Yuri");
         this.parentModule = parentModule;
-        this.nameFont = FontUtils.getFont("sf-bold", 18);
-        this.bodyFont = FontUtils.getFont("sf", 16);
     }
 
     @Override
@@ -65,6 +60,9 @@ public final class YuriMode extends TargetHudMode {
     public void draw(EntityLivingBase targetEntity, TargetHudModule.TargetState state,
                      double x, double y, long now, float delta) {
 
+        boolean custom = parentModule.useCustomFont.getValue();
+        FontAdapter nameFont = FontAdapter.of("sf-bold", 18, custom);
+        FontAdapter bodyFont = FontAdapter.of("sf", 16, custom);
         if (nameFont == null || bodyFont == null) return;
 
         float health = targetEntity.isEntityAlive() ? targetEntity.getHealth() : 0f;
@@ -147,13 +145,13 @@ public final class YuriMode extends TargetHudMode {
         float textX = faceX + FACE_SIZE + GAP_FACE_TEXT;
         float barWidth = width - textX - PADDING;
 
-        float nameHeight = nameFont.getHeight();
-        float lineHeight = bodyFont.getHeight();
+        float nameHeight = nameFont.height();
+        float lineHeight = bodyFont.height();
         float textStackHeight = nameHeight + GAP_NAME_BAR + BAR_HEIGHT + GAP_BAR_SUB + lineHeight;
         float textY = (height - textStackHeight) / 2f;
 
-        float nameWidth = nameFont.getStringWidth(nameText);
-        nameFont.drawStringWithShadow(nameText, textX + Math.max(0f, (barWidth - nameWidth) / 2f) - 5f, textY, whiteColor.getRGB());
+        float nameWidth = nameFont.width(nameText);
+        nameFont.draw(nameText, textX + Math.max(0f, (barWidth - nameWidth) / 2f) - 5f, textY, whiteColor.getRGB());
         textY += nameHeight + GAP_NAME_BAR;
 
         RoundedUtils.drawCustomRoundedRect(textX, textY, barWidth, BAR_HEIGHT, BAR_HEIGHT / 2f,
@@ -165,8 +163,8 @@ public final class YuriMode extends TargetHudMode {
         }
         textY += BAR_HEIGHT + GAP_BAR_SUB;
 
-        float subWidth = bodyFont.getStringWidth(subText);
-        bodyFont.drawStringWithShadow(subText, textX + Math.max(0f, (barWidth - subWidth) / 2f) - 4f, textY, subColor.getRGB());
+        float subWidth = bodyFont.width(subText);
+        bodyFont.draw(subText, textX + Math.max(0f, (barWidth - subWidth) / 2f) - 4f, textY, subColor.getRGB());
 
         GlStateManager.disableBlend();
         GlStateManager.resetColor();

@@ -203,7 +203,7 @@ public class WatermarkModule extends Module implements IMinecraft {
                 RoundedUtils.drawRoundOutline(2, 2, width, height, 6f,  -0.4f, BG_COLOR,
                         ColorManager.getColor());
 
-                float cursorX = 7;
+                float cursorX = 6;
                 float cursorY = 6;
                 float iconY = cursorY + (textFont.getHeight() - icons.getHeight()) / 2f + 0.5f;
 
