@@ -147,7 +147,7 @@ public class CsgoClickGui extends GuiScreen {
                 unsigned(CsgoTheme.scheme(1f)),
                 unsigned(CsgoTheme.scheme(1f)),
                 unsigned(CsgoTheme.scheme(0f)));
-        CsgoWidgets.addText(x + CsgoTheme.s(6f), y + h / 2f - CsgoTheme.fontSize() / 2f - 2f, CsgoTheme.scheme(1f), "yuri client");
+        CsgoWidgets.addText(x + CsgoTheme.s(6f) * 2f, y + h / 1.7f - CsgoTheme.fontSize() / 2f - 2f, CsgoTheme.scheme(1f), "Yuri");
         ImGui.endChild();
     }
 
@@ -211,7 +211,7 @@ public class CsgoClickGui extends GuiScreen {
         draw.addLine(x, y + 1, x + w, y + 1, CsgoTheme.col(ImGuiCol.BorderShadow));
 
         Date now = new Date();
-        String monthDay = new SimpleDateFormat("MMM  d", Locale.US).format(now);
+        String monthDay = new SimpleDateFormat("MMM d", Locale.US).format(now);
         String year = new SimpleDateFormat("yyyy", Locale.US).format(now);
         float textY = y + h / 2f - CsgoTheme.fontSize() / 2f - 1f;
         CsgoWidgets.addText(x + CsgoTheme.s(6f), textY, CsgoTheme.col(ImGuiCol.TextDisabled), monthDay);

@@ -4,10 +4,12 @@ import ddlc.yuri.Yuri;
 import ddlc.yuri.api.events.annotations.EventHook;
 import ddlc.yuri.api.events.annotations.EventPriority;
 import ddlc.yuri.api.events.impl.render.Render2DEvent;
+import ddlc.yuri.api.events.impl.render.Render3DEvent;
 import ddlc.yuri.api.events.impl.render.Shader2DEvent;
 import ddlc.yuri.api.events.impl.world.WorldJoinEvent;
 import ddlc.yuri.api.properties.Property;
 import ddlc.yuri.api.properties.impl.ModeProperty;
+import ddlc.yuri.api.properties.impl.NumberProperty;
 import ddlc.yuri.managers.impl.ColorManager;
 import ddlc.yuri.managers.impl.TargetManager;
 import ddlc.yuri.modules.Module;
@@ -17,6 +19,7 @@ import ddlc.yuri.modules.impl.combat.AuraModule;
 import ddlc.yuri.modules.impl.render.targethud.TargetHudMode;
 import ddlc.yuri.modules.impl.render.targethud.impl.*;
 import ddlc.yuri.utils.render.DragUtils;
+import ddlc.yuri.utils.render.GLUtils;
 import net.minecraft.client.entity.AbstractClientPlayer;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiChat;
@@ -60,6 +63,8 @@ public final class TargetHudModule extends Module {
     private final ModeProperty<Mode> mode = new ModeProperty<>("Mode", Mode.YURI);
     private final Property<Boolean> grid = new Property<Boolean>("Grid", true);
     public final Property<Boolean> useCustomFont = new Property<>("Use Custom Font", true, () -> mode.getValue() == Mode.YURI);
+    public final Property<Boolean> follow = new Property<>("Follow Target", false);
+    private final NumberProperty followOffset = new NumberProperty("Follow Offset", 16, -50, 100, 1, follow::getValue);
 
     private final Map<Mode, TargetHudMode> modeMap = new HashMap<>();
 
@@ -78,6 +83,7 @@ public final class TargetHudModule extends Module {
     private final Set<UUID> activeTargetsThisFrame = new HashSet<>();
     private final List<EntityLivingBase> listToRender = new ArrayList<>();
     private final List<TargetState> allRenderStates = new ArrayList<>();
+    private float[] followPos;
 
     public TargetHudModule() {
         modeMap.put(Mode.YURI, new YuriMode(this));
@@ -95,6 +101,30 @@ public final class TargetHudModule extends Module {
     @EventHook
     public void onWorldJoin(WorldJoinEvent event) {
         targetStates.clear();
+    }
+
+    @EventHook
+    public void onRender3D(Render3DEvent event) {
+        followPos = null;
+        if (!follow.getValue()) return;
+
+        EntityLivingBase mainTarget = mc.currentScreen instanceof GuiChat ? mc.thePlayer : AuraModule.target;
+        if (mainTarget == null) return;
+
+        float partial = mc.timer.renderPartialTicks;
+        double x = mainTarget.lastTickPosX + (mainTarget.posX - mainTarget.lastTickPosX) * partial;
+        double y = mainTarget.lastTickPosY + (mainTarget.posY - mainTarget.lastTickPosY) * partial + mainTarget.height;
+        double z = mainTarget.lastTickPosZ + (mainTarget.posZ - mainTarget.lastTickPosZ) * partial;
+
+        float[] projected = GLUtils.project2D(
+                (float) (x - mc.getRenderManager().viewerPosX),
+                (float) (y - mc.getRenderManager().viewerPosY),
+                (float) (z - mc.getRenderManager().viewerPosZ),
+                new ScaledResolution(mc).getScaleFactor());
+
+        if (projected != null && projected[2] >= 0.0f && projected[2] < 1.0f) {
+            followPos = projected;
+        }
     }
 
     @EventHook(EventPriority.VERY_HIGH)
@@ -135,6 +165,15 @@ public final class TargetHudModule extends Module {
         TargetHudMode modeInstance = getCurrentModeInstance();
         if (modeInstance == null) return;
 
+        if (follow.getValue()) {
+            double[] base = getFollowBase(mainTarget, modeInstance);
+            if (base != null) {
+                TargetState state = targetStates.get(mainTarget.getUniqueID());
+                modeInstance.draw(mainTarget, state, base[0], base[1], now, delta);
+            }
+            return;
+        }
+
         if (!positionInitialized && !DragUtils.components.containsKey("TargetHud")) {
             ScaledResolution sr = new ScaledResolution(mc);
             initializePosition(sr, modeInstance.getMinWidth());
@@ -155,10 +194,36 @@ public final class TargetHudModule extends Module {
         TargetHudMode modeInstance = getCurrentModeInstance();
         if (modeInstance == null) return;
 
+        if (follow.getValue()) {
+            EntityLivingBase mainTarget = mc.currentScreen instanceof GuiChat ? mc.thePlayer : AuraModule.target;
+            double[] base = getFollowBase(mainTarget, modeInstance);
+            if (base != null) {
+                int panelWidth = modeInstance.getMinWidth();
+                int panelHeight = modeInstance.getHudHeight() + modeInstance.getLabelHeight();
+                Gui.drawRect((int) base[0], (int) base[1], (int) (base[0] + panelWidth), (int) (base[1] + panelHeight), 0xFFFFFFFF);
+            }
+            return;
+        }
+
         DragUtils.DraggableComponent draggable = DragUtils.components.get("TargetHud");
         if (draggable == null) return;
 
         renderBlurMask(allRenderStates, draggable, modeInstance);
+    }
+
+    private double[] getFollowBase(EntityLivingBase mainTarget, TargetHudMode modeInstance) {
+        if (mainTarget == null || followPos == null) return null;
+        if (followPos[2] < 0.0f || followPos[2] >= 1.0f) return null;
+
+        TargetState state = targetStates.get(mainTarget.getUniqueID());
+        if (state == null || state.alpha <= 0.01f) return null;
+
+        int panelWidth = modeInstance.getMinWidth();
+        int panelHeight = modeInstance.getHudHeight() + modeInstance.getLabelHeight();
+        return new double[]{
+                followPos[0] - panelWidth / 2.0,
+                followPos[1] - panelHeight - followOffset.getValue().floatValue()
+        };
     }
 
     private void renderBlurMask(List<TargetState> states, DragUtils.DraggableComponent draggable, TargetHudMode modeInstance) {

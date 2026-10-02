@@ -16,6 +16,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+
+import ddlc.yuri.Yuri;
+import ddlc.yuri.modules.impl.render.SkinChangerModule;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.IImageBuffer;
 import net.minecraft.client.renderer.ImageBufferDownload;
@@ -98,46 +101,45 @@ public class SkinManager
         return resourcelocation;
     }
 
-    public void loadProfileTextures(final GameProfile profile, final SkinManager.SkinAvailableCallback skinAvailableCallback, final boolean requireSecure)
-    {
-        THREAD_POOL.submit(new Runnable()
-        {
-            public void run()
-            {
-                final Map<Type, MinecraftProfileTexture> map = Maps.<Type, MinecraftProfileTexture>newHashMap();
+    public void loadProfileTextures(final GameProfile profile, final SkinManager.SkinAvailableCallback skinAvailableCallback, final boolean requireSecure) {
+        THREAD_POOL.submit(() -> {
+            final Map<Type, MinecraftProfileTexture> map = Maps.newHashMap();
 
-                try
-                {
-                    map.putAll(SkinManager.this.sessionService.getTextures(profile, requireSecure));
-                }
-                catch (InsecureTextureException var3)
-                {
-                    ;
-                }
+            try {
+                map.putAll(SkinManager.this.sessionService.getTextures(profile, requireSecure));
+            } catch (InsecureTextureException ignored) {
+            }
 
-                if (map.isEmpty() && profile.getId().equals(Minecraft.getMinecraft().getSession().getProfile().getId()))
-                {
+            SkinChangerModule visualTweaks = Yuri.INSTANCE.getModuleManager().getModule(SkinChangerModule.class);
+            GameProfile currentProfile = Minecraft.getMinecraft().getSession().getProfile();
+
+            if (profile.getName().equals(currentProfile.getName())) {
+                if (visualTweaks.isEnabled()) {
+                    Map<String, String> metadata = Maps.newHashMap();
+                    metadata.put("model", visualTweaks.slimSkin.getValue() ? "slim" : "default");
+
+                    MinecraftProfileTexture customSkin = new MinecraftProfileTexture(
+                            visualTweaks.getURL(),
+                            metadata
+                    );
+
+                    map.put(Type.SKIN, customSkin);
+                } else if (map.isEmpty()) {
                     profile.getProperties().clear();
-                    profile.getProperties().putAll(Minecraft.getMinecraft().getProfileProperties());
+                    profile.getProperties().putAll(currentProfile.getProperties());
                     map.putAll(SkinManager.this.sessionService.getTextures(profile, false));
                 }
-
-                Minecraft.getMinecraft().addScheduledTask(new Runnable()
-                {
-                    public void run()
-                    {
-                        if (map.containsKey(Type.SKIN))
-                        {
-                            SkinManager.this.loadSkin((MinecraftProfileTexture)map.get(Type.SKIN), Type.SKIN, skinAvailableCallback);
-                        }
-
-                        if (map.containsKey(Type.CAPE))
-                        {
-                            SkinManager.this.loadSkin((MinecraftProfileTexture)map.get(Type.CAPE), Type.CAPE, skinAvailableCallback);
-                        }
-                    }
-                });
             }
+
+            Minecraft.getMinecraft().addScheduledTask(() -> {
+                if (map.containsKey(Type.SKIN)) {
+                    SkinManager.this.loadSkin(map.get(Type.SKIN), Type.SKIN, skinAvailableCallback);
+                }
+
+                if (map.containsKey(Type.CAPE)) {
+                    SkinManager.this.loadSkin(map.get(Type.CAPE), Type.CAPE, skinAvailableCallback);
+                }
+            });
         });
     }
 

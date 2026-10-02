@@ -11,6 +11,7 @@ import ddlc.yuri.api.events.impl.render.Render2DEvent;
 import ddlc.yuri.api.gui.click.csgo.CsgoClickGui;
 import ddlc.yuri.api.gui.click.imgui.ImGuiClickGui;
 import ddlc.yuri.api.gui.click.novoline.NovolineClickGui;
+import ddlc.yuri.api.gui.click.sigma.SigmaClickGui;
 import ddlc.yuri.api.gui.click.yuri.YuriClickGUI;
 import ddlc.yuri.managers.ManagerWrapper;
 import ddlc.yuri.modules.ModuleManager;
@@ -39,6 +40,8 @@ public class Yuri {
     private final ImGuiClickGui imGuiClickGui = new ImGuiClickGui();
     @Getter
     private final CsgoClickGui csgoClickGui = new CsgoClickGui();
+    @Getter
+    private final SigmaClickGui sigmaClickGui = new SigmaClickGui();
     @Getter
     private NotificationHandler notificationHandler = new NotificationHandler();
     private BindsConfig bindsConfig;

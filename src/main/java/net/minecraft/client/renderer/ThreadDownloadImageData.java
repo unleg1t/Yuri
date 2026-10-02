@@ -29,6 +29,7 @@ public class ThreadDownloadImageData extends SimpleTexture
 {
     private static final Logger logger = LogManager.getLogger();
     private static final AtomicInteger threadDownloadCounter = new AtomicInteger(0);
+    private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
     private final File cacheFile;
     private final String imageUrl;
     private final IImageBuffer imageBuffer;
@@ -141,12 +142,20 @@ public class ThreadDownloadImageData extends SimpleTexture
                     try
                     {
                         httpurlconnection = (HttpURLConnection)(new URL(ThreadDownloadImageData.this.imageUrl)).openConnection(Minecraft.getMinecraft().getProxy());
+                        httpurlconnection.setRequestProperty("User-Agent", USER_AGENT);
+                        httpurlconnection.setConnectTimeout(10000);
+                        httpurlconnection.setReadTimeout(10000);
+                        httpurlconnection.setInstanceFollowRedirects(true);
                         httpurlconnection.setDoInput(true);
                         httpurlconnection.setDoOutput(false);
                         httpurlconnection.connect();
 
-                        if (httpurlconnection.getResponseCode() / 100 != 2)
+                        int responseCode = httpurlconnection.getResponseCode();
+
+                        if (responseCode / 100 != 2)
                         {
+                            ThreadDownloadImageData.logger.error("Couldn\'t download http texture: HTTP " + responseCode + " from " + ThreadDownloadImageData.this.imageUrl);
+
                             if (httpurlconnection.getErrorStream() != null)
                             {
                                 Config.readAll(httpurlconnection.getErrorStream());
@@ -217,6 +226,7 @@ public class ThreadDownloadImageData extends SimpleTexture
 
             if (httpresponse.getStatus() / 100 != 2)
             {
+                logger.error("Couldn\'t download http texture: HTTP " + httpresponse.getStatus() + " from " + this.imageUrl);
                 return;
             }
 

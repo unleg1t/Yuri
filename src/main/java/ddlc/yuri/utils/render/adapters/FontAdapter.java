@@ -11,16 +11,20 @@ public final class FontAdapter {
     private final boolean vanilla;
     private final float scale;
 
-    private FontAdapter(CustomFontRenderer custom, boolean vanilla) {
+    private FontAdapter(CustomFontRenderer custom, boolean vanilla, int size) {
         this.custom = custom;
         this.vanilla = vanilla;
-        this.scale = vanilla ? custom.getHeight() / (float) Minecraft.getMinecraft().fontRendererObj.FONT_HEIGHT : 1f;
+        if (vanilla && !(size >= 18 && size <= 21)) {
+            this.scale = custom.getHeight() / (float) Minecraft.getMinecraft().fontRendererObj.FONT_HEIGHT;
+        } else {
+            this.scale = 1f;
+        }
     }
 
     public static FontAdapter of(String name, int size, boolean useCustom) {
         CustomFontRenderer font = FontUtils.getFont(name, size);
         if (font == null) return null;
-        return new FontAdapter(font, !useCustom);
+        return new FontAdapter(font, !useCustom, size);
     }
 
     public float width(String text) {

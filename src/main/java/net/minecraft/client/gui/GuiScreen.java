@@ -103,7 +103,7 @@ public abstract class GuiScreen extends Gui implements GuiYesNoCallback
         float logoY = (float) this.height - logoSize;
 
         if (ClickGUIModule.logoInGuis.getValue()) {
-            if (mc.currentScreen instanceof GuiInventory || mc.currentScreen instanceof GuiContainerCreative || mc.currentScreen instanceof GuiChest || mc.currentScreen instanceof GuiCrafting || mc.currentScreen instanceof GuiEnchantment || mc.currentScreen instanceof GuiFurnace || mc.currentScreen instanceof GuiRepair || mc.currentScreen == Yuri.INSTANCE.getImGuiClickGui() || mc.currentScreen == Yuri.INSTANCE.getCsgoClickGui() || mc.currentScreen == Yuri.INSTANCE.getNovolineClickGui()) {
+            if (mc.currentScreen instanceof GuiInventory || mc.currentScreen instanceof GuiContainerCreative || mc.currentScreen instanceof GuiChest || mc.currentScreen instanceof GuiCrafting || mc.currentScreen instanceof GuiEnchantment || mc.currentScreen instanceof GuiFurnace || mc.currentScreen instanceof GuiRepair || mc.currentScreen == Yuri.INSTANCE.getImGuiClickGui() || mc.currentScreen == Yuri.INSTANCE.getCsgoClickGui() || mc.currentScreen == Yuri.INSTANCE.getNovolineClickGui() || mc.currentScreen == Yuri.INSTANCE.getSigmaClickGui()) {
 
                 GlStateManager.color(1.0F, 1.0F, 1.0F, alpha);
                 GlStateManager.enableBlend();

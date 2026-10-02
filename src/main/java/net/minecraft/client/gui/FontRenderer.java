@@ -11,7 +11,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
 import java.util.Random;
+
+import ddlc.yuri.Yuri;
+import ddlc.yuri.modules.impl.render.NameProtectModule;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.WorldRenderer;
@@ -320,6 +324,17 @@ public class FontRenderer implements IResourceManagerReloadListener
 
     public int drawString(String text, float x, float y, int color, boolean dropShadow)
     {
+
+        if (Yuri.INSTANCE.getModuleManager().getModule(NameProtectModule.class).isEnabled()) {
+            EntityPlayerSP player = Minecraft.getMinecraft().thePlayer;
+            if (player != null) {
+                String playerName = player.getName();
+                if (playerName != null && text.contains(playerName)) {
+                    text = text.replace(playerName, "You");
+                }
+            }
+        }
+
         this.enableAlpha();
 
         if (this.blend)
@@ -598,6 +613,16 @@ public class FontRenderer implements IResourceManagerReloadListener
         }
         else
         {
+            if (Yuri.INSTANCE.getModuleManager().getModule(NameProtectModule.class).isEnabled()) {
+                EntityPlayerSP player = Minecraft.getMinecraft().thePlayer;
+                if (player != null) {
+                    String playerName = player.getName();
+                    if (playerName != null && text.contains(playerName)) {
+                        text = text.replace(playerName, "You");
+                    }
+                }
+            }
+
             float f = 0.0F;
             boolean flag = false;
 

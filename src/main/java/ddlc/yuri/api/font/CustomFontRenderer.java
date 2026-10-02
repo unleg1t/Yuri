@@ -1,6 +1,9 @@
 package ddlc.yuri.api.font;
 
+import ddlc.yuri.Yuri;
+import ddlc.yuri.modules.impl.render.NameProtectModule;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.util.ResourceLocation;
@@ -131,6 +134,16 @@ public class CustomFontRenderer extends CustomFont {
 
         if (text == null) {
             return 0.0F;
+        }
+
+        if (Yuri.INSTANCE.getModuleManager().getModule(NameProtectModule.class).isEnabled()) {
+            EntityPlayerSP player = Minecraft.getMinecraft().thePlayer;
+            if (player != null) {
+                String playerName = player.getName();
+                if (playerName != null && text.contains(playerName)) {
+                    text = text.replace(playerName, "You");
+                }
+            }
         }
 
         if (tex == null) {
@@ -300,6 +313,17 @@ public class CustomFontRenderer extends CustomFont {
         if (text == null) {
             return 0;
         }
+
+        if (Yuri.INSTANCE.getModuleManager().getModule(NameProtectModule.class).isEnabled()) {
+            EntityPlayerSP player = Minecraft.getMinecraft().thePlayer;
+            if (player != null) {
+                String playerName = player.getName();
+                if (playerName != null && text.contains(playerName)) {
+                    text = text.replace(playerName, "You");
+                }
+            }
+        }
+
         if (useMCustomFont) {
             return Minecraft.getMinecraft().fontRendererObj.getStringWidth(text);
         }

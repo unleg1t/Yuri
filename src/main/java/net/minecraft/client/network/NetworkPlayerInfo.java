@@ -102,6 +102,17 @@ public class NetworkPlayerInfo
         return Minecraft.getMinecraft().theWorld.getScoreboard().getPlayersTeam(this.getGameProfile().getName());
     }
 
+    public void resetPlayerTextures() {
+        synchronized (this) {
+            this.playerTexturesLoaded = false;
+            this.locationSkin = null;
+            this.locationCape = null;
+            this.skinType = null;
+        }
+
+        this.loadPlayerTextures();
+    }
+
     protected void loadPlayerTextures()
     {
         synchronized (this)
