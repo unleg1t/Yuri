@@ -25,7 +25,8 @@ public class ClickGUIModule extends Module implements IMinecraft {
         YURI("Yuri"),
         IMGUI("ImGui"),
         CSGO("CSGO"),
-        NOVOLINE("Novoline");
+        NOVOLINE("Novoline"),
+        SIGMA("Sigma");
 
         public final String name;
 
@@ -92,6 +93,9 @@ public class ClickGUIModule extends Module implements IMinecraft {
             case CSGO:
                 mc.displayGuiScreen(Yuri.INSTANCE.getCsgoClickGui());
                 break;
+            case SIGMA:
+                mc.displayGuiScreen(Yuri.INSTANCE.getSigmaClickGui());
+                break;
         }
     }
 
@@ -105,6 +109,8 @@ public class ClickGUIModule extends Module implements IMinecraft {
             Yuri.INSTANCE.getCsgoClickGui().beginClose();
         } else if (mc.currentScreen == Yuri.INSTANCE.getYuriClickGUI() && !Yuri.INSTANCE.getYuriClickGUI().isClosing()) {
             Yuri.INSTANCE.getYuriClickGUI().beginClose();
+        } else if (mc.currentScreen == Yuri.INSTANCE.getSigmaClickGui() && !Yuri.INSTANCE.getSigmaClickGui().isClosing()) {
+            Yuri.INSTANCE.getSigmaClickGui().beginClose();
         }
     }
 }
