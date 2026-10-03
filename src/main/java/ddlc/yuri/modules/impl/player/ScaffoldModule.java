@@ -33,6 +33,7 @@ import net.minecraft.item.ItemBlock;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.play.client.C0APacketAnimation;
 import net.minecraft.network.play.server.S02PacketChat;
+import net.minecraft.potion.Potion;
 import net.minecraft.util.*;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.util.vector.Vector2f;
@@ -545,7 +546,7 @@ public final class ScaffoldModule extends Module {
                 }
                 break;
             case HYPIXEL:
-                rotSpeed = isDiagonal() || mc.gameSettings.keyBindJump.isKeyDown() ? 5.2f : 4.8f;
+                rotSpeed = isDiagonal() || mc.gameSettings.keyBindJump.isKeyDown() ? 6.5f : 4.8f;
                 if (canPlace && !mc.gameSettings.keyBindPickBlock.isKeyDown()) {
                     ScaffoldUtils.computeWatchdog3Rotations(blockFace, enumFacing, target);
                 }
@@ -674,6 +675,10 @@ public final class ScaffoldModule extends Module {
                 mc.thePlayer.motionY = 0.42;
                 break;
             case HYPIXEL:
+                if (mc.thePlayer.isPotionActive(Potion.jump)) {
+                    return;
+                }
+
                 if (mc.thePlayer.onGround && !MoveUtils.enoughMovementForSprinting()) {
                     mc.thePlayer.jump();
                 }
