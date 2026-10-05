@@ -17,6 +17,7 @@ import ddlc.yuri.managers.impl.SlotManager;
 import ddlc.yuri.modules.Module;
 import ddlc.yuri.modules.ModuleCategory;
 import ddlc.yuri.modules.ModuleInfo;
+import ddlc.yuri.modules.impl.misc.DerpModule;
 import ddlc.yuri.modules.impl.movement.SpeedModule;
 import ddlc.yuri.utils.client.MathUtils;
 import ddlc.yuri.utils.client.TimerUtils;
@@ -42,6 +43,7 @@ import org.lwjgl.util.vector.Vector2f;
 public final class ScaffoldModule extends Module {
 
     public static final ModeProperty<Mode> mode = new ModeProperty<>("Mode", Mode.NORMAL);
+    public final Property<Boolean> hypixelLarp = new Property<>("Hypixel Larp Mode", true, () -> mode.getValue() == Mode.HYPIXEL);
     public final Property<Boolean> hypixelTelly = new Property<>("Hypixel Telly", false, () -> mode.getValue() == Mode.TELLY);
     private final NumberProperty tellyStraightTicks = new NumberProperty("Telly Straight Ticks", 6, 0, 8, 1, () -> mode.getValue() == Mode.TELLY && !hypixelTelly.getValue());
     private final NumberProperty tellyDiagonalTicks = new NumberProperty("Telly Diagonal Ticks", 4, 0, 8, 1, () -> mode.getValue() == Mode.TELLY && !hypixelTelly.getValue());
@@ -350,6 +352,11 @@ public final class ScaffoldModule extends Module {
         if (!isEnabled()) return;
         if (!event.isPre()) return;
         this.offset = new Vec3i(0, 0, 0);
+        if (mode.getValue() == Mode.HYPIXEL && !Yuri.INSTANCE.getModuleManager().getModule(DerpModule.class).isEnabled() && hypixelLarp.getValue()) {
+            RotationManager.showRotations = false;
+            mc.thePlayer.rotationYawHead = mc.thePlayer.renderYawOffset = mc.thePlayer.rotationYaw + 125;
+            mc.thePlayer.renderPitchHead = targetPitch;
+        }
     }
 
     @EventHook
@@ -781,6 +788,7 @@ public final class ScaffoldModule extends Module {
             tellySafeTimer.reset();
             blocksPlaced = 0;
             blockCount = 0;
+            RotationManager.showRotations = true;
             initialBlockCount = 0;
             tellyNoPlace = false;
             placeTimer = 0;

@@ -1,6 +1,7 @@
 package ddlc.yuri.modules.impl.misc;
 
 import ddlc.yuri.api.events.annotations.EventHook;
+import ddlc.yuri.api.events.impl.player.MotionEvent;
 import ddlc.yuri.api.events.impl.player.PreUpdateEvent;
 import ddlc.yuri.api.events.impl.render.Render2DEvent;
 import ddlc.yuri.api.properties.Property;
@@ -37,9 +38,11 @@ public class DerpModule extends Module {
     }
 
     @EventHook
-    public void onRender2D(Render2DEvent event) {
+    public void onMotion(MotionEvent event) {
+        if (!event.isPre()) return;
         if (mode.getValue() == Mode.CLIENT) {
             if (mc.gameSettings.thirdPersonView != 0) {
+                RotationManager.showRotations = false;
                 mc.thePlayer.rotationYawHead = mc.thePlayer.renderYawOffset = yaw;
                 mc.thePlayer.renderPitchHead = pitch.getValue().intValue();
             }
@@ -59,5 +62,11 @@ public class DerpModule extends Module {
         public String toString() {
             return name;
         }
+    }
+
+    @Override
+    public void onDisable() {
+        RotationManager.showRotations = true;
+        super.onDisable();
     }
 }

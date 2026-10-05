@@ -19,6 +19,7 @@ public class RotationManager {
     @Setter
     @Getter
     private static boolean active, smoothed;
+    public static boolean showRotations = true;
     public static Vector2f rotations, lastRotations = new Vector2f(0, 0), targetRotations, lastServerRotations;
     private static double rotationSpeed;
     private static MovementFix correctMovement;
@@ -124,8 +125,10 @@ public class RotationManager {
             event.setYaw(yaw);
             event.setPitch(pitch);
 
-            mc.thePlayer.rotationYawHead = yaw;
-            mc.thePlayer.renderPitchHead = pitch;
+            if (showRotations) {
+                mc.thePlayer.rotationYawHead = yaw;
+                mc.thePlayer.renderPitchHead = pitch;
+            }
 
             serverRotations.set(yaw, pitch);
             lastServerRotations = serverRotations;
