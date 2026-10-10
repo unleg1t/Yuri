@@ -23,9 +23,9 @@ import ddlc.yuri.utils.player.RayCastUtils;
 import ddlc.yuri.utils.player.RotationUtils;
 import ddlc.yuri.utils.player.packet.PacketUtils;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.item.ItemStack;
 import net.minecraft.network.play.client.C07PacketPlayerDigging;
 import net.minecraft.network.play.client.C08PacketPlayerBlockPlacement;
-import net.minecraft.network.play.client.C09PacketHeldItemChange;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.MathHelper;
@@ -38,7 +38,7 @@ import java.util.Arrays;
 @ModuleInfo(label = "Aura", description = "Automatically attacks entities around you", category = ModuleCategory.COMBAT)
 public class AuraModule extends Module {
 
-     /*
+    /*
         for anyone curious, attack range is when the attack is processed, swing range is when you start pre-attacking which uses real left-clicking.
         simulate mouse clicks is just fully legit REAL left-clicking, this helps in hvh so you can get start to attack before 3 blocks
         (which is the limit for prediction based anti-cheats when using mc.playerController.attackEntity).
@@ -65,6 +65,7 @@ public class AuraModule extends Module {
     private static final NumberProperty min = new NumberProperty("Min CPS", 9.0, 1, 20.0, 0.1);
     private static final NumberProperty max = new NumberProperty("Max CPS", 13.0, 1, 20.0, 0.1);
     public static ModeProperty<AutoBlock> ab = new ModeProperty<>("Auto Block", AutoBlock.FAKE);
+    private static final NumberProperty blockCps = new NumberProperty("Auto Block CPS", 8.0, 1, 10, 0.1, () -> ab.getValue() == AutoBlock.HYPIXEL);
     public static Property<Boolean> onlyBlockIfHurt = new Property<>("Only Block If Hurt", false);
     private final NumberProperty blockOnHurtTicks = new NumberProperty("Block On Hurt Ticks", 4, 0, 10, 1, onlyBlockIfHurt::getValue);
     public static final Property<Boolean> throughWalls = new Property<>("Through Walls", false);
@@ -116,9 +117,9 @@ public class AuraModule extends Module {
     public enum AutoBlock {
         FAKE("Fake"),
         VANILLA("Vanilla"),
-        HYPIXEL("Hypixel"),
         NCP("NCP"),
         LEGIT("Legit"),
+        HYPIXEL("Hypixel"),
         NONE("None");
 
         public final String name;
@@ -140,10 +141,13 @@ public class AuraModule extends Module {
     private static final TimerUtils attackTimer = new TimerUtils();
     private int blockTicks = 0;
     private static long delay = 0;
+    private static long lastAttackStamp = 0;
     public int hitTicks;
     private EntityLivingBase lastTarget;
     private Vec3 smoothedBodyPoint;
     private static final TimerUtils blockTimer = new TimerUtils();
+    private boolean hypixelBlocking = false;
+    private int hypixelTick = 0;
 
     @EventHook
     public void onPreUpdate(PreUpdateEvent event) {
@@ -189,6 +193,13 @@ public class AuraModule extends Module {
         if (event.isPre()) {
             this.hitTicks++;
             return;
+        }
+
+        if (ab.getValue() == AutoBlock.HYPIXEL && hypixelBlocking && mc.thePlayer != null && !mc.thePlayer.isBlocking()) {
+            ItemStack held = mc.thePlayer.getHeldItem();
+            if (held != null) {
+                mc.thePlayer.setItemInUse(held, held.getMaxItemUseDuration());
+            }
         }
 
         if (target == null) return;
@@ -243,6 +254,22 @@ public class AuraModule extends Module {
         RotationManager.setRotations(rotation, rotSpeed, fix.getValue() != MoveFix.NONE ? fix.getValue() == MoveFix.SILENT ? RotationManager.MovementFix.NORMAL : RotationManager.MovementFix.TRADITIONAL : RotationManager.MovementFix.OFF);
     }
 
+    private void releaseBlock() {
+        hypixelBlocking = false;
+        if (mc.thePlayer == null) return;
+        PacketUtils.sendPacket(new C07PacketPlayerDigging(C07PacketPlayerDigging.Action.RELEASE_USE_ITEM, BlockPos.ORIGIN, EnumFacing.DOWN));
+        mc.thePlayer.stopUsingItem();
+    }
+
+    private void sendBlock() {
+        if (mc.thePlayer == null) return;
+        ItemStack held = mc.thePlayer.getHeldItem();
+        if (held == null) return;
+        PacketUtils.sendPacket(new C08PacketPlayerBlockPlacement(held));
+        mc.thePlayer.setItemInUse(held, held.getMaxItemUseDuration());
+        hypixelBlocking = true;
+    }
+
     private void autoblock() {
         if (mc.thePlayer == null || mc.playerController == null) return;
 
@@ -257,51 +284,9 @@ public class AuraModule extends Module {
             return;
         }
 
-        int slot = mc.thePlayer.inventory.currentItem;
-        int randomSlot = slot % 7 + (int) (Math.random() * 2) + 1;
-
         switch (ab.getValue()) {
             case FAKE:
                 autoBlocking = true;
-                break;
-            case HYPIXEL:
-                autoBlocking = true;
-                if (mc.thePlayer.getDistanceToEntity(target) <= 2.6f) {
-                    switch (blockTicks) {
-                        case 0:
-                            if (!mc.thePlayer.isUsingItem()) {
-                                PacketUtils.sendPacket(new C08PacketPlayerBlockPlacement(mc.thePlayer.getHeldItem()));
-                                mc.thePlayer.setItemInUse(mc.thePlayer.getHeldItem(), mc.thePlayer.getHeldItem().getMaxItemUseDuration());
-                            }
-                            blockTicks = 1;
-                            canAttack = false;
-                            break;
-                        case 1:
-                            if (mc.thePlayer.isUsingItem()) {
-                                PacketUtils.sendPacket(new C09PacketHeldItemChange(randomSlot));
-                            }
-                            canAttack = false;
-                            blockTicks = 2;
-                            break;
-                        case 2:
-                            if (mc.thePlayer.isUsingItem()) PacketUtils.sendPacket(new C09PacketHeldItemChange(slot));
-                            canAttack = !BadPacketsManager.bad(true, false, false, true, false);
-                            blockTicks = 0;
-                            break;
-                        default:
-                            blockTicks = 0;
-                            canAttack = true;
-                            break;
-                    }
-                } else {
-                    if (blockTicks > 0) {
-                        PacketUtils.sendPacket(new C07PacketPlayerDigging(C07PacketPlayerDigging.Action.RELEASE_USE_ITEM, BlockPos.ORIGIN, EnumFacing.DOWN));
-                        blockTicks = 0;
-                    }
-
-                    if (!canAttack)
-                        canAttack = !BadPacketsManager.bad(true, false, false, true, false);
-                }
                 break;
             case LEGIT:
                 mc.gameSettings.keyBindUseItem.setPressed(mc.thePlayer.hurtTime <= 10 && mc.thePlayer.hurtTime >= 6 && mc.thePlayer.getDistanceToEntity(target) <= 3.0f);
@@ -314,6 +299,20 @@ public class AuraModule extends Module {
                 break;
             case VANILLA:
                 PacketUtils.sendPacket(new C08PacketPlayerBlockPlacement(mc.thePlayer.getHeldItem()));
+                autoBlocking = true;
+                break;
+            case HYPIXEL:
+                canAttack = true;
+                if (hypixelBlocking) {
+                    releaseBlock();
+                }
+                long remaining = delay - (System.currentTimeMillis() - lastAttackStamp);
+                if (remaining <= 50L) {
+                    hypixelTick = 1;
+                } else if (hypixelTick == 1) {
+                    sendBlock();
+                    hypixelTick = 0;
+                }
                 autoBlocking = true;
                 break;
             case NCP:
@@ -349,14 +348,16 @@ public class AuraModule extends Module {
         }
 
         if (ab.getValue() == AutoBlock.HYPIXEL) {
-            if (blockTicks > 0)
-                PacketUtils.sendPacket(new C07PacketPlayerDigging(C07PacketPlayerDigging.Action.RELEASE_USE_ITEM, BlockPos.ORIGIN, EnumFacing.DOWN));
+            if (hypixelBlocking) {
+                releaseBlock();
+            }
+            hypixelTick = 0;
             autoBlocking = false;
             canAttack = true;
             return;
         }
 
-        if (InventoryUtils.isHoldingSword() && ab.getValue() != AutoBlock.LEGIT && ab.getValue() != AutoBlock.HYPIXEL) {
+        if (InventoryUtils.isHoldingSword() && ab.getValue() != AutoBlock.LEGIT) {
             PacketUtils.sendPacket(new C07PacketPlayerDigging(C07PacketPlayerDigging.Action.RELEASE_USE_ITEM, BlockPos.ORIGIN, EnumFacing.DOWN));
         }
 
@@ -390,7 +391,14 @@ public class AuraModule extends Module {
         if (attackTimer.hasTimeElapsed(delay, false)) {
             returnVal = true;
             attackTimer.reset();
-            delay = ab.getValue() == AutoBlock.LEGIT ? (long) (1000.0 / 5.0) : (long) (1000.0 / getCPS());
+            lastAttackStamp = System.currentTimeMillis();
+            if (ab.getValue() == AutoBlock.LEGIT) {
+                delay = (long) (1000.0 / 5.0);
+            } else if (ab.getValue() == AutoBlock.HYPIXEL) {
+                delay = (long) (1000.0 / blockCps.getValue());
+            } else {
+                delay = (long) (1000.0 / getCPS());
+            }
         }
         return returnVal;
     }
@@ -401,6 +409,10 @@ public class AuraModule extends Module {
         } else {
             canAttack = true;
         }
+        if (hypixelBlocking) {
+            releaseBlock();
+        }
+        hypixelTick = 0;
         if (SlotManager.isActive()) {
             SlotManager.swapBack();
         }
@@ -417,8 +429,11 @@ public class AuraModule extends Module {
     @Override
     public void onEnable() {
         delay = (long) (1000.0 / getCPS());
+        lastAttackStamp = 0;
         canAttack = true;
         autoBlocking = false;
+        hypixelBlocking = false;
+        hypixelTick = 0;
         blockTicks = -1;
         TargetManager.configure(Arrays.asList(targets.getValues()));
         attackTimer.reset();
