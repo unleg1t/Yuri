@@ -12,7 +12,7 @@ import ddlc.yuri.managers.impl.RotationManager;
 import ddlc.yuri.modules.Module;
 import ddlc.yuri.modules.ModuleCategory;
 import ddlc.yuri.modules.ModuleInfo;
-import ddlc.yuri.utils.player.InvUtils;
+import ddlc.yuri.utils.player.InventoryUtils;
 import ddlc.yuri.utils.player.MoveUtils;
 import ddlc.yuri.utils.player.packet.PacketUtils;
 import net.minecraft.init.Items;
@@ -64,7 +64,7 @@ public final class LongJumpModule extends Module {
         setSuffix(fireballToggle.getValue() ? fireballMode.getValue().toString() : mode.getValue().toString());
 
         if (fireballToggle.getValue()) {
-            int item = InvUtils.findItem(Items.fire_charge);
+            int item = InventoryUtils.findItem(Items.fire_charge);
 
             if (mc.thePlayer.onGroundTicks == 1) {
                 MoveUtils.stop();

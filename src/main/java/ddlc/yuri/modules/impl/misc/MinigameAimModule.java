@@ -1,7 +1,6 @@
 package ddlc.yuri.modules.impl.misc;
 
 import ddlc.yuri.api.events.annotations.EventHook;
-import ddlc.yuri.api.events.impl.player.MotionEvent;
 import ddlc.yuri.api.events.impl.player.PreUpdateEvent;
 import ddlc.yuri.api.events.impl.render.Render2DEvent;
 import ddlc.yuri.api.events.impl.render.Render3DEvent;
@@ -16,7 +15,7 @@ import ddlc.yuri.modules.Module;
 import ddlc.yuri.modules.ModuleCategory;
 import ddlc.yuri.modules.ModuleInfo;
 import ddlc.yuri.utils.misc.IMinecraft;
-import ddlc.yuri.utils.player.InvUtils;
+import ddlc.yuri.utils.player.InventoryUtils;
 import ddlc.yuri.utils.player.RotationUtils;
 import ddlc.yuri.utils.render.FontUtils;
 import ddlc.yuri.utils.render.GLUtils;
@@ -42,11 +41,7 @@ import net.minecraft.scoreboard.ScoreObjective;
 import net.minecraft.scoreboard.Scoreboard;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.tileentity.TileEntitySkull;
-import net.minecraft.util.AxisAlignedBB;
-import net.minecraft.util.BlockPos;
-import net.minecraft.util.MathHelper;
-import net.minecraft.util.StringUtils;
-import net.minecraft.util.Vec3;
+import net.minecraft.util.*;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.opengl.GL11;
 
@@ -254,9 +249,9 @@ public final class MinigameAimModule extends Module {
     }
 
     @EventHook
-    public void onMotion(MotionEvent event) {
+    public void onPreUpdate2(PreUpdateEvent event) {
         if (!isHalloween()) return;
-        if (!event.isPre() || !checkHalloweenStatus() || mc.thePlayer == null || mc.theWorld == null) return;
+        if (!checkHalloweenStatus() || mc.thePlayer == null || mc.theWorld == null) return;
 
         EntityPlayer player = mc.thePlayer;
         double rangeValue = range.getValue();
@@ -289,8 +284,8 @@ public final class MinigameAimModule extends Module {
                 RotationManager.setRotations(targetRotations, rotationSpeed.getValue(), RotationManager.MovementFix.NORMAL);
 
                 if (!looking) {
-                    mc.thePlayer.sendQueue.addToSendQueue(new C08PacketPlayerBlockPlacement(
-                            skullPos, 1, player.getHeldItem(), 0.5f, 0.5f, 0.5f));
+                    mc.thePlayer.sendQueue.addToSendQueue(new C08PacketPlayerBlockPlacement(skullPos, 1, player.getHeldItem(), 0.5f, 0.5f, 0.5f));
+                    mc.thePlayer.swingItem();
                     looking = true;
                 } else {
                     looking = false;
@@ -417,28 +412,54 @@ public final class MinigameAimModule extends Module {
 
     private void drawBox(BlockPos pos, double camX, double camY, double camZ, Color color) {
         double x = pos.getX() - camX, y = pos.getY() - camY, z = pos.getZ() - camZ;
+        double x2 = x + 1, y2 = y + 1, z2 = z + 1;
 
         GlStateManager.pushMatrix();
         GlStateManager.disableTexture2D();
         GlStateManager.enableBlend();
         GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
         GlStateManager.disableDepth();
-        GL11.glLineWidth(2f);
+        GlStateManager.disableCull();
 
         Tessellator tessellator = Tessellator.getInstance();
-        WorldRenderer worldRenderer = tessellator.getWorldRenderer();
-        worldRenderer.begin(GL11.GL_LINE_STRIP, DefaultVertexFormats.POSITION_COLOR);
+        WorldRenderer wr = tessellator.getWorldRenderer();
+        wr.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_COLOR);
 
-        int r = color.getRed(), g = color.getGreen(), b = color.getBlue();
-        double[][] corners = {
-                {x, y, z}, {x + 1, y, z}, {x + 1, y, z + 1}, {x, y, z + 1}, {x, y, z},
-                {x, y + 1, z}, {x + 1, y + 1, z}, {x + 1, y + 1, z + 1}, {x, y + 1, z + 1}, {x, y + 1, z}
-        };
-        for (double[] corner : corners) {
-            worldRenderer.pos(corner[0], corner[1], corner[2]).color(r, g, b, 255).endVertex();
-        }
+        int r = color.getRed(), g = color.getGreen(), b = color.getBlue(), a = 80;
+
+        wr.pos(x, y, z).color(r, g, b, a).endVertex();
+        wr.pos(x2, y, z).color(r, g, b, a).endVertex();
+        wr.pos(x2, y, z2).color(r, g, b, a).endVertex();
+        wr.pos(x, y, z2).color(r, g, b, a).endVertex();
+
+        wr.pos(x, y2, z).color(r, g, b, a).endVertex();
+        wr.pos(x, y2, z2).color(r, g, b, a).endVertex();
+        wr.pos(x2, y2, z2).color(r, g, b, a).endVertex();
+        wr.pos(x2, y2, z).color(r, g, b, a).endVertex();
+
+        wr.pos(x, y, z).color(r, g, b, a).endVertex();
+        wr.pos(x, y2, z).color(r, g, b, a).endVertex();
+        wr.pos(x2, y2, z).color(r, g, b, a).endVertex();
+        wr.pos(x2, y, z).color(r, g, b, a).endVertex();
+
+        wr.pos(x, y, z2).color(r, g, b, a).endVertex();
+        wr.pos(x2, y, z2).color(r, g, b, a).endVertex();
+        wr.pos(x2, y2, z2).color(r, g, b, a).endVertex();
+        wr.pos(x, y2, z2).color(r, g, b, a).endVertex();
+
+        wr.pos(x, y, z).color(r, g, b, a).endVertex();
+        wr.pos(x, y, z2).color(r, g, b, a).endVertex();
+        wr.pos(x, y2, z2).color(r, g, b, a).endVertex();
+        wr.pos(x, y2, z).color(r, g, b, a).endVertex();
+
+        wr.pos(x2, y, z).color(r, g, b, a).endVertex();
+        wr.pos(x2, y2, z).color(r, g, b, a).endVertex();
+        wr.pos(x2, y2, z2).color(r, g, b, a).endVertex();
+        wr.pos(x2, y, z2).color(r, g, b, a).endVertex();
+
         tessellator.draw();
 
+        GlStateManager.enableCull();
         GlStateManager.enableDepth();
         GlStateManager.disableBlend();
         GlStateManager.enableTexture2D();
@@ -564,7 +585,7 @@ public final class MinigameAimModule extends Module {
         boolean swapped = false;
 
         if (gappleSlot != currentSlot + 36) {
-            InvUtils.swap(gappleSlot, currentSlot);
+            InventoryUtils.swap(gappleSlot, currentSlot);
             swapped = true;
         }
 
@@ -574,7 +595,7 @@ public final class MinigameAimModule extends Module {
         }
 
         if (swapped) {
-            InvUtils.swap(gappleSlot, currentSlot);
+            InventoryUtils.swap(gappleSlot, currentSlot);
         }
     }
 
@@ -587,7 +608,7 @@ public final class MinigameAimModule extends Module {
             int arrowSlot = findBestArrowInventorySlot();
             int emptyHotbar = findEmptyHotbarSlot();
             if (arrowSlot != -1 && emptyHotbar != -1) {
-                InvUtils.swap(arrowSlot, emptyHotbar);
+                InventoryUtils.swap(arrowSlot, emptyHotbar);
             }
         }
     }

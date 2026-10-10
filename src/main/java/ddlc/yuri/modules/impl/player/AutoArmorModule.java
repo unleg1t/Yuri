@@ -8,7 +8,7 @@ import ddlc.yuri.modules.Module;
 import ddlc.yuri.modules.ModuleCategory;
 import ddlc.yuri.modules.ModuleInfo;
 import ddlc.yuri.utils.client.TimerUtils;
-import ddlc.yuri.utils.player.InvUtils;
+import ddlc.yuri.utils.player.InventoryUtils;
 import ddlc.yuri.utils.player.MoveUtils;
 import net.minecraft.client.gui.inventory.GuiInventory;
 import net.minecraft.enchantment.Enchantment;
@@ -72,9 +72,9 @@ public final class AutoArmorModule extends Module {
         // equip best piece (if there is a better one)
         if (equipSlot != -1) {
             if (slotStack != null) {
-                InvUtils.drop(armorSlot);
+                InventoryUtils.drop(armorSlot);
             } else {
-                InvUtils.click(equipSlot, 0, true);
+                InventoryUtils.click(equipSlot, 0, true);
             }
             return true;
         }

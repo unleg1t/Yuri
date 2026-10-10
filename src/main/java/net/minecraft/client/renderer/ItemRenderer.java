@@ -47,6 +47,7 @@ public class ItemRenderer {
     private final RenderManager renderManager;
     private final RenderItem itemRenderer;
     private int equippedItemSlot = -1;
+    private boolean wasSwinging = false;
 
     public ItemRenderer(Minecraft mcIn) {
         this.mc = mcIn;
@@ -298,6 +299,12 @@ public class ItemRenderer {
             boolean cameraEnabled = cameraModule.isEnabled();
             float cameraScale = CameraModule.scale.getValue().floatValue();
 
+            boolean swinging = f1 > 0.0F;
+            if (swinging && !this.wasSwinging && AnimationsModule.mode.getValue() == AnimationsModule.AnimationMode.RANDOM) {
+                AnimationsModule.rollRandom();
+            }
+            this.wasSwinging = swinging;
+
             this.rotateArroundXAndY(f2, f3);
             this.setLightMapFromPlayer(abstractclientplayer);
             this.rotateWithPlayerRotations((EntityPlayerSP) abstractclientplayer, partialTicks);
@@ -357,7 +364,7 @@ public class ItemRenderer {
                                 if (cameraEnabled && AnimationsModule.dontResetBlock.getValue())
                                     f = 0.0f;
                                 if (cameraEnabled) {
-                                    switch (AnimationsModule.mode.getValue()) {
+                                    switch (AnimationsModule.getActiveMode()) {
                                         case EXPENSIVE:
                                             this.transformFirstPersonItem(0.05F, 0.04F);
                                             GlStateManager.translate(0.0F, 0.4F, 0.0F);

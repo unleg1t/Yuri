@@ -10,7 +10,6 @@ import ddlc.yuri.api.events.impl.world.WorldJoinEvent;
 import ddlc.yuri.api.properties.Property;
 import ddlc.yuri.api.properties.impl.ModeProperty;
 import ddlc.yuri.api.properties.impl.NumberProperty;
-import ddlc.yuri.managers.impl.ColorManager;
 import ddlc.yuri.managers.impl.TargetManager;
 import ddlc.yuri.modules.Module;
 import ddlc.yuri.modules.ModuleCategory;
@@ -42,11 +41,17 @@ public final class TargetHudModule extends Module {
 
     public enum Mode {
         YURI("Yuri"),
+        PULSIVE("Pulsive"),
+        ADJUST("Adjust"),
+        ATMOSPHERE("Atmosphere"),
         ASTOLFO("Astolfo"),
+        OLD_ASTOLFO("Old Astolfo"),
         NOVOLINE("Novoline"),
         OLD_NOVOLINE("Old Novoline"),
         EXHIBITION("Exhibition"),
-        OLD_EXHIBITION("Old Exhibition");
+        OLD_EXHIBITION("Old Exhibition"),
+        RAVEN_B4("Raven B4"),
+        OLD_RAVEN_B4("Old Raven B4");
 
         public final String name;
 
@@ -79,7 +84,6 @@ public final class TargetHudModule extends Module {
 
     private long lastRender2DTimeNanos = 0L;
     private final Map<UUID, TargetState> targetStates = new LinkedHashMap<>();
-    private final Random particleRandom = new Random();
     private final Set<UUID> activeTargetsThisFrame = new HashSet<>();
     private final List<EntityLivingBase> listToRender = new ArrayList<>();
     private final List<TargetState> allRenderStates = new ArrayList<>();
@@ -87,11 +91,17 @@ public final class TargetHudModule extends Module {
 
     public TargetHudModule() {
         modeMap.put(Mode.YURI, new YuriMode(this));
+        modeMap.put(Mode.ADJUST, new AdjustMode(this));
+        modeMap.put(Mode.ATMOSPHERE, new AtmosphereMode(this));
+        modeMap.put(Mode.PULSIVE, new PulsiveMode(this));
         modeMap.put(Mode.ASTOLFO, new AstolfoMode(this));
+        modeMap.put(Mode.OLD_ASTOLFO, new OldAstolfoMode(this));
         modeMap.put(Mode.NOVOLINE, new NovolineMode(this));
         modeMap.put(Mode.OLD_NOVOLINE, new OldNovolineMode(this));
         modeMap.put(Mode.EXHIBITION, new ExhibitionMode(this));
         modeMap.put(Mode.OLD_EXHIBITION, new OldExhibitionMode(this));
+        modeMap.put(Mode.RAVEN_B4, new RavenB4Mode(this));
+        modeMap.put(Mode.OLD_RAVEN_B4, new OldRavenB4Mode(this));
     }
 
     private TargetHudMode getCurrentModeInstance() {
@@ -300,84 +310,7 @@ public final class TargetHudModule extends Module {
                     continue;
                 }
             }
-            updateParticles(entry.getValue(), delta);
         }
-    }
-
-    private void updateParticles(TargetState state, float delta) {
-        if (state.particles.isEmpty()) return;
-
-        float seconds = delta * 0.5f;
-
-        Iterator<HealthParticle> it = state.particles.iterator();
-        while (it.hasNext()) {
-            HealthParticle particle = it.next();
-
-            particle.life -= seconds;
-            if (particle.life <= 0f) {
-                it.remove();
-                continue;
-            }
-
-            particle.x += particle.vx * seconds;
-            particle.y += particle.vy * seconds;
-            particle.vy += 42f * seconds;
-            particle.vx *= 1f - Math.min(1f, 1.6f * seconds);
-        }
-    }
-
-    public void spawnHealthParticles(TargetState state, float damage, float x, float y, int spreadWidth, int count) {
-        if (damage <= 0f || count <= 0) return;
-
-        int amount = Math.max(1, Math.round(count * Math.min(damage / 2f, 3f)));
-        int rgb = ColorManager.getColors().getFirst().getRGB() & 0x00FFFFFF;
-
-        for (int i = 0; i < amount; i++) {
-            float px = x + particleRandom.nextFloat() * spreadWidth;
-            float py = y + particleRandom.nextFloat() * 2f;
-            float vx = (particleRandom.nextFloat() - 0.5f) * 30f;
-            float vy = -(6f + particleRandom.nextFloat() * 24f);
-            float life = 0.45f + particleRandom.nextFloat() * 0.45f;
-
-            state.particles.add(new HealthParticle(px, py, vx, vy, life, rgb));
-        }
-
-        while (state.particles.size() > 120) {
-            state.particles.remove(0);
-        }
-    }
-
-    public void renderParticles(TargetState state, double originX, double originY, float alpha) {
-        if (state.particles.isEmpty() || alpha <= 0f) return;
-
-        GlStateManager.enableBlend();
-        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
-        GlStateManager.disableTexture2D();
-
-        for (HealthParticle particle : state.particles) {
-            float fade = Math.max(0f, particle.life / particle.maxLife);
-            float particleAlpha = fade * alpha;
-            if (particleAlpha <= 0.01f) continue;
-
-            double left = particle.x - originX;
-            double top = particle.y - originY;
-
-            GlStateManager.color(
-                    (particle.color >> 16 & 255) / 255F,
-                    (particle.color >> 8 & 255) / 255F,
-                    (particle.color & 255) / 255F,
-                    particleAlpha);
-
-            GL11.glBegin(GL11.GL_QUADS);
-            GL11.glVertex2d(left, top);
-            GL11.glVertex2d(left, top + 1.2);
-            GL11.glVertex2d(left + 1.2, top + 1.2);
-            GL11.glVertex2d(left + 1.2, top);
-            GL11.glEnd();
-        }
-
-        GlStateManager.enableTexture2D();
-        GlStateManager.resetColor();
     }
 
     private void renderGrid(List<TargetState> states, DragUtils.DraggableComponent draggable, TargetHudMode modeInstance, long now, float delta) {

@@ -1,14 +1,18 @@
 package ddlc.yuri.modules.impl.render;
 
+import ddlc.yuri.Yuri;
 import ddlc.yuri.api.events.annotations.EventHook;
 import ddlc.yuri.api.events.impl.player.MotionEvent;
 import ddlc.yuri.api.events.impl.render.Render3DEvent;
 import ddlc.yuri.api.properties.Property;
 import ddlc.yuri.api.properties.impl.ModeProperty;
+import ddlc.yuri.api.properties.impl.NumberProperty;
 import ddlc.yuri.managers.impl.ColorManager;
 import ddlc.yuri.modules.Module;
 import ddlc.yuri.modules.ModuleCategory;
 import ddlc.yuri.modules.ModuleInfo;
+import ddlc.yuri.modules.impl.combat.AuraModule;
+import ddlc.yuri.modules.impl.player.ScaffoldModule;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.WorldRenderer;
@@ -16,7 +20,7 @@ import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.util.ResourceLocation;
 import org.lwjgl.opengl.GL11;
 
-import java.awt.Color;
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -24,6 +28,9 @@ import java.util.List;
 public class PentagramModule extends Module {
 
     public final Property<Boolean> onlyOnJump = new Property<>("Only On Jump", false);
+    public final Property<Boolean> onlyOnScaffold = new Property<>("Only On Scaffold", false);
+    public final Property<Boolean> onlyOnAura = new Property<>("Only On Aura", false);
+    public final NumberProperty size = new NumberProperty("Size", 2.8, 1.0, 8.0, 0.1);
 
     private static final ResourceLocation DEMON_TEXTURE = new ResourceLocation("yuri/gui/demon.png");
     private static final ResourceLocation YURI_TEXTURE = new ResourceLocation("yuri/gui/yuri_circle.png");
@@ -31,8 +38,12 @@ public class PentagramModule extends Module {
     private static final long JUMP_DISPLAY_DURATION = 800L;
     private static final long FADE_IN_DURATION = 320L;
     private static final long FADE_OUT_DURATION = 320L;
+    private static final double BASE_SIZE = 2.8;
+    private static final float ACTIVITY_FADE_SPEED = 3.0F;
 
     private boolean playerWasInAir = false;
+    private float activityFade = 0.0F;
+    private long lastFrameNanos = 0L;
     private final List<PentagramInstance> instances = new ArrayList<>();
 
     public enum Mode {
@@ -58,12 +69,30 @@ public class PentagramModule extends Module {
     public void onEnable() {
         instances.clear();
         playerWasInAir = false;
+        activityFade = 0.0F;
+        lastFrameNanos = 0L;
     }
 
     @Override
     public void onDisable() {
         instances.clear();
         playerWasInAir = false;
+        activityFade = 0.0F;
+        lastFrameNanos = 0L;
+    }
+
+    private boolean isRestricted() {
+        return onlyOnScaffold.getValue() || onlyOnAura.getValue();
+    }
+
+    private boolean isConditionMet() {
+        if (onlyOnScaffold.getValue()
+                && Yuri.INSTANCE.getModuleManager().getModule(ScaffoldModule.class).isEnabled()) {
+            return true;
+        }
+        return onlyOnAura.getValue()
+                && AuraModule.target != null
+                && Yuri.INSTANCE.getModuleManager().getModule(AuraModule.class).isEnabled();
     }
 
     @EventHook
@@ -73,7 +102,7 @@ public class PentagramModule extends Module {
         if (!mc.thePlayer.onGround) {
             if (!playerWasInAir) {
                 playerWasInAir = true;
-                if (onlyOnJump.getValue()) {
+                if (onlyOnJump.getValue() && (!isRestricted() || isConditionMet())) {
                     instances.add(new PentagramInstance(mc.thePlayer.posX, mc.thePlayer.posY + 0.02, mc.thePlayer.posZ, System.currentTimeMillis()));
                 }
             }
@@ -110,13 +139,37 @@ public class PentagramModule extends Module {
                 return false;
             });
         } else {
+            float activityAlpha = updateActivityFade();
+            if (activityAlpha <= 0.001F) return;
+
             final float partialTicks = mc.timer.renderPartialTicks;
             final double x = mc.thePlayer.prevPosX + (mc.thePlayer.posX - mc.thePlayer.prevPosX) * partialTicks - renderPosX;
             final double y = mc.thePlayer.prevPosY + (mc.thePlayer.posY - mc.thePlayer.prevPosY) * partialTicks - renderPosY + 0.02;
             final double z = mc.thePlayer.prevPosZ + (mc.thePlayer.posZ - mc.thePlayer.prevPosZ) * partialTicks - renderPosZ;
 
-            renderAt(mode.getValue(), x, y, z, 1.0F);
+            renderAt(mode.getValue(), x, y, z, activityAlpha);
         }
+    }
+
+    private float updateActivityFade() {
+        if (!isRestricted()) {
+            activityFade = 1.0F;
+            lastFrameNanos = 0L;
+            return 1.0F;
+        }
+
+        long nowNanos = System.nanoTime();
+        float dt = lastFrameNanos == 0L ? 0.0F : (nowNanos - lastFrameNanos) / 1_000_000_000.0F;
+        lastFrameNanos = nowNanos;
+
+        float step = Math.min(dt, 0.1F) * ACTIVITY_FADE_SPEED;
+        if (isConditionMet()) {
+            activityFade = Math.min(1.0F, activityFade + step);
+        } else {
+            activityFade = Math.max(0.0F, activityFade - step);
+        }
+
+        return smoothstep(activityFade);
     }
 
     private void renderAt(Mode currentMode, double x, double y, double z, float fadeAlpha) {
@@ -152,7 +205,7 @@ public class PentagramModule extends Module {
 
     private void renderAstolfoPentagram(double x, double y, double z, float fadeAlpha) {
         final Color color = ColorManager.getColor();
-        final double radius = 1.4;
+        final double radius = 1.4 * (size.getValue().doubleValue() / BASE_SIZE);
         final double rotation = (System.currentTimeMillis() % 6000L) / 6000.0 * 360.0;
 
         GL11.glPushMatrix();
@@ -193,12 +246,11 @@ public class PentagramModule extends Module {
     }
 
     private void renderTexture(ResourceLocation texture, double x, double y, double z, float fadeAlpha) {
-        final double size = 2.8;
         final double rotation = (System.currentTimeMillis() % 6000L) / 6000.0 * 360.0;
         final double rad = Math.toRadians(rotation);
         final double cos = Math.cos(rad);
         final double sin = Math.sin(rad);
-        final double half = size / 2.0;
+        final double half = size.getValue().doubleValue() / 2.0;
 
         final double[][] local = {
                 {-half, -half, 0.0, 0.0},

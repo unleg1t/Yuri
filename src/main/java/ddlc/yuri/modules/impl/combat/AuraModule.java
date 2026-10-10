@@ -17,23 +17,23 @@ import ddlc.yuri.modules.ModuleInfo;
 import ddlc.yuri.modules.impl.player.ScaffoldModule;
 import ddlc.yuri.utils.client.MathUtils;
 import ddlc.yuri.utils.client.TimerUtils;
-import ddlc.yuri.utils.player.InvUtils;
+import ddlc.yuri.utils.player.InventoryUtils;
 import ddlc.yuri.utils.player.PlayerUtils;
 import ddlc.yuri.utils.player.RayCastUtils;
 import ddlc.yuri.utils.player.RotationUtils;
 import ddlc.yuri.utils.player.packet.PacketUtils;
-import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.item.ItemStack;
 import net.minecraft.network.play.client.C07PacketPlayerDigging;
 import net.minecraft.network.play.client.C08PacketPlayerBlockPlacement;
 import net.minecraft.network.play.client.C09PacketHeldItemChange;
-import net.minecraft.util.*;
+import net.minecraft.util.BlockPos;
+import net.minecraft.util.EnumFacing;
+import net.minecraft.util.MathHelper;
+import net.minecraft.util.Vec3;
 import org.lwjgl.util.vector.Vector2f;
 
 import java.security.SecureRandom;
 import java.util.Arrays;
-import java.util.LinkedList;
 
 @ModuleInfo(label = "Aura", description = "Automatically attacks entities around you", category = ModuleCategory.COMBAT)
 public class AuraModule extends Module {
@@ -172,7 +172,7 @@ public class AuraModule extends Module {
         calculateRotations();
 
         if (ab.getValue() != AutoBlock.NONE && ab.getValue() != AutoBlock.NCP) {
-            if (mc.thePlayer.getDistanceToEntity(target) <= blockRange.getValue() && InvUtils.isHoldingSword()) {
+            if (mc.thePlayer.getDistanceToEntity(target) <= blockRange.getValue() && InventoryUtils.isHoldingSword()) {
                 autoblock();
             }
         }
@@ -194,7 +194,7 @@ public class AuraModule extends Module {
         if (target == null) return;
 
         if (ab.getValue() == AutoBlock.NCP) {
-            if (!autoBlocking && InvUtils.isHoldingSword() && mc.thePlayer.getDistanceToEntity(target) <= blockRange.getValue()) {
+            if (!autoBlocking && InventoryUtils.isHoldingSword() && mc.thePlayer.getDistanceToEntity(target) <= blockRange.getValue()) {
                 PacketUtils.sendPacket(new C08PacketPlayerBlockPlacement(mc.thePlayer.getHeldItem()));
                 autoBlocking = true;
             }
@@ -246,7 +246,7 @@ public class AuraModule extends Module {
     private void autoblock() {
         if (mc.thePlayer == null || mc.playerController == null) return;
 
-        if (target == null || mc.thePlayer.getDistanceToEntity(target) > blockRange.getValue() || !InvUtils.isHoldingSword()) {
+        if (target == null || mc.thePlayer.getDistanceToEntity(target) > blockRange.getValue() || !InventoryUtils.isHoldingSword()) {
             if (autoBlocking) unblock();
             blockTimer.reset();
             return;
@@ -356,7 +356,7 @@ public class AuraModule extends Module {
             return;
         }
 
-        if (InvUtils.isHoldingSword() && ab.getValue() != AutoBlock.LEGIT && ab.getValue() != AutoBlock.HYPIXEL) {
+        if (InventoryUtils.isHoldingSword() && ab.getValue() != AutoBlock.LEGIT && ab.getValue() != AutoBlock.HYPIXEL) {
             PacketUtils.sendPacket(new C07PacketPlayerDigging(C07PacketPlayerDigging.Action.RELEASE_USE_ITEM, BlockPos.ORIGIN, EnumFacing.DOWN));
         }
 

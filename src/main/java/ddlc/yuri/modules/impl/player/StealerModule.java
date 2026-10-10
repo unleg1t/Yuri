@@ -10,7 +10,7 @@ import ddlc.yuri.modules.Module;
 import ddlc.yuri.modules.ModuleCategory;
 import ddlc.yuri.modules.ModuleInfo;
 import ddlc.yuri.utils.client.TimerUtils;
-import ddlc.yuri.utils.player.InvUtils;
+import ddlc.yuri.utils.player.InventoryUtils;
 import net.minecraft.block.BlockFalling;
 import net.minecraft.block.BlockSlime;
 import net.minecraft.block.BlockTNT;
@@ -62,6 +62,8 @@ public final class StealerModule extends Module {
     private boolean missClickDone;
     private int missClickRecovery;
 
+    private final String[] menuKeywords = {"menu", "selector", "game", "shop", "server", "teleport", "lobby", "hub", "profile", "setting", "play", "vault", "collectible", "bountique", "choisir", "choose", "recipe"};
+
     private boolean isValidChest() {
         if (!(mc.currentScreen instanceof GuiChest)) {
             return false;
@@ -71,10 +73,8 @@ public final class StealerModule extends Module {
             return false;
         }
 
-        String name = guiChest.lowerChestInventory.getDisplayName().getUnformattedText().toLowerCase();
-        String[] menuKeywords = {"menu", "selector", "game", "shop", "server", "teleport", "lobby", "hub", "profile", "setting", "play", "vault", "collectible", "bountique", "choisir", "choose", "recipe"};
         for (String keyword : menuKeywords) {
-            if (name.contains(keyword)) {
+            if (guiChest.lowerChestInventory.getDisplayName().getUnformattedText().toLowerCase().contains(keyword)) {
                 return false;
             }
         }
@@ -274,7 +274,7 @@ public final class StealerModule extends Module {
     }
 
     private boolean itemWhitelisted(ItemStack itemStack) {
-        if (InvUtils.isBadStackStealer(itemStack, true, true)) {
+        if (InventoryUtils.isBadStackStealer(itemStack, true, true)) {
             return false;
         }
         ArrayList<Item> whitelistedItems = new ArrayList<Item>(){

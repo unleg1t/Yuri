@@ -130,7 +130,7 @@ public class WatermarkModule extends Module implements IMinecraft {
                         2 + FontUtils.getFont("sf", 18).getStringWidth(a) + prefixWidth,
                         2,
                         white);
-                FontUtils.getFont("sf", 14).drawStringWithShadow(Yuri.BUILD.toLowerCase(), FontUtils.getFont("sf", 14).getStringWidth(Yuri.BUILD.toLowerCase()) + FontUtils.getFont("sf", 18).getStringWidth(a) + prefixWidth, FontUtils.getFont("sf", 18).getHeight(), white);
+                FontUtils.getFont("sf", 14).drawStringWithShadow(Yuri.BUILD.toLowerCase(), FontUtils.getFont("sf", 14).getStringWidth(Yuri.BUILD.toLowerCase()) + FontUtils.getFont("sf", 18).getStringWidth(a) + prefixWidth - 1, FontUtils.getFont("sf", 18).getHeight() - 3, white);
                 break;
             case LOGO:
                 RenderUtils.drawImage(

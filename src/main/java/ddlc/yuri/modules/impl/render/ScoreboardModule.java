@@ -1,5 +1,6 @@
 package ddlc.yuri.modules.impl.render;
 
+import ddlc.yuri.Yuri;
 import ddlc.yuri.api.events.annotations.EventHook;
 import ddlc.yuri.api.events.annotations.EventPriority;
 import ddlc.yuri.api.events.impl.render.Render2DEvent;
@@ -13,16 +14,18 @@ import ddlc.yuri.modules.ModuleInfo;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.scoreboard.ScoreObjective;
+import net.minecraft.scoreboard.ScorePlayerTeam;
 import net.minecraft.scoreboard.Scoreboard;
 
 @ModuleInfo(label = "Scoreboard", description = "Custom scoreboard rendering", category = ModuleCategory.RENDER)
 public class ScoreboardModule extends Module {
-    
-    public static ModeProperty<Mode> scoreboardStyle = new ModeProperty<>("Scoreboard Style", Mode.LEFT_OFFSET);
-    public static Property<Boolean> yuriRect = new Property<Boolean>("Yuri Rect", true);
-    public static Property<Boolean> customFont = new Property<Boolean>("Custom Font", true);
-    public static Property<Boolean> smartY = new Property<Boolean>("Smart Y", true, () -> scoreboardStyle.getValue() == Mode.VANILLA || scoreboardStyle.getValue() == Mode.VANILLA_OFFSET);
-    public static NumberProperty yOffset = new NumberProperty("Y Offset", 20, -150, 150, 1);
+
+    public static Property<Boolean> removeScoreboard = new Property<>("Remove Scoreboard", false);
+    public static ModeProperty<Mode> scoreboardStyle = new ModeProperty<>("Scoreboard Style", Mode.LEFT_OFFSET, () -> !removeScoreboard.getValue());
+    public static Property<Boolean> yuriRect = new Property<>("Yuri Rect", true, () -> !removeScoreboard.getValue());
+    public static Property<Boolean> customFont = new Property<>("Custom Font", true, () -> !removeScoreboard.getValue());
+    public static Property<Boolean> smartY = new Property<>("Smart Y", true, () -> (scoreboardStyle.getValue() == Mode.VANILLA || scoreboardStyle.getValue() == Mode.VANILLA_OFFSET) && !removeScoreboard.getValue());
+    public static NumberProperty yOffset = new NumberProperty("Y Offset", 20, -150, 150, 1, () -> !removeScoreboard.getValue());
 
     public enum Mode {
         VANILLA("Vanilla"), VANILLA_OFFSET("Vanilla Offset"), LEFT("Left"), LEFT_OFFSET("Left Offset");
@@ -55,9 +58,9 @@ public class ScoreboardModule extends Module {
         Minecraft mc = Minecraft.getMinecraft();
         if (mc.theWorld == null || mc.thePlayer == null) return;
 
-        Scoreboard scoreboard = mc.theWorld.getScoreboard();
+        Scoreboard scoreboard = this.mc.theWorld.getScoreboard();
         ScoreObjective scoreobjective = null;
-        net.minecraft.scoreboard.ScorePlayerTeam scoreplayerteam = scoreboard.getPlayersTeam(mc.thePlayer.getName());
+        ScorePlayerTeam scoreplayerteam = scoreboard.getPlayersTeam(this.mc.thePlayer.getName());
 
         if (scoreplayerteam != null) {
             int i1 = scoreplayerteam.getChatFormat().getColorIndex();
@@ -70,7 +73,11 @@ public class ScoreboardModule extends Module {
         ScoreObjective scoreobjective1 = scoreobjective != null ? scoreobjective : scoreboard.getObjectiveInDisplaySlot(1);
 
         if (scoreobjective1 != null) {
-            mc.ingameGUI.renderCustomScoreboard(scoreobjective1, new ScaledResolution(mc));
+            if (Yuri.INSTANCE.getModuleManager().getModule(ScoreboardModule.class).removeScoreboard.getValue()) {
+                return;
+            } else {
+                mc.ingameGUI.renderCustomScoreboard(scoreobjective1, new ScaledResolution(mc));
+            }
             renderedThisFrame = true;
         }
     }

@@ -297,7 +297,11 @@ public class GuiIngame extends Gui {
 
         if (scoreobjective1 != null) {
             if (Yuri.INSTANCE.getModuleManager().getModule(ScoreboardModule.class).isEnabled()) {
-                renderCustomScoreboard(scoreobjective1, scaledresolution);
+                if (Yuri.INSTANCE.getModuleManager().getModule(ScoreboardModule.class).removeScoreboard.getValue()) {
+                    return;
+                } else {
+                    renderCustomScoreboard(scoreobjective1, scaledresolution);
+                }
             } else {
                 this.renderScoreboard(scoreobjective1, scaledresolution);
             }

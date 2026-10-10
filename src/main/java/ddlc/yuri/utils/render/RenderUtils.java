@@ -707,6 +707,24 @@ public class RenderUtils {
         glBindTexture(GL_TEXTURE_2D, texture);
     }
 
+    public static void circleNoSmoothRGB(double x, double y, double radius, int color) {
+        radius /= 2;
+        glEnable(GL_BLEND);
+        glDisable(GL_TEXTURE_2D);
+        glDisable(GL_CULL_FACE);
+        color(color);
+        glBegin(GL_TRIANGLE_FAN);
+
+        for (double i = 0; i <= 360; i++) {
+            double angle = (i * (Math.PI * 2)) / 360;
+            glVertex2d(x + (radius * Math.cos(angle)) + radius, y + (radius * Math.sin(angle)) + radius);
+        }
+
+        glEnd();
+        glEnable(GL_CULL_FACE);
+        glEnable(GL_TEXTURE_2D);
+    }
+
     public static class GifTexture {
         private final List<ResourceLocation> frames = new ArrayList<>();
         private final List<Integer> delays = new ArrayList<>();

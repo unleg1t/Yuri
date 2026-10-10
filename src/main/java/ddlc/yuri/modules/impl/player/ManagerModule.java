@@ -10,7 +10,7 @@ import ddlc.yuri.modules.ModuleCategory;
 import ddlc.yuri.modules.ModuleInfo;
 import ddlc.yuri.utils.client.TimerUtils;
 import ddlc.yuri.utils.player.BlockUtils;
-import ddlc.yuri.utils.player.InvUtils;
+import ddlc.yuri.utils.player.InventoryUtils;
 import ddlc.yuri.utils.player.MoveUtils;
 import ddlc.yuri.utils.player.packet.PacketUtils;
 import lombok.AllArgsConstructor;
@@ -159,7 +159,7 @@ public final class ManagerModule extends Module {
             Slot slot = mc.thePlayer.inventoryContainer.getSlot(i);
             ItemStack is = slot.getStack();
             if (is != null && isBadItem(is, i, false)) {
-                InvUtils.drop(i);
+                InventoryUtils.drop(i);
                 timer.reset();
                 if (!instant.getValue()) break;
             }
@@ -444,7 +444,7 @@ public final class ManagerModule extends Module {
                 for (int j = 0; j < 36; j++) {
                     if (mc.thePlayer.inventoryContainer.getSlot(j).getStack() == null) {
                         fakeOpen();
-                        InvUtils.click(i, 0, true);
+                        InventoryUtils.click(i, 0, true);
                         fakeClose();
                         timer.reset();
                         if (!instant.getValue()) return;
@@ -686,7 +686,7 @@ public final class ManagerModule extends Module {
 
     private void swap(int slot, int hSlot) {
         fakeOpen();
-        InvUtils.swap(slot, hSlot);
+        InventoryUtils.swap(slot, hSlot);
         fakeClose();
         timer.reset();
     }

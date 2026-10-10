@@ -2,7 +2,6 @@ package ddlc.yuri.modules.impl.render;
 
 import ddlc.yuri.api.events.annotations.EventHook;
 import ddlc.yuri.api.events.impl.render.ModalUpdateEvent;
-import ddlc.yuri.api.events.impl.render.Render2DEvent;
 import ddlc.yuri.api.events.impl.render.Render3DEvent;
 import ddlc.yuri.api.properties.Property;
 import ddlc.yuri.api.properties.impl.NumberProperty;
@@ -13,21 +12,25 @@ import ddlc.yuri.modules.ModuleInfo;
 import net.minecraft.client.model.ModelPlayer;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.entity.RenderManager;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import org.lwjgl.opengl.GL11;
 
 import java.awt.*;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 @ModuleInfo(label = "Skeletons", description = "Renders skeletons through walls", category = ModuleCategory.RENDER)
 public class SkeletonsModule extends Module {
 
+    // omg @flaily look I fixed the memory leak!!! so cool guys!
+
     public final Property<Boolean> renderSelf = new Property<>("Render Self", true);
     public final Property<Boolean> useClientColors = new Property<>("Use Client Colors", false);
     public static final NumberProperty skeletonsWidth = new NumberProperty("Skeletons Width", 1.0, 0.5, 5, 0.1);
 
-    private final Map<EntityPlayer, float[][]> skeletonAngles = new HashMap<>();
+    private final Map<Integer, float[][]> skeletonAngles = new HashMap<>();
 
     @EventHook
     public void onModelUpdate(ModalUpdateEvent event) {
@@ -36,17 +39,26 @@ public class SkeletonsModule extends Module {
         }
 
         ModelPlayer model = event.getModel();
-        skeletonAngles.put((EntityPlayer) event.getPlayer(), new float[][]{
-                {model.bipedHead.rotateAngleX, model.bipedHead.rotateAngleY, model.bipedHead.rotateAngleZ},
-                {model.bipedRightArm.rotateAngleX, model.bipedRightArm.rotateAngleY, model.bipedRightArm.rotateAngleZ},
-                {model.bipedLeftArm.rotateAngleX, model.bipedLeftArm.rotateAngleY, model.bipedLeftArm.rotateAngleZ},
-                {model.bipedRightLeg.rotateAngleX, model.bipedRightLeg.rotateAngleY, model.bipedRightLeg.rotateAngleZ},
-                {model.bipedLeftLeg.rotateAngleX, model.bipedLeftLeg.rotateAngleY, model.bipedLeftLeg.rotateAngleZ}
-        });
+        int id = (event.getPlayer()).getEntityId();
+
+        float[][] angles = skeletonAngles.computeIfAbsent(id, k -> new float[5][3]);
+
+        store(angles[0], model.bipedHead.rotateAngleX, model.bipedHead.rotateAngleY, model.bipedHead.rotateAngleZ);
+        store(angles[1], model.bipedRightArm.rotateAngleX, model.bipedRightArm.rotateAngleY, model.bipedRightArm.rotateAngleZ);
+        store(angles[2], model.bipedLeftArm.rotateAngleX, model.bipedLeftArm.rotateAngleY, model.bipedLeftArm.rotateAngleZ);
+        store(angles[3], model.bipedRightLeg.rotateAngleX, model.bipedRightLeg.rotateAngleY, model.bipedRightLeg.rotateAngleZ);
+        store(angles[4], model.bipedLeftLeg.rotateAngleX, model.bipedLeftLeg.rotateAngleY, model.bipedLeftLeg.rotateAngleZ);
     }
 
     @EventHook
     public void onRender3D(Render3DEvent event) {
+        if (mc.theWorld == null || mc.thePlayer == null) {
+            skeletonAngles.clear();
+            return;
+        }
+
+        prune();
+
         float partialTicks = mc.timer.renderPartialTicks;
 
         GlStateManager.pushMatrix();
@@ -57,8 +69,7 @@ public class SkeletonsModule extends Module {
         GL11.glEnable(GL11.GL_LINE_SMOOTH);
         GL11.glHint(GL11.GL_LINE_SMOOTH_HINT, GL11.GL_NICEST);
 
-        for (Object obj : mc.theWorld.playerEntities) {
-            EntityPlayer entity = (EntityPlayer) obj;
+        for (EntityPlayer entity : mc.theWorld.playerEntities) {
 
             if (entity.isInvisible() || !entity.isEntityAlive()) {
                 continue;
@@ -77,8 +88,24 @@ public class SkeletonsModule extends Module {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
     }
 
+    private void prune() {
+        Iterator<Integer> it = skeletonAngles.keySet().iterator();
+        while (it.hasNext()) {
+            Entity e = mc.theWorld.getEntityByID(it.next());
+            if (!(e instanceof EntityPlayer) || e.isDead) {
+                it.remove();
+            }
+        }
+    }
+
+    private void store(float[] dest, float x, float y, float z) {
+        dest[0] = x;
+        dest[1] = y;
+        dest[2] = z;
+    }
+
     private void drawSkeleton(EntityPlayer entity, float partialTicks) {
-        float[][] angles = skeletonAngles.get(entity);
+        float[][] angles = skeletonAngles.get(entity.getEntityId());
         if (angles == null || entity.isDead || entity.isPlayerSleeping()) {
             return;
         }

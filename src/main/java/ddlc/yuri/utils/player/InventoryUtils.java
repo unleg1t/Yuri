@@ -2,39 +2,45 @@ package ddlc.yuri.utils.player;
 
 import ddlc.yuri.utils.client.TimerUtils;
 import ddlc.yuri.utils.misc.IMinecraft;
-import ddlc.yuri.utils.player.packet.PacketUtils;
-import net.minecraft.block.Block;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.inventory.GuiInventory;
-import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.enchantment.EnchantmentHelper;
-import net.minecraft.network.play.client.C0DPacketCloseWindow;
-import net.minecraft.network.play.client.C16PacketClientStatus;
-import org.lwjgl.input.Keyboard;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
 import net.minecraft.item.*;
 
-import net.minecraft.item.ItemBlock;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.ItemSword;
-
-import java.util.Arrays;
-import java.util.List;
-
 public class InventoryUtils implements IMinecraft {
 
     public static TimerUtils timer = new TimerUtils();
-    public static boolean isInventoryOpen;
-    static KeyBinding[] moveKeys = new KeyBinding[]{mc.gameSettings.keyBindForward, mc.gameSettings.keyBindBack, mc.gameSettings.keyBindLeft, mc.gameSettings.keyBindRight, mc.gameSettings.keyBindJump, mc.gameSettings.keyBindSneak};
-    public static List<Block> invalidBlocks = Arrays.asList(Blocks.enchanting_table, Blocks.carpet, Blocks.glass_pane, Blocks.ladder, Blocks.web, Blocks.stained_glass_pane, Blocks.iron_bars, Blocks.air, Blocks.water, Blocks.flowing_water, Blocks.lava, Blocks.ladder, Blocks.soul_sand, Blocks.ice, Blocks.packed_ice, Blocks.sand, Blocks.flowing_lava, Blocks.snow_layer, Blocks.chest, Blocks.ender_chest, Blocks.torch, Blocks.anvil, Blocks.trapped_chest, Blocks.noteblock, Blocks.jukebox, Blocks.wooden_pressure_plate, Blocks.stone_pressure_plate, Blocks.light_weighted_pressure_plate, Blocks.heavy_weighted_pressure_plate, Blocks.stone_button, Blocks.tnt, Blocks.wooden_button, Blocks.lever, Blocks.crafting_table, Blocks.furnace, Blocks.stone_slab, Blocks.wooden_slab, Blocks.stone_slab2, Blocks.brown_mushroom, Blocks.red_mushroom, Blocks.gold_block, Blocks.red_flower, Blocks.yellow_flower, Blocks.flower_pot);
+
+    public static void click(int slot, int mouseButton, boolean shiftClick) {
+        mc.playerController.windowClick(mc.thePlayer.inventoryContainer.windowId, slot, mouseButton, shiftClick ? 1 : 0, mc.thePlayer);
+    }
+
+    public static int findItem(final Item item) {
+        for (int i = 0; i < 9; i++) {
+            final ItemStack itemStack = mc.thePlayer.inventory.getStackInSlot(i);
+
+            if (itemStack == null) {
+                if (item == null) {
+                    return i;
+                }
+                continue;
+            }
+
+            if (itemStack.getItem() == item) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
 
     public static int getBucketSlot() {
         int item = -1;
         for (int i = 36; i < 45; ++i) {
             if (mc.thePlayer.inventoryContainer.getSlot(i).getStack() != null && mc.thePlayer.inventoryContainer.getSlot(i).getStack().getItem() instanceof ItemBucket) {
-                Item itemSlot = (ItemBucket) mc.thePlayer.inventoryContainer.getSlot(i).getStack().getItem();
+                Item itemSlot = mc.thePlayer.inventoryContainer.getSlot(i).getStack().getItem();
                 if (itemSlot == Items.water_bucket) {
                     item = i - 36;
                 }
@@ -52,80 +58,6 @@ public class InventoryUtils implements IMinecraft {
                     item = i - 36;
                 }
             }
-        }
-        return item;
-    }
-
-    public static ItemStack getBlockSlotInventory() {
-        ItemStack item = null;
-        int stacksize = 0;
-        if (mc.thePlayer.getHeldItem() != null && mc.thePlayer.getHeldItem().getItem() != null && mc.thePlayer.getHeldItem().getItem() instanceof ItemBlock && !invalidBlocks.contains(((ItemBlock) mc.thePlayer.getHeldItem().getItem()).getBlock())) {
-            return mc.thePlayer.getHeldItem();
-        }
-        int i = 9;
-        while (i < 45) {
-            if (mc.thePlayer.inventoryContainer.getSlot(i).getStack() != null && mc.thePlayer.inventoryContainer.getSlot(i).getStack().getItem() instanceof ItemBlock && !invalidBlocks.contains(((ItemBlock) mc.thePlayer.inventoryContainer.getSlot(i).getStack().getItem()).getBlock()) && mc.thePlayer.inventoryContainer.getSlot((int) i).getStack().stackSize >= stacksize) {
-                item = mc.thePlayer.inventoryContainer.getSlot(i).getStack();
-                stacksize = mc.thePlayer.inventoryContainer.getSlot((int) i).getStack().stackSize;
-            }
-            ++i;
-        }
-        return item;
-    }
-
-
-    public static int getEmptyBucketSlot() {
-        int item = -1;
-        int stacksize = 0;
-        int i = 36;
-        while (i < 45) {
-            if (mc.thePlayer.inventoryContainer.getSlot(i).getStack() != null && mc.thePlayer.inventoryContainer.getSlot(i).getStack().getItem() == Items.bucket) {
-                item = i - 36;
-                stacksize = mc.thePlayer.inventoryContainer.getSlot((int) i).getStack().stackSize;
-            }
-            ++i;
-        }
-        return item;
-    }
-
-    public static ItemStack getBucketSlotInventory() {
-        ItemStack item = null;
-        int stacksize = 0;
-        int i = 9;
-        while (i < 45) {
-            if (mc.thePlayer.inventoryContainer.getSlot(i).getStack() != null && mc.thePlayer.inventoryContainer.getSlot(i).getStack().getItem() == Items.water_bucket) {
-                item = mc.thePlayer.inventoryContainer.getSlot(i).getStack();
-                stacksize = mc.thePlayer.inventoryContainer.getSlot((int) i).getStack().stackSize;
-            }
-            ++i;
-        }
-        return item;
-    }
-
-    public static int getProjectileSlot() {
-        int item = -1;
-        int stacksize = 0;
-        int i = 36;
-        while (i < 45) {
-            if (mc.thePlayer.inventoryContainer.getSlot(i).getStack() != null && (mc.thePlayer.inventoryContainer.getSlot(i).getStack().getItem() instanceof ItemSnowball || mc.thePlayer.inventoryContainer.getSlot(i).getStack().getItem() instanceof ItemEgg || mc.thePlayer.inventoryContainer.getSlot(i).getStack().getItem() instanceof ItemFishingRod) && mc.thePlayer.inventoryContainer.getSlot((int) i).getStack().stackSize >= stacksize) {
-                item = i - 36;
-                stacksize = mc.thePlayer.inventoryContainer.getSlot((int) i).getStack().stackSize;
-            }
-            ++i;
-        }
-        return item;
-    }
-
-    public static ItemStack getProjectileSlotInventory() {
-        ItemStack item = null;
-        int stacksize = 0;
-        int i = 9;
-        while (i < 45) {
-            if (mc.thePlayer.inventoryContainer.getSlot(i).getStack() != null && (mc.thePlayer.inventoryContainer.getSlot(i).getStack().getItem() instanceof ItemSnowball || mc.thePlayer.inventoryContainer.getSlot(i).getStack().getItem() instanceof ItemEgg || mc.thePlayer.inventoryContainer.getSlot(i).getStack().getItem() instanceof ItemFishingRod) && mc.thePlayer.inventoryContainer.getSlot((int) i).getStack().stackSize >= stacksize) {
-                item = mc.thePlayer.inventoryContainer.getSlot(i).getStack();
-                stacksize = mc.thePlayer.inventoryContainer.getSlot((int) i).getStack().stackSize;
-            }
-            ++i;
         }
         return item;
     }
@@ -174,64 +106,6 @@ public class InventoryUtils implements IMinecraft {
         Minecraft.getMinecraft().playerController.windowClick(Minecraft.getMinecraft().thePlayer.inventoryContainer.windowId, slot, 1, 4, Minecraft.getMinecraft().thePlayer);
     }
 
-    public static void shiftClick(int slot) {
-        Minecraft.getMinecraft().playerController.windowClick(Minecraft.getMinecraft().thePlayer.inventoryContainer.windowId, slot, 0, 1, Minecraft.getMinecraft().thePlayer);
-    }
-
-    public static boolean isBadStack(ItemStack is, boolean preferSword, boolean keepTools) {
-        int type = 1;
-        while (type < 5) {
-            String strType = "";
-            if (type == 1) {
-                strType = "helmet";
-            } else if (type == 2) {
-                strType = "chestplate";
-            } else if (type == 3) {
-                strType = "leggings";
-            } else if (type == 4) {
-                strType = "boots";
-            }
-            if (is.getItem() instanceof ItemArmor && !InventoryUtils.isBestArmor(is, type) && is.getUnlocalizedName().contains(strType)) {
-                return true;
-            }
-            if (InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(4 + type).getHasStack() && InventoryUtils.isBestArmor(InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(4 + type).getStack(), type) && InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(4 + type).getStack().getUnlocalizedName().contains(strType) && is.getUnlocalizedName().contains(strType)) {
-                return true;
-            }
-            ++type;
-        }
-        if (is.getItem() instanceof ItemSword && is != InventoryUtils.bestWeapon() && !preferSword) {
-            return true;
-        }
-        if (is.getItem() instanceof ItemSword && is != InventoryUtils.bestSword() && preferSword) {
-            return true;
-        }
-        if (is.getItem() instanceof ItemBow && is != InventoryUtils.bestBow()) {
-            return true;
-        }
-        if (keepTools) {
-            if (is.getItem() instanceof ItemAxe && is != InventoryUtils.bestAxe() && (preferSword || is != InventoryUtils.bestWeapon())) {
-                return true;
-            }
-            if (is.getItem() instanceof ItemPickaxe && is != InventoryUtils.bestPick() && (preferSword || is != InventoryUtils.bestWeapon())) {
-                return true;
-            }
-            if (is.getItem() instanceof ItemSpade && is != InventoryUtils.bestShovel()) {
-                return true;
-            }
-        } else {
-            if (is.getItem() instanceof ItemAxe && (preferSword || is != InventoryUtils.bestWeapon())) {
-                return true;
-            }
-            if (is.getItem() instanceof ItemPickaxe && (preferSword || is != InventoryUtils.bestWeapon())) {
-                return true;
-            }
-            if (is.getItem() instanceof ItemSpade) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     public static boolean isBadStackStealer(ItemStack is, boolean preferSword, boolean keepTools) {
         int type = 1;
         while (type < 5) {
@@ -269,9 +143,7 @@ public class InventoryUtils implements IMinecraft {
             if (is.getItem() instanceof ItemPickaxe && InventoryUtils.getToolSkill(is) <= InventoryUtils.bestPickSkill() && (preferSword || InventoryUtils.getWeaponSkill(is) <= InventoryUtils.bestWeaponSkill())) {
                 return true;
             }
-            if (is.getItem() instanceof ItemSpade && InventoryUtils.getToolSkill(is) <= InventoryUtils.bestShovelSkill() && (preferSword || InventoryUtils.getWeaponSkill(is) <= InventoryUtils.bestWeaponSkill())) {
-                return true;
-            }
+            return is.getItem() instanceof ItemSpade && InventoryUtils.getToolSkill(is) <= InventoryUtils.bestShovelSkill() && (preferSword || InventoryUtils.getWeaponSkill(is) <= InventoryUtils.bestWeaponSkill());
         } else {
             if (is.getItem() instanceof ItemAxe && (preferSword || InventoryUtils.getWeaponSkill(is) <= InventoryUtils.bestWeaponSkill())) {
                 return true;
@@ -279,11 +151,8 @@ public class InventoryUtils implements IMinecraft {
             if (is.getItem() instanceof ItemPickaxe && (preferSword || InventoryUtils.getWeaponSkill(is) <= InventoryUtils.bestWeaponSkill())) {
                 return true;
             }
-            if (is.getItem() instanceof ItemSpade && (preferSword || InventoryUtils.getWeaponSkill(is) <= InventoryUtils.bestWeaponSkill())) {
-                return true;
-            }
+            return is.getItem() instanceof ItemSpade && (preferSword || InventoryUtils.getWeaponSkill(is) <= InventoryUtils.bestWeaponSkill());
         }
-        return false;
     }
 
     public static float getWeaponSkill(ItemStack is) {
@@ -303,8 +172,7 @@ public class InventoryUtils implements IMinecraft {
         int i = 9;
         while (i < 45) {
             ItemStack is;
-            float toolDamage;
-            if (InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getHasStack() && (toolDamage = InventoryUtils.getItemDamage(is = InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getStack())) >= itemDamage) {
+            if (InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getHasStack() && InventoryUtils.getItemDamage(is = InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getStack()) >= itemDamage) {
                 itemDamage = InventoryUtils.getItemDamage(is);
             }
             ++i;
@@ -316,9 +184,8 @@ public class InventoryUtils implements IMinecraft {
         float itemDamage = -1.0f;
         int i = 9;
         while (i < 45) {
-            float swordDamage;
             ItemStack is;
-            if (InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getHasStack() && (is = InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getStack()).getItem() instanceof ItemSword && (swordDamage = InventoryUtils.getItemDamage(is)) >= itemDamage) {
+            if (InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getHasStack() && (is = InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getStack()).getItem() instanceof ItemSword && InventoryUtils.getItemDamage(is) >= itemDamage) {
                 itemDamage = InventoryUtils.getItemDamage(is);
             }
             ++i;
@@ -330,9 +197,8 @@ public class InventoryUtils implements IMinecraft {
         float itemDamage = -1.0f;
         int i = 9;
         while (i < 45) {
-            float bowDamage;
             ItemStack is;
-            if (InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getHasStack() && (is = InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getStack()).getItem() instanceof ItemBow && (bowDamage = InventoryUtils.getBowDamage(is)) >= itemDamage) {
+            if (InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getHasStack() && (is = InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getStack()).getItem() instanceof ItemBow && InventoryUtils.getBowDamage(is) >= itemDamage) {
                 itemDamage = InventoryUtils.getBowDamage(is);
             }
             ++i;
@@ -344,9 +210,8 @@ public class InventoryUtils implements IMinecraft {
         float itemSkill = -1.0f;
         int i = 9;
         while (i < 45) {
-            float toolSkill;
             ItemStack is;
-            if (InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getHasStack() && (is = InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getStack()).getItem() instanceof ItemAxe && (toolSkill = InventoryUtils.getToolRating(is)) >= itemSkill) {
+            if (InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getHasStack() && (is = InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getStack()).getItem() instanceof ItemAxe && InventoryUtils.getToolRating(is) >= itemSkill) {
                 itemSkill = InventoryUtils.getToolRating(is);
             }
             ++i;
@@ -355,13 +220,11 @@ public class InventoryUtils implements IMinecraft {
     }
 
     public static float bestPickSkill() {
-        Object bestTool = null;
         float itemSkill = -1.0f;
         int i = 9;
         while (i < 45) {
-            float toolSkill;
             ItemStack is;
-            if (InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getHasStack() && (is = InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getStack()).getItem() instanceof ItemPickaxe && (toolSkill = InventoryUtils.getToolRating(is)) >= itemSkill) {
+            if (InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getHasStack() && (is = InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getStack()).getItem() instanceof ItemPickaxe && InventoryUtils.getToolRating(is) >= itemSkill) {
                 itemSkill = InventoryUtils.getToolRating(is);
             }
             ++i;
@@ -373,110 +236,13 @@ public class InventoryUtils implements IMinecraft {
         float itemSkill = -1.0f;
         int i = 9;
         while (i < 45) {
-            float toolSkill;
             ItemStack is;
-            if (InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getHasStack() && (is = InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getStack()).getItem() instanceof ItemSpade && (toolSkill = InventoryUtils.getToolRating(is)) >= itemSkill) {
+            if (InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getHasStack() && (is = InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getStack()).getItem() instanceof ItemSpade && InventoryUtils.getToolRating(is) >= itemSkill) {
                 itemSkill = InventoryUtils.getToolRating(is);
             }
             ++i;
         }
         return itemSkill;
-    }
-
-    public static ItemStack bestWeapon() {
-        ItemStack bestWeapon = null;
-        float itemDamage = -1.0f;
-        int i = 9;
-        while (i < 45) {
-            float toolDamage;
-            ItemStack is;
-            if (InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getHasStack() && ((is = InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getStack()).getItem() instanceof ItemSword || is.getItem() instanceof ItemAxe || is.getItem() instanceof ItemPickaxe) && (toolDamage = InventoryUtils.getItemDamage(is)) >= itemDamage) {
-                itemDamage = InventoryUtils.getItemDamage(is);
-                bestWeapon = is;
-            }
-            ++i;
-        }
-        return bestWeapon;
-    }
-
-    public static ItemStack bestSword() {
-        ItemStack bestSword = null;
-        float itemDamage = -1.0f;
-        int i = 9;
-        while (i < 45) {
-            float swordDamage;
-            ItemStack is;
-            if (InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getHasStack() && (is = InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getStack()).getItem() instanceof ItemSword && (swordDamage = InventoryUtils.getItemDamage(is)) >= itemDamage) {
-                itemDamage = InventoryUtils.getItemDamage(is);
-                bestSword = is;
-            }
-            ++i;
-        }
-        return bestSword;
-    }
-
-    public static ItemStack bestBow() {
-        ItemStack bestBow = null;
-        float itemDamage = -1.0f;
-        int i = 9;
-        while (i < 45) {
-            float bowDamage;
-            ItemStack is;
-            if (InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getHasStack() && (is = InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getStack()).getItem() instanceof ItemBow && (bowDamage = InventoryUtils.getBowDamage(is)) >= itemDamage) {
-                itemDamage = InventoryUtils.getBowDamage(is);
-                bestBow = is;
-            }
-            ++i;
-        }
-        return bestBow;
-    }
-
-    public static ItemStack bestAxe() {
-        ItemStack bestTool = null;
-        float itemSkill = -1.0f;
-        int i = 9;
-        while (i < 45) {
-            float toolSkill;
-            ItemStack is;
-            if (InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getHasStack() && (is = InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getStack()).getItem() instanceof ItemAxe && (toolSkill = InventoryUtils.getToolRating(is)) >= itemSkill) {
-                itemSkill = InventoryUtils.getToolRating(is);
-                bestTool = is;
-            }
-            ++i;
-        }
-        return bestTool;
-    }
-
-    public static ItemStack bestPick() {
-        ItemStack bestTool = null;
-        float itemSkill = -1.0f;
-        int i = 9;
-        while (i < 45) {
-            float toolSkill;
-            ItemStack is;
-            if (InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getHasStack() && (is = InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getStack()).getItem() instanceof ItemPickaxe && (toolSkill = InventoryUtils.getToolRating(is)) >= itemSkill) {
-                itemSkill = InventoryUtils.getToolRating(is);
-                bestTool = is;
-            }
-            ++i;
-        }
-        return bestTool;
-    }
-
-    public static ItemStack bestShovel() {
-        ItemStack bestTool = null;
-        float itemSkill = -1.0f;
-        int i = 9;
-        while (i < 45) {
-            float toolSkill;
-            ItemStack is;
-            if (InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getHasStack() && (is = InventoryUtils.mc.thePlayer.inventoryContainer.getSlot(i).getStack()).getItem() instanceof ItemSpade && (toolSkill = InventoryUtils.getToolRating(is)) >= itemSkill) {
-                itemSkill = InventoryUtils.getToolRating(is);
-                bestTool = is;
-            }
-            ++i;
-        }
-        return bestTool;
     }
 
     public static float getToolRating(ItemStack itemStack) {
@@ -485,7 +251,7 @@ public class InventoryUtils implements IMinecraft {
         damage += (float) EnchantmentHelper.getEnchantmentLevel(Enchantment.silkTouch.effectId, itemStack) * 0.5f;
         damage += (float) EnchantmentHelper.getEnchantmentLevel(Enchantment.fortune.effectId, itemStack) * 0.5f;
         damage += (float) EnchantmentHelper.getEnchantmentLevel(Enchantment.unbreaking.effectId, itemStack) * 0.1f;
-        return damage += (float) (itemStack.getMaxDamage() - itemStack.getItemDamage()) * 1.0E-12f;
+        return damage + (float) (itemStack.getMaxDamage() - itemStack.getItemDamage()) * 1.0E-12f;
     }
 
     public static float getItemDamage(ItemStack itemStack) {
@@ -506,7 +272,7 @@ public class InventoryUtils implements IMinecraft {
         damage += (float) EnchantmentHelper.getEnchantmentLevel(Enchantment.punch.effectId, itemStack) * 0.75f;
         damage += (float) EnchantmentHelper.getEnchantmentLevel(Enchantment.flame.effectId, itemStack) * 0.5f;
         damage += (float) EnchantmentHelper.getEnchantmentLevel(Enchantment.unbreaking.effectId, itemStack) * 0.1f;
-        return damage += (float) itemStack.getMaxDamage() - (float) itemStack.getItemDamage() * 0.001f;
+        return damage + ((float) itemStack.getMaxDamage() - (float) itemStack.getItemDamage() * 0.001f);
     }
 
     public static float getToolMaterialRating(ItemStack itemStack, boolean checkForDamage) {
@@ -524,10 +290,7 @@ public class InventoryUtils implements IMinecraft {
                         rating = 0.0f;
                         if (!(is instanceof ItemSword)) break block76;
                         switch (((ItemSword) is).getToolMaterialName()) {
-                            case "WOOD": {
-                                rating = 4.0f;
-                                break;
-                            }
+                            case "WOOD":
                             case "GOLD": {
                                 rating = 4.0f;
                                 break;
@@ -548,10 +311,7 @@ public class InventoryUtils implements IMinecraft {
                     }
                     if (!(is instanceof ItemPickaxe)) break block79;
                     switch (((ItemPickaxe) is).getToolMaterialName()) {
-                        case "WOOD": {
-                            rating = 2.0f;
-                            break;
-                        }
+                        case "WOOD":
                         case "GOLD": {
                             rating = 2.0f;
                             break;
@@ -572,10 +332,7 @@ public class InventoryUtils implements IMinecraft {
                 }
                 if (!(is instanceof ItemAxe)) break block81;
                 switch (((ItemAxe) is).getToolMaterialName()) {
-                    case "WOOD": {
-                        rating = 3.0f;
-                        break;
-                    }
+                    case "WOOD":
                     case "GOLD": {
                         rating = 3.0f;
                         break;
@@ -596,10 +353,7 @@ public class InventoryUtils implements IMinecraft {
             }
             if (!(is instanceof ItemSpade)) break block78;
             switch (((ItemSpade) is).getToolMaterialName()) {
-                case "WOOD": {
-                    rating = 1.0f;
-                    break;
-                }
+                case "WOOD":
                 case "GOLD": {
                     rating = 1.0f;
                     break;
@@ -622,28 +376,6 @@ public class InventoryUtils implements IMinecraft {
 
     public static void swap(int slot, int hSlot) {
         mc.playerController.windowClick(mc.thePlayer.inventoryContainer.windowId, slot, hSlot, 2, mc.thePlayer);
-    }
-
-    public static void openInv(boolean silent) {
-        if (silent && !isInventoryOpen && !(mc.currentScreen instanceof GuiInventory)) {
-            PacketUtils.sendSilentPacket(new C16PacketClientStatus(C16PacketClientStatus.EnumState.OPEN_INVENTORY_ACHIEVEMENT));
-            isInventoryOpen = true;
-        }
-    }
-
-    public static void closeInv(boolean silent) {
-        if (silent && isInventoryOpen && !(mc.currentScreen instanceof GuiInventory)) {
-            PacketUtils.sendSilentPacket(new C0DPacketCloseWindow(mc.thePlayer.inventoryContainer.windowId));
-            KeyBinding[] keyBindingArray = moveKeys;
-            int n = moveKeys.length;
-            int n2 = 0;
-            while (n2 < n) {
-                KeyBinding bind = keyBindingArray[n2];
-                KeyBinding.setKeyBindState(bind.getKeyCode(), Keyboard.isKeyDown((int) bind.getKeyCode()));
-                ++n2;
-            }
-            isInventoryOpen = false;
-        }
     }
 
     public static boolean isHoldingSword() {
