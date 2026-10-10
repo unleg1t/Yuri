@@ -12,6 +12,7 @@ import ddlc.yuri.utils.render.animations.impl.DecelerateAnimation;
 import ddlc.yuri.utils.render.shader.impl.Shadow;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
+import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.shader.Framebuffer;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
@@ -103,7 +104,8 @@ public class YuriClickGUI extends GuiScreen {
     }
 
     private void applyPanelShadow(float progress) {
-        if (progress < 0.12F) {
+        // Without FBOs (Fast Render / AA / no GPU support) framebufferClear() clears the screen to white.
+        if (progress < 0.12F || !OpenGlHelper.isFramebufferEnabled()) {
             return;
         }
 
