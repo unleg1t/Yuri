@@ -1,6 +1,7 @@
 package ddlc.yuri.modules.impl.ghost;
 
 import ddlc.yuri.api.events.annotations.EventHook;
+import ddlc.yuri.api.events.impl.client.ClientTickEvent;
 import ddlc.yuri.api.events.impl.render.Render2DEvent;
 import ddlc.yuri.api.events.impl.world.WorldJoinEvent;
 import ddlc.yuri.api.properties.Property;
@@ -9,6 +10,7 @@ import ddlc.yuri.api.properties.impl.NumberProperty;
 import ddlc.yuri.modules.Module;
 import ddlc.yuri.modules.ModuleCategory;
 import ddlc.yuri.modules.ModuleInfo;
+import ddlc.yuri.utils.player.RayCastUtils;
 import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLiving;
@@ -20,6 +22,7 @@ import net.minecraft.util.AxisAlignedBB;
 import net.minecraft.util.MathHelper;
 import net.minecraft.util.MovingObjectPosition;
 import net.minecraft.util.Vec3;
+import org.lwjgl.util.vector.Vector2f;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -89,6 +92,8 @@ public final class AimAssistModule extends Module {
     private final Property<Boolean> swordsOnly = new Property<>("Swords Only", false);
     private final NumberProperty verticalSpeed = new NumberProperty("Vertical Speed", 5.0, 1.0, 10.0, 0.1, aimVertically::getValue);
     private final NumberProperty horizontalSpeed = new NumberProperty("Horizontal Speed", 5.0, 1.0, 10.0, 0.1);
+    private final Property<Boolean> reduceOnTarget = new Property<>("Reduce On Target", false);
+    private final NumberProperty reduceFactor = new NumberProperty("Reduce Factor", 0.5, 0, 1, 0.01, reduceOnTarget::getValue);
     private final NumberProperty maxAngle = new NumberProperty("Max Angle", 180.0, 1.0, 360.0, 1.0);
     private final NumberProperty distance = new NumberProperty("Distance", 5.0, 1.0, 8.0, 0.1);
     private final ModeProperty<TargetMode> targetMode = new ModeProperty<>("Target Mode", TargetMode.YAW);
@@ -114,6 +119,8 @@ public final class AimAssistModule extends Module {
     private double predictedX, predictedY, predictedZ, leadX, leadY, leadZ, aimX, aimY, aimZ, lastGroundEyeY, lastEyeY;
     private long lastFrameNanos, driftNextNanos, noiseStartNanos;
     private boolean aimPointInitialized, predictionInitialized, yawSnapped, pitchSnapped, initialized;
+
+    private boolean reduceThisTick;
 
     @Override
     public void onEnable() {
@@ -191,8 +198,8 @@ public final class AimAssistModule extends Module {
 
     private float[] drainAdaptive() {
         EntityLivingBase t = target;
-        boolean yawSnapEnabled = horizontalSpeed.getValue().floatValue() > 20.0f;
-        boolean pitchSnapEnabled = aimVertically.getValue() && verticalSpeed.getValue().floatValue() > 20.0f;
+        boolean yawSnapEnabled = getHSpeed() > 20.0f;
+        boolean pitchSnapEnabled = aimVertically.getValue() && getVSpeed() > 20.0f;
         boolean snapYaw = yawSnapEnabled && yawSnapped;
         boolean snapPitch = pitchSnapEnabled && pitchSnapped;
         int yawSteps = snapYaw ? Math.round(pendingYaw) : (int) pendingYaw;
@@ -432,7 +439,7 @@ public final class AimAssistModule extends Module {
     private void queueHorizontal(EntityLivingBase t, float adjustment) {
         if (adjustment != 0.0f) {
             adjustment *= 5.0f;
-            float speed = horizontalSpeed.getValue().floatValue();
+            float speed = getHSpeed();
             float angleDifference = yawAngleTo(t);
             if (angleDifference <= 10.0f) pitchBoost = speed;
             if (pitchBoost > 0.0f) {
@@ -448,7 +455,7 @@ public final class AimAssistModule extends Module {
     private void queueVertical(float adjustment, float angleDifference) {
         if (adjustment != 0.0f) {
             adjustment *= 5.0f;
-            float speed = verticalSpeed.getValue().floatValue();
+            float speed = getVSpeed();
             float abs = Math.abs(angleDifference);
             if (abs <= 10.0f) yawBoost = speed;
             if (yawBoost > 0.0f) {
@@ -712,8 +719,8 @@ public final class AimAssistModule extends Module {
         long nowNanos = System.nanoTime();
         if (initialized && lastFrameNanos != 0L && nowNanos - lastFrameNanos < MIN_ADAPTIVE_NANOS) return;
 
-        boolean yawSnapEnabled = horizontalSpeed.getValue().floatValue() > 20.0f;
-        boolean pitchSnapEnabled = aimVertically.getValue() && verticalSpeed.getValue().floatValue() > 20.0f;
+        boolean yawSnapEnabled = getHSpeed() > 20.0f;
+        boolean pitchSnapEnabled = aimVertically.getValue() && getVSpeed() > 20.0f;
         boolean snapYaw = yawSnapEnabled && yawSnapped;
         boolean snapPitch = pitchSnapEnabled && pitchSnapped;
         boolean closest = targetArea.getValue() == TargetArea.CLOSEST;
@@ -906,8 +913,8 @@ public final class AimAssistModule extends Module {
             smoothedTargetYawRate = yawAccel;
             smoothedTargetPitchRate = pitchAccel;
         }
-        float hSpeed = horizontalSpeed.getValue().floatValue() * 0.75f;
-        float vSpeed = verticalSpeed.getValue().floatValue() * 0.75f;
+        float hSpeed = getHSpeed() * 0.75f;
+        float vSpeed = getVSpeed() * 0.75f;
         float hSpeedFactor = Math.max(0.0f, Math.min(1.0f, (hSpeed - 10.0f) / 90.0f));
         float vSpeedFactor = Math.max(0.0f, Math.min(1.0f, (vSpeed - 10.0f) / 90.0f));
         if (Math.signum(yawError) != Math.signum(lastYawDiff) && Math.abs(yawError) > 0.1f && Math.abs(lastYawDiff) > 0.1f) {
@@ -1062,5 +1069,26 @@ public final class AimAssistModule extends Module {
         lastTargetPitch = targetPitch;
         lastPlayerYaw = playerYaw;
         lastPlayerPitch = playerPitch;
+    }
+
+    @EventHook
+    public void onTick(ClientTickEvent e) {
+        if (reduceOnTarget.getValue()) {
+            reduceThisTick = RayCastUtils.rayCast(new Vector2f(mc.thePlayer.rotationYaw, mc.thePlayer.rotationPitch), distance.getValue()).entityHit == target;
+        }
+    }
+
+    private float getHSpeed() {
+        if (reduceOnTarget.getValue() && reduceThisTick) {
+            return horizontalSpeed.getValue().floatValue() * (1 - reduceFactor.getValue().floatValue());
+        }
+        return horizontalSpeed.getValue().floatValue();
+    }
+
+    private float getVSpeed() {
+        if (reduceOnTarget.getValue() && reduceThisTick) {
+            return verticalSpeed.getValue().floatValue() * (1 - reduceFactor.getValue().floatValue());
+        }
+        return verticalSpeed.getValue().floatValue();
     }
 }

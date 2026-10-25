@@ -37,7 +37,6 @@ import java.util.List;
 
 @ModuleInfo(label = "Manager", description = "Automatically manages your inventory.", category = ModuleCategory.PLAYER)
 public final class ManagerModule extends Module {
-
     private final Property<Boolean> instant = new Property<>("Instant", false);
     private final Property<Boolean> invOnly = new Property<>("Inv Only", true);
     private final Property<Boolean> sendInvPackets = new Property<>("Send Inv Packets", true, () -> !invOnly.getValue());
@@ -59,28 +58,34 @@ public final class ManagerModule extends Module {
     private static final Property<Boolean> manageClutch = new Property<>("Manage Clutch", true);
     private static final Property<Boolean> manageProjectile = new Property<>("Manage Projectile", false);
 
+    private static final NumberProperty startDelay = new NumberProperty("Start Delay", 120, 0, 500, 10);
     private static final NumberProperty delay = new NumberProperty("Delay", 120, 0, 300, 10);
-    private static final NumberProperty slotWeapon = new NumberProperty("Weapon Slot", 1, 1, 9, 1, () -> manageWeapon.getValue());
-    private static final NumberProperty slotPick = new NumberProperty("Pickaxe Slot", 2, 1, 9, 1, () -> managePick.getValue());
-    private static final NumberProperty slotAxe = new NumberProperty("Axe Slot", 3, 1, 9, 1, () -> manageAxe.getValue());
-    private static final NumberProperty slotShovel = new NumberProperty("Shovel Slot", 4, 1, 9, 1, () -> manageShovel.getValue());
-    private static final NumberProperty slotBow = new NumberProperty("Bow Slot", 5, 1, 9, 1, () -> manageBow.getValue());
-    private static final NumberProperty slotBlock = new NumberProperty("Block Slot", 6, 1, 9, 1, () -> manageBlock.getValue());
-    private static final NumberProperty slotGapple = new NumberProperty("Gapple Slot", 7, 1, 9, 1, () -> manageGapple.getValue());
-    private static final NumberProperty slotPotion = new NumberProperty("Potion Slot", 8, 1, 9, 1, () -> managePotion.getValue());
-    private static final NumberProperty slotClutch = new NumberProperty("Clutch Slot", 9, 1, 9, 1, () -> manageClutch.getValue());
-    private static final NumberProperty slotProjectile = new NumberProperty("Projectile Slot", 9, 1, 9, 1, () -> manageProjectile.getValue());
+    private static final NumberProperty slotWeapon = new NumberProperty("Weapon Slot", 1, 1, 9, 1, manageWeapon::getValue);
+    private static final NumberProperty slotPick = new NumberProperty("Pickaxe Slot", 2, 1, 9, 1, managePick::getValue);
+    private static final NumberProperty slotAxe = new NumberProperty("Axe Slot", 3, 1, 9, 1, manageAxe::getValue);
+    private static final NumberProperty slotShovel = new NumberProperty("Shovel Slot", 4, 1, 9, 1, manageShovel::getValue);
+    private static final NumberProperty slotBow = new NumberProperty("Bow Slot", 5, 1, 9, 1, manageBow::getValue);
+    private static final NumberProperty slotBlock = new NumberProperty("Block Slot", 6, 1, 9, 1, manageBlock::getValue);
+    private static final NumberProperty slotGapple = new NumberProperty("Gapple Slot", 7, 1, 9, 1, manageGapple::getValue);
+    private static final NumberProperty slotPotion = new NumberProperty("Potion Slot", 8, 1, 9, 1, managePotion::getValue);
+    private static final NumberProperty slotClutch = new NumberProperty("Clutch Slot", 9, 1, 9, 1, manageClutch::getValue);
+    private static final NumberProperty slotProjectile = new NumberProperty("Projectile Slot", 9, 1, 9, 1, manageProjectile::getValue);
 
     private final String[] blacklist = {"tnt", "stick", "egg", "string", "cake", "mushroom", "flint", "compass", "dyePowder", "feather", "bucket", "chest", "snow", "fish", "enchant", "exp", "anvil", "torch", "seeds", "leather", "reeds", "skull", "record", "snowball", "piston"};
     private final String[] serverItems = {"selector", "tracking compass", "(right click)", "tienda ", "perfil", "salir", "shop", "collectibles", "game", "profil", "lobby", "show all", "hub", "friends only", "cofre", "(click", "teleport", "play", "exit", "hide all", "jeux", "gadget", " (activ", "emote", "amis", "bountique", "choisir", "choose ", "recipe book", "click derecho", "todos", "teletransportador", "configuraci", "jugar de nuevo"};
     private final List<Integer> badPotionIDs = new ArrayList<>(Arrays.asList(Potion.moveSlowdown.getId(), Potion.weakness.getId(), Potion.poison.getId(), Potion.harm.getId()));
 
     private final TimerUtils timer = new TimerUtils();
+    private final TimerUtils openTimer = new TimerUtils();
     public static boolean isInvOpen;
 
     @EventHook
     public void onMotionEvent(MotionEvent e) {
         setSuffix(instant.getValue() ? "Instant" : delay.getValue().intValue() + "ms");
+        if (!(mc.currentScreen instanceof GuiInventory)) {
+            openTimer.reset();
+        }
+
         if (!e.isPre() || canContinue()) return;
         if (!mc.thePlayer.isUsingItem() && (mc.currentScreen == null || mc.currentScreen instanceof GuiChat || mc.currentScreen instanceof GuiInventory || mc.currentScreen instanceof GuiIngameMenu)) {
             if (manageWeapon.getValue() && isReady()) {
@@ -117,7 +122,7 @@ public final class ManagerModule extends Module {
     }
 
     private boolean isReady() {
-        return instant.getValue() || timer.hasTimeElapsed(delay.getValue());
+        return instant.getValue() || (timer.hasTimeElapsed(delay.getValue()) && openTimer.hasTimeElapsed(startDelay.getValue()));
     }
 
     public static float getDamageScore(ItemStack stack) {
